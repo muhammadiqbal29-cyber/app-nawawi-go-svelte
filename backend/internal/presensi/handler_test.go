@@ -336,3 +336,52 @@ func TestValidate(t *testing.T) {
 		})
 	}
 }
+
+// ======================== Test GetRiwayatPresensiAdminHandler ========================
+
+func TestGetRiwayatPresensiAdminHandler(t *testing.T) {
+	tests := []struct {
+		name           string
+		mockSetup      func(mock sqlmock.Sqlmock)
+		expectedStatus int
+	}{
+		{
+			name: "Sukses - Ambil riwayat presensi",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"id", "guru_id", "tanggal", "waktu_masuk", "status", "nama_lengkap"}).
+					AddRow(1, 1, time.Now(), "07:00", "Hadir", "Guru 1")
+				
+				mock.ExpectQuery("SELECT presensi_gurus.*, gurus.nama_lengkap FROM `presensi_gurus` left join gurus on gurus.id = presensi_gurus.guru_id ORDER BY presensi_gurus.tanggal desc, presensi_gurus.waktu_masuk desc").
+					WillReturnRows(rows)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name: "Error - DB Error",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT presensi_gurus.*, gurus.nama_lengkap FROM `presensi_gurus` left join gurus on gurus.id = presensi_gurus.guru_id ORDER BY presensi_gurus.tanggal desc, presensi_gurus.waktu_masuk desc").
+					WillReturnError(gorm.ErrInvalidDB)
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock, cleanup := setupMockDB(t)
+			defer cleanup()
+
+			tt.mockSetup(mock)
+
+			req, _ := http.NewRequest("GET", "/api/presensi/admin/riwayat", nil)
+			rr := httptest.NewRecorder()
+
+			handler := http.HandlerFunc(GetRiwayatPresensiAdminHandler)
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, tt.expectedStatus)
+			}
+		})
+	}
+}
