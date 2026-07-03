@@ -4,64 +4,57 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gorilla/mux"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"github.com/xuri/excelize/v2"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/models"
 )
 
-func setupMockDB(t *testing.T) (sqlmock.Sqlmock, func()) {
-	t.Helper()
-	sqlDB, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
-	if err != nil {
-		t.Fatalf("gagal membuat sqlmock: %v", err)
-	}
-
-	dialector := mysql.New(mysql.Config{
-		Conn:                      sqlDB,
-		SkipInitializeWithVersion: true,
-	})
-
-	gormDB, err := gorm.Open(dialector, &gorm.Config{SkipDefaultTransaction: true})
-	if err != nil {
-		t.Fatalf("gagal membuka GORM dengan mock: %v", err)
-	}
-
-	originalDB := database.DB
-	database.DB = gormDB
-
-	cleanup := func() {
-		database.DB = originalDB
-		sqlDB.Close()
-	}
-	return mock, cleanup
+func setupTestDB() {
+	database.SetupTestDB()
 }
 
-func guruColumns() []string {
-	return []string{"id", "user_id", "nama_lengkap", "nik", "no_hp", "jam_masuk", "jam_pulang", "akses_fitur", "akses_sekolah", "created_at", "updated_at"}
+func seedGuruData() (int, int) {
+	user := models.User{
+		Email:    "budi@test.com",
+		Password: "pass",
+		Role:     "guru",
+	}
+	database.DB.Create(&user)
+
+	nik := "12345"
+	nohp := "081234"
+	guru := models.Guru{
+		UserID:       int32(user.ID),
+		NamaLengkap:  "Budi",
+		NIK:          &nik,
+		NoHP:         &nohp,
+		JamMasuk:     "07:00",
+		JamPulang:    "15:00",
+		AksesFitur:   "[]",
+		AksesSekolah: "[]",
+	}
+	database.DB.Create(&guru)
+
+	return int(user.ID), int(guru.ID)
 }
 
-func userColumns() []string {
-	return []string{"id", "username", "email", "password", "role", "is_active", "created_at", "updated_at"}
+func setGuruContext(req *http.Request, email string) *http.Request {
+	ctx := context.WithValue(req.Context(), "email", email)
+	ctx = context.WithValue(ctx, "role", "guru")
+	return req.WithContext(ctx)
 }
 
 func TestGetAllGuruHandler(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
-	defer cleanup()
-
-	rows := sqlmock.NewRows(guruColumns()).
-		AddRow(1, 1, "Budi", "12345", "081234", "07:00", "15:00", "[]", "[]", time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `gurus`").WillReturnRows(rows)
-
-	userRows := sqlmock.NewRows(userColumns()).
-		AddRow(1, "budi", "budi@test.com", "pass", "GURU", true, time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\?").WithArgs(1).WillReturnRows(userRows)
+	setupTestDB()
+	seedGuruData()
 
 	req, _ := http.NewRequest("GET", "/api/guru", nil)
 	rr := httptest.NewRecorder()
@@ -75,50 +68,29 @@ func TestGetAllGuruHandler(t *testing.T) {
 }
 
 func TestGetGuruHandler(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
-	defer cleanup()
-
-	rows := sqlmock.NewRows(guruColumns()).
-		AddRow(1, 1, "Budi", "12345", "081234", "07:00", "15:00", "[]", "[]", time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE `gurus`.`id` = \\? ORDER BY `gurus`.`id` LIMIT \\?").
-		WithArgs("1", 1).WillReturnRows(rows)
-
-	userRows := sqlmock.NewRows(userColumns()).
-		AddRow(1, "budi", "budi@test.com", "pass", "GURU", true, time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE `users`.`id` = \\?").WithArgs(1).WillReturnRows(userRows)
+	setupTestDB()
+	_, guruID := seedGuruData()
 
 	req, _ := http.NewRequest("GET", "/api/guru/1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
 	rr := httptest.NewRecorder()
 
-	router := mux.NewRouter()
-	router.HandleFunc("/api/guru/{id}", GetGuruHandler)
-	router.ServeHTTP(rr, req)
+	handler := http.HandlerFunc(GetGuruHandler)
+	handler.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+	
+	_ = guruID
 }
 
 func TestGetMeProfileHandler(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
-	defer cleanup()
-
-	// Mock data for user from context
-	emailCtx := "budi@test.com"
-
-	userRows := sqlmock.NewRows(userColumns()).
-		AddRow(1, "budi", "budi@test.com", "pass", "GURU", true, time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE email = \\? ORDER BY `users`.`id` LIMIT \\?").
-		WithArgs("budi@test.com", 1).WillReturnRows(userRows)
-
-	rows := sqlmock.NewRows(guruColumns()).
-		AddRow(1, 1, "Budi", "12345", "081234", "07:00", "15:00", "[]", "[]", time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
-		WithArgs(1, 1).WillReturnRows(rows)
+	setupTestDB()
+	seedGuruData()
 
 	req, _ := http.NewRequest("GET", "/api/guru/me/profile", nil)
-	ctx := context.WithValue(req.Context(), "email", emailCtx)
-	req = req.WithContext(ctx)
+	req = setGuruContext(req, "budi@test.com")
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(GetMeProfileHandler)
@@ -130,8 +102,7 @@ func TestGetMeProfileHandler(t *testing.T) {
 }
 
 func TestCreateGuruHandler(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
-	defer cleanup()
+	setupTestDB()
 
 	body := map[string]interface{}{
 		"email":         "newguru@test.com",
@@ -147,13 +118,6 @@ func TestCreateGuruHandler(t *testing.T) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 
-	mock.ExpectBegin()
-	// Insert User
-	mock.ExpectExec("INSERT INTO `users`").WillReturnResult(sqlmock.NewResult(2, 1))
-	// Insert Guru
-	mock.ExpectExec("INSERT INTO `gurus`").WillReturnResult(sqlmock.NewResult(2, 1))
-	mock.ExpectCommit()
-
 	req, _ := http.NewRequest("POST", "/api/guru", bytes.NewBuffer(bodyBytes))
 	rr := httptest.NewRecorder()
 
@@ -165,32 +129,59 @@ func TestCreateGuruHandler(t *testing.T) {
 	}
 }
 
+func TestUpdateGuruHandler(t *testing.T) {
+	setupTestDB()
+	_, guruID := seedGuruData()
+
+	body := map[string]interface{}{
+		"email":         "budi_updated@test.com",
+		"nama_lengkap":  "Budi Updated",
+		"status_aktif":  true,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req, _ := http.NewRequest("PUT", "/api/guru/1", bytes.NewBuffer(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpdateGuruHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+	_ = guruID
+}
+
+func TestDeleteGuruHandler(t *testing.T) {
+	setupTestDB()
+	_, guruID := seedGuruData()
+
+	req, _ := http.NewRequest("DELETE", "/api/guru/1", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(DeleteGuruHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+	_ = guruID
+}
+
 func TestPresensiMasukHandler_Sukses(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
-	defer cleanup()
+	setupTestDB()
+	seedGuruData()
 
-	emailCtx := "guru@test.com"
-
-	userRows := sqlmock.NewRows(userColumns()).
-		AddRow(1, "guru", "guru@test.com", "pass", "GURU", true, time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE email = \\? ORDER BY `users`.`id` LIMIT \\?").
-		WithArgs(emailCtx, 1).WillReturnRows(userRows)
-
-	guruRows := sqlmock.NewRows(guruColumns()).
-		AddRow(1, 1, "Guru Test", "123", "08", "07:00", "15:00", "[]", "[]", time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
-		WithArgs(1, 1).WillReturnRows(guruRows)
-
-	konfigRows := sqlmock.NewRows([]string{"id", "jam_masuk", "jam_pulang", "batas_telat", "latitude", "longitude", "radius_meter"}).
-		AddRow(1, "07:00", "15:00", 15, -6.200000, 106.816666, 50)
-	mock.ExpectQuery("SELECT \\* FROM `konfigurasi_presensis` ORDER BY `konfigurasi_presensis`.`id` LIMIT \\?").
-		WithArgs(1).WillReturnRows(konfigRows)
-
-	// Mock check if already presensi
-	mock.ExpectQuery("SELECT \\* FROM `presensi_gurus` WHERE guru_id = \\? AND tanggal = \\? ORDER BY `presensi_gurus`.`id` LIMIT \\?").
-		WillReturnError(gorm.ErrRecordNotFound)
-
-	mock.ExpectExec("INSERT INTO `presensi_gurus`").WillReturnResult(sqlmock.NewResult(1, 1))
+	database.DB.Create(&models.KonfigurasiPresensi{
+		JamMasuk:    "07:00",
+		JamPulang:   "15:00",
+		BatasTelat:  15,
+		Latitude:    -6.200000,
+		Longitude:   106.816666,
+		RadiusMeter: 50,
+	})
 
 	body := map[string]interface{}{
 		"latitude":  -6.200000,
@@ -199,8 +190,7 @@ func TestPresensiMasukHandler_Sukses(t *testing.T) {
 	bodyBytes, _ := json.Marshal(body)
 
 	req, _ := http.NewRequest("POST", "/api/guru/me/presensi/masuk", bytes.NewBuffer(bodyBytes))
-	ctx := context.WithValue(req.Context(), "email", emailCtx)
-	req = req.WithContext(ctx)
+	req = setGuruContext(req, "budi@test.com")
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(PresensiMasukHandler)
@@ -212,27 +202,18 @@ func TestPresensiMasukHandler_Sukses(t *testing.T) {
 }
 
 func TestPresensiMasukHandler_LuarRadius(t *testing.T) {
-	mock, cleanup := setupMockDB(t)
-	defer cleanup()
+	setupTestDB()
+	seedGuruData()
 
-	emailCtx := "guru@test.com"
+	database.DB.Create(&models.KonfigurasiPresensi{
+		JamMasuk:    "07:00",
+		JamPulang:   "15:00",
+		BatasTelat:  15,
+		Latitude:    -6.200000,
+		Longitude:   106.816666,
+		RadiusMeter: 50,
+	})
 
-	userRows := sqlmock.NewRows(userColumns()).
-		AddRow(1, "guru", "guru@test.com", "pass", "GURU", true, time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `users` WHERE email = \\? ORDER BY `users`.`id` LIMIT \\?").
-		WithArgs(emailCtx, 1).WillReturnRows(userRows)
-
-	guruRows := sqlmock.NewRows(guruColumns()).
-		AddRow(1, 1, "Guru Test", "123", "08", "07:00", "15:00", "[]", "[]", time.Now(), time.Now())
-	mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
-		WithArgs(1, 1).WillReturnRows(guruRows)
-
-	konfigRows := sqlmock.NewRows([]string{"id", "jam_masuk", "jam_pulang", "batas_telat", "latitude", "longitude", "radius_meter"}).
-		AddRow(1, "07:00", "15:00", 15, -6.200000, 106.816666, 50)
-	mock.ExpectQuery("SELECT \\* FROM `konfigurasi_presensis` ORDER BY `konfigurasi_presensis`.`id` LIMIT \\?").
-		WithArgs(1).WillReturnRows(konfigRows)
-
-	// Koordinat jauh di luar radius (misal -6.30, 106.90)
 	body := map[string]interface{}{
 		"latitude":  -6.300000,
 		"longitude": 106.900000,
@@ -240,8 +221,7 @@ func TestPresensiMasukHandler_LuarRadius(t *testing.T) {
 	bodyBytes, _ := json.Marshal(body)
 
 	req, _ := http.NewRequest("POST", "/api/guru/me/presensi/masuk", bytes.NewBuffer(bodyBytes))
-	ctx := context.WithValue(req.Context(), "email", emailCtx)
-	req = req.WithContext(ctx)
+	req = setGuruContext(req, "budi@test.com")
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(PresensiMasukHandler)
@@ -249,5 +229,214 @@ func TestPresensiMasukHandler_LuarRadius(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusForbidden, rr.Body.String())
+	}
+}
+
+func TestPresensiPulangHandler(t *testing.T) {
+	setupTestDB()
+	userID, guruID := seedGuruData()
+	
+	_ = userID
+
+	database.DB.Create(&models.KonfigurasiPresensi{
+		JamMasuk:    "07:00",
+		JamPulang:   "15:00",
+		BatasTelat:  15,
+		Latitude:    -6.200000,
+		Longitude:   106.816666,
+		RadiusMeter: 50,
+	})
+
+	waktuMasuk := "07:00"
+	lokasiMasuk := "-6.200000,106.816666"
+	database.DB.Create(&models.PresensiGuru{
+		GuruID:       int32(guruID),
+		Tanggal:      time.Now().Format("2006-01-02"),
+		WaktuMasuk:   &waktuMasuk,
+		Status:       "Hadir",
+		LokasiMasuk:  lokasiMasuk,
+	})
+
+	body := map[string]interface{}{
+		"latitude":  -6.200000,
+		"longitude": 106.816666,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	req, _ := http.NewRequest("POST", "/api/guru/me/presensi/pulang", bytes.NewBuffer(bodyBytes))
+	req = setGuruContext(req, "budi@test.com")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(PresensiPulangHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestGetPresensiHistoryHandler(t *testing.T) {
+	setupTestDB()
+	userID, guruID := seedGuruData()
+	
+	_ = userID
+	_ = guruID
+
+	req, _ := http.NewRequest("GET", "/api/guru/me/presensi", nil)
+	req = setGuruContext(req, "budi@test.com")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(GetPresensiHistoryHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestGetSekolahForGuruHandler(t *testing.T) {
+	setupTestDB()
+	seedGuruData()
+
+	database.DB.Create(&models.Sekolah{
+		NamaSekolah: "Sekolah Test",
+	})
+
+	req, _ := http.NewRequest("GET", "/api/guru/me/sekolah", nil)
+	req = setGuruContext(req, "budi@test.com")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(GetSekolahForGuruHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestGetDashboardTahfizHandler(t *testing.T) {
+	setupTestDB()
+	seedGuruData()
+
+	database.DB.Create(&models.Sekolah{
+		NamaSekolah: "Sekolah Test",
+	})
+	
+	req, _ := http.NewRequest("GET", "/api/guru/me/dashboard/tahfiz/1", nil)
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	req = setGuruContext(req, "budi@test.com")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(GetDashboardTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestGetDashboardDiniyahHandler(t *testing.T) {
+	setupTestDB()
+	seedGuruData()
+
+	database.DB.Create(&models.Sekolah{
+		NamaSekolah: "Sekolah Test",
+	})
+	
+	req, _ := http.NewRequest("GET", "/api/guru/me/dashboard/diniyah/1", nil)
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	req = setGuruContext(req, "budi@test.com")
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(GetDashboardDiniyahHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestDownloadTemplateGuruHandler(t *testing.T) {
+	setupTestDB()
+
+	req, _ := http.NewRequest("GET", "/api/guru/template", nil)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(DownloadTemplateGuruHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestImportGuruExcelHandler(t *testing.T) {
+	setupTestDB()
+
+	req, _ := http.NewRequest("POST", "/api/guru/import", nil)
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(ImportGuruExcelHandler)
+	handler.ServeHTTP(rr, req)
+
+	// Since there is no file, it will return Bad Request
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusBadRequest, rr.Body.String())
+	}
+}
+
+func TestGetAllGuruHandlerWithParams(t *testing.T) {
+	setupTestDB()
+	seedGuruData()
+
+	req, _ := http.NewRequest("GET", "/api/guru?page=1&limit=10&search=Budi&status=aktif", nil)
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(GetAllGuruHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestImportGuruExcelHandler_Success(t *testing.T) {
+	setupTestDB()
+
+	// Generate excel file in memory
+	f := excelize.NewFile()
+	sheetName := "Data Guru"
+	_ = f.SetSheetName("Sheet1", sheetName)
+	
+	// Headers
+	headers := []string{"Nama Lengkap", "Email", "Password", "NIK", "No HP", "Jam Masuk (HH:MM)", "Jam Pulang (HH:MM)", "Status Aktif (Ya/Tidak)"}
+	for i, header := range headers {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		_ = f.SetCellValue(sheetName, cell, header)
+	}
+
+	// Data
+	data := []interface{}{"Guru A", "gurua@test.com", "pass123", "123", "081", "07:00", "15:00", "Ya"}
+	for i, val := range data {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 2)
+		_ = f.SetCellValue(sheetName, cell, val)
+	}
+	
+	var buf bytes.Buffer
+	_ = f.Write(&buf)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("excel_file", "test.xlsx")
+	_, _ = io.Copy(part, &buf)
+	writer.Close()
+
+	req, _ := http.NewRequest("POST", "/api/guru/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(ImportGuruExcelHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
 	}
 }

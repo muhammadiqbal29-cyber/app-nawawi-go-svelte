@@ -52,7 +52,7 @@ func GetSiswaBySekolahHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Join dengan riwayat_kelas untuk mengecek keterikatan dengan sekolah di tahun ajaran tertentu
-	query = query.Select("siswas.*, ANY_VALUE(riwayat_kelas.sekolah_id) as sekolah_id, ANY_VALUE(riwayat_kelas.kelas_id) as kelas_id, ANY_VALUE(riwayat_kelas.rombel) as rombel, ANY_VALUE(riwayat_kelas.kelas_asal) as kelas_asal, ANY_VALUE(kelas.nama_kelas) as nama_kelas, ANY_VALUE(tahun_ajarans.nama_tahun) as tahun_ajaran").
+	query = query.Select("siswas.*, MAX(riwayat_kelas.sekolah_id) as sekolah_id, MAX(riwayat_kelas.kelas_id) as kelas_id, MAX(riwayat_kelas.rombel) as rombel, MAX(riwayat_kelas.kelas_asal) as kelas_asal, MAX(kelas.nama_kelas) as nama_kelas, MAX(tahun_ajarans.nama_tahun) as tahun_ajaran").
 		Joins("JOIN riwayat_kelas ON riwayat_kelas.siswa_id = siswas.id AND riwayat_kelas.tahun_ajaran_id = ?", filterTaID).
 		Joins("LEFT JOIN kelas ON kelas.id = riwayat_kelas.kelas_id").
 		Joins("LEFT JOIN tahun_ajarans ON tahun_ajarans.id = riwayat_kelas.tahun_ajaran_id").
@@ -81,7 +81,7 @@ func GetSiswaBySekolahHandler(w http.ResponseWriter, r *http.Request) {
 	database.DB.Table("(?) as q", query.Session(&gorm.Session{}).Select("siswas.id")).Count(&total)
 
 	// Kembalikan Select yang utuh karena termodifikasi saat select id untuk count (walau dengan session, ini lebih aman)
-	query = query.Select("siswas.*, ANY_VALUE(riwayat_kelas.sekolah_id) as sekolah_id, ANY_VALUE(riwayat_kelas.kelas_id) as kelas_id, ANY_VALUE(riwayat_kelas.rombel) as rombel, ANY_VALUE(riwayat_kelas.kelas_asal) as kelas_asal, ANY_VALUE(kelas.nama_kelas) as nama_kelas, ANY_VALUE(tahun_ajarans.nama_tahun) as tahun_ajaran")
+	query = query.Select("siswas.*, MAX(riwayat_kelas.sekolah_id) as sekolah_id, MAX(riwayat_kelas.kelas_id) as kelas_id, MAX(riwayat_kelas.rombel) as rombel, MAX(riwayat_kelas.kelas_asal) as kelas_asal, MAX(kelas.nama_kelas) as nama_kelas, MAX(tahun_ajarans.nama_tahun) as tahun_ajaran")
 
 	var list []models.Siswa
 	if err := query.Limit(limit).Offset(offset).Order("siswas.id DESC").Find(&list).Error; err != nil {

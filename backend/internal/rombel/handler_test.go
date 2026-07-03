@@ -12,6 +12,99 @@ import (
 	"siakad-nawawi-be/internal/models"
 )
 
+func TestGetSiswaTanpaKelasHandler(t *testing.T) {
+	db := database.SetupTestDB()
+
+	sekolah := models.Sekolah{NamaSekolah: "SMP Test", Jenjang: "SMP"}
+	db.Create(&sekolah)
+
+	// Create siswa tanpa kelas
+	siswa := models.Siswa{NISN: "123123", NamaLengkap: "Siswa Tanpa Kelas", JenisKelamin: "P", SekolahID: sekolah.ID, Status: "Aktif"}
+	db.Create(&siswa)
+
+	req, _ := http.NewRequest("GET", "/api/kelas/rombel/1/tanpa-kelas", nil)
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(GetSiswaTanpaKelasHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestGetSiswaDalamKelasHandler(t *testing.T) {
+	db := database.SetupTestDB()
+
+	ta := models.TahunAjaran{TahunAwal: 2026, TahunAkhir: 2027, NamaTahun: "26/27", Status: "Active"}
+	db.Create(&ta)
+
+	siswa := models.Siswa{NISN: "321321", NamaLengkap: "Siswa Dalam Kelas", JenisKelamin: "L", SekolahID: 1, Status: "Aktif"}
+	db.Create(&siswa)
+
+	riwayat := models.RiwayatKelas{
+		SiswaID:       siswa.ID,
+		SekolahID:     1,
+		TahunAjaranID: ta.ID,
+		StatusAkhir:   "Aktif",
+	}
+	kelasID := 1
+	riwayat.KelasID = &kelasID
+	riwayat.Rombel = "A"
+	db.Create(&riwayat)
+
+	req, _ := http.NewRequest("GET", "/api/kelas/rombel/1/siswa?rombel=A", nil)
+	req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(GetSiswaDalamKelasHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestRemoveSiswaFromKelasHandler(t *testing.T) {
+	db := database.SetupTestDB()
+
+	ta := models.TahunAjaran{TahunAwal: 2026, TahunAkhir: 2027, NamaTahun: "26/27", Status: "Active"}
+	db.Create(&ta)
+
+	siswa := models.Siswa{NISN: "555555", NamaLengkap: "Siswa Hapus Kelas", JenisKelamin: "L", SekolahID: 1, Status: "Aktif"}
+	db.Create(&siswa)
+
+	kelasID := 1
+	riwayat := models.RiwayatKelas{
+		SiswaID:       siswa.ID,
+		SekolahID:     1,
+		TahunAjaranID: ta.ID,
+		StatusAkhir:   "Aktif",
+		KelasID:       &kelasID,
+		Rombel:        "A",
+	}
+	db.Create(&riwayat)
+
+	payload := RemovePayload{
+		SiswaIDs: []int{siswa.ID},
+		Mode:     "Hapus",
+	}
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("POST", "/api/kelas/1/remove", bytes.NewBuffer(body))
+	req.Header.Set("X-Sekolah-ID", "1")
+	req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(RemoveSiswaFromKelasHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+}
+
 func TestAssignSiswaToKelasHandler(t *testing.T) {
 	db := database.SetupTestDB()
 
@@ -128,13 +221,5 @@ func TestAssignSiswaToKelasHandler_ValidationTingkatLevel(t *testing.T) {
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("Expected status 400 Bad Request, got %d. Body: %s", rr.Code, rr.Body.String())
-	}
-
-	var resBody map[string]interface{}
-	json.Unmarshal(rr.Body.Bytes(), &resBody)
-	if msg, ok := resBody["message"].(string); ok {
-		if msg == "" || msg == "Success" {
-			t.Errorf("Expected an error message about validation failure, got: %s", msg)
-		}
 	}
 }

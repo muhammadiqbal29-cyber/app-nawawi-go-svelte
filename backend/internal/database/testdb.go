@@ -33,6 +33,18 @@ func SetupTestDB() *gorm.DB {
 		&models.NilaiTahfiz{},
 		&models.NilaiTahfizDetail{},
 		&models.SetoranTahfizHarian{},
+		&models.MapelDiniyah{},
+		&models.NilaiDiniyah{},
+		&models.MateriTahfiz{},
+		&models.Guru{},
+		&models.IndikatorKeseharian{},
+		&models.SesiKeseharian{},
+		&models.SesiKeseharianDetail{},
+		&models.NilaiAkhirKeseharian{},
+		&models.Halaqah{},
+		&models.AnggotaHalaqah{},
+		&models.KonfigurasiPresensi{},
+		&models.PresensiGuru{},
 	)
 	if err != nil {
 		log.Fatalf("Gagal melakukan migrasi tabel test: %v", err)
