@@ -1,0 +1,661 @@
+{
+	"Golang errors": {
+		"": [
+			{
+				"line": 0,
+				"column": 0,
+				"error": "# command-line-arguments\nscripts/check_schema.go:9:6: main redeclared in this block\n\tscripts/check_db.go:8:6: other declaration of main\nscripts/drop_fk.go:9:6: main redeclared in this block\n\tscripts/check_db.go:8:6: other declaration of main\nscripts/drop_tables.go:7:6: main redeclared in this block\n\tscripts/check_db.go:8:6: other declaration of main\nscripts/drop_tables.go:8:11: undefined: database.Connect\nscripts/generate_token.go:52:6: main redeclared in this block\n\tscripts/check_db.go:8:6: other declaration of main\nscripts/test_backup.go:11:6: main redeclared in this block\n\tscripts/check_db.go:8:6: other declaration of main"
+			},
+			{
+				"line": 0,
+				"column": 0,
+				"error": "# command-line-arguments\ncmd/testdb.go:9:6: main redeclared in this block\n\tcmd/test_query.go:13:6: other declaration of main"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/cmd/test_query.go": [
+			{
+				"line": 13,
+				"column": 6,
+				"error": "other declaration of main"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/cmd/testdb.go": [
+			{
+				"line": 9,
+				"column": 6,
+				"error": "main redeclared in this block"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/check_db.go": [
+			{
+				"line": 8,
+				"column": 6,
+				"error": "other declaration of main"
+			},
+			{
+				"line": 8,
+				"column": 6,
+				"error": "other declaration of main"
+			},
+			{
+				"line": 8,
+				"column": 6,
+				"error": "other declaration of main"
+			},
+			{
+				"line": 8,
+				"column": 6,
+				"error": "other declaration of main"
+			},
+			{
+				"line": 8,
+				"column": 6,
+				"error": "other declaration of main"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/check_schema.go": [
+			{
+				"line": 9,
+				"column": 6,
+				"error": "main redeclared in this block"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/drop_fk.go": [
+			{
+				"line": 9,
+				"column": 6,
+				"error": "main redeclared in this block"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/drop_tables.go": [
+			{
+				"line": 7,
+				"column": 6,
+				"error": "main redeclared in this block"
+			},
+			{
+				"line": 8,
+				"column": 11,
+				"error": "undefined: database.Connect"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/generate_token.go": [
+			{
+				"line": 52,
+				"column": 6,
+				"error": "main redeclared in this block"
+			}
+		],
+		"/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/test_backup.go": [
+			{
+				"line": 11,
+				"column": 6,
+				"error": "main redeclared in this block"
+			}
+		]
+	},
+	"Issues": [
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "216: \n217: \treturn os.WriteFile(dst, plaintext, 0644)\n218: }\n",
+			"line": "217",
+			"column": "21",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "191: \n192: \tciphertext, err := os.ReadFile(src)\n193: \tif err != nil {\n",
+			"line": "192",
+			"column": "32",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "182: \n183: \treturn os.WriteFile(dst, ciphertext, 0644)\n184: }\n",
+			"line": "183",
+			"column": "21",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "132: \n133: \tout, err := os.Create(dst)\n134: \tif err != nil {\n",
+			"line": "133",
+			"column": "23",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "120: func decompressFile(src, dst string) error {\n121: \tin, err := os.Open(src)\n122: \tif err != nil {\n",
+			"line": "121",
+			"column": "20",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "84: \t// 3. EXECUTE SQL\n85: \tsqlData, err := os.ReadFile(sqlFilename)\n86: \tif err != nil {\n",
+			"line": "85",
+			"column": "29",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G703",
+			"details": "Path traversal via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/handler.go",
+			"code": "48: \ttmpPath := filepath.Join(os.TempDir(), header.Filename)\n49: \ttmpFile, err := os.Create(tmpPath)\n50: \tif err != nil {\n",
+			"line": "49",
+			"column": "27",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "400",
+				"url": "https://cwe.mitre.org/data/definitions/400.html"
+			},
+			"rule_id": "G120",
+			"details": "Unbounded form parsing in HTTP handlers can cause memory exhaustion",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/presensi/import_handler.go",
+			"code": "61: \tr.Body = http.MaxBytesReader(w, r.Body, 10\u003c\u003c20)\n62: \tr.ParseMultipartForm(10 \u003c\u003c 20)\n63: \tfile, _, err := r.FormFile(\"file\")\n",
+			"line": "62",
+			"column": "22",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "400",
+				"url": "https://cwe.mitre.org/data/definitions/400.html"
+			},
+			"rule_id": "G120",
+			"details": "Unbounded form parsing in HTTP handlers can cause memory exhaustion",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/materiTahfiz/import_handler.go",
+			"code": "73: \tr.Body = http.MaxBytesReader(w, r.Body, 10\u003c\u003c20)\n74: \t_ = r.ParseMultipartForm(10 \u003c\u003c 20)\n75: \tfile, _, err := r.FormFile(\"file\")\n",
+			"line": "74",
+			"column": "26",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "400",
+				"url": "https://cwe.mitre.org/data/definitions/400.html"
+			},
+			"rule_id": "G120",
+			"details": "Unbounded form parsing in HTTP handlers can cause memory exhaustion",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/handler.go",
+			"code": "33: func RestoreBackupHandler(w http.ResponseWriter, r *http.Request) {\n34: \terr := r.ParseMultipartForm(100 \u003c\u003c 20) // Maks 100MB upload (ini compressed \u0026 encrypted, setara database 1GB)\n35: \tif err != nil {\n",
+			"line": "34",
+			"column": "29",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/generate_token.go",
+			"code": "43: \tfmt.Printf(\"Menyimpan file kredensial ke: %s\\n\", path)\n44: \tf, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)\n45: \tif err != nil {\n",
+			"line": "44",
+			"column": "12",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "191: \n192: \tciphertext, err := os.ReadFile(src)\n193: \tif err != nil {\n",
+			"line": "192",
+			"column": "21",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "160: \n161: \tplaintext, err := os.ReadFile(src)\n162: \tif err != nil {\n",
+			"line": "161",
+			"column": "20",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "132: \n133: \tout, err := os.Create(dst)\n134: \tif err != nil {\n",
+			"line": "133",
+			"column": "14",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "120: func decompressFile(src, dst string) error {\n121: \tin, err := os.Open(src)\n122: \tif err != nil {\n",
+			"line": "121",
+			"column": "13",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "106: \n107: \tout, err := os.Create(dst)\n108: \tif err != nil {\n",
+			"line": "107",
+			"column": "14",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "100: func compressFile(src, dst string) error {\n101: \tin, err := os.Open(src)\n102: \tif err != nil {\n",
+			"line": "101",
+			"column": "13",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "84: \t// 3. EXECUTE SQL\n85: \tsqlData, err := os.ReadFile(sqlFilename)\n86: \tif err != nil {\n",
+			"line": "85",
+			"column": "18",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "30: \n31: \tf, err := os.Create(dumpFilename)\n32: \tif err != nil {\n",
+			"line": "31",
+			"column": "12",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/handler.go",
+			"code": "48: \ttmpPath := filepath.Join(os.TempDir(), header.Filename)\n49: \ttmpFile, err := os.Create(tmpPath)\n50: \tif err != nil {\n",
+			"line": "49",
+			"column": "18",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "22",
+				"url": "https://cwe.mitre.org/data/definitions/22.html"
+			},
+			"rule_id": "G304",
+			"details": "Potential file inclusion via variable",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/gdrive.go",
+			"code": "55: \n56: \tf, err := os.Open(filePath)\n57: \tif err != nil {\n",
+			"line": "56",
+			"column": "12",
+			"nosec": false,
+			"suppressions": null,
+			"autofix": "Consider using os.Root to scope file access under a fixed root (Go \u003e=1.24). Prefer root.Open/root.Stat over os.Open/os.Stat to prevent directory traversal."
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "MEDIUM",
+			"cwe": {
+				"id": "409",
+				"url": "https://cwe.mitre.org/data/definitions/409.html"
+			},
+			"rule_id": "G110",
+			"details": "Potential DoS vulnerability via decompression bomb",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "138: \n139: \t_, err = io.Copy(out, gz)\n140: \treturn err\n",
+			"line": "139",
+			"column": "11",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "MEDIUM",
+			"cwe": {
+				"id": "499",
+				"url": "https://cwe.mitre.org/data/definitions/499.html"
+			},
+			"rule_id": "G117",
+			"details": "Marshaled struct field \"AccessToken\" (JSON key \"access_token\") matches secret pattern",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/generate_token.go",
+			"code": "48: \tdefer f.Close()\n49: \tjson.NewEncoder(f).Encode(token)\n50: }\n",
+			"line": "49",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "276",
+				"url": "https://cwe.mitre.org/data/definitions/276.html"
+			},
+			"rule_id": "G306",
+			"details": "Expect WriteFile permissions to be 0600 or less",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "216: \n217: \treturn os.WriteFile(dst, plaintext, 0644)\n218: }\n",
+			"line": "217",
+			"column": "9",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "276",
+				"url": "https://cwe.mitre.org/data/definitions/276.html"
+			},
+			"rule_id": "G306",
+			"details": "Expect WriteFile permissions to be 0600 or less",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "182: \n183: \treturn os.WriteFile(dst, ciphertext, 0644)\n184: }\n",
+			"line": "183",
+			"column": "9",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "117",
+				"url": "https://cwe.mitre.org/data/definitions/117.html"
+			},
+			"rule_id": "G706",
+			"details": "Log injection via taint analysis",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/gdrive.go",
+			"code": "104: \t\tdeleteCount := filesCount - maxFiles\n105: \t\tslog.Info(fmt.Sprintf(\"Mendeteksi %d file backup. Menghapus %d file terlama...\", filesCount, deleteCount))\n106: \n",
+			"line": "105",
+			"column": "12",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/scripts/generate_token.go",
+			"code": "48: \tdefer f.Close()\n49: \tjson.NewEncoder(f).Encode(token)\n50: }\n",
+			"line": "49",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/presensi/import_handler.go",
+			"code": "61: \tr.Body = http.MaxBytesReader(w, r.Body, 10\u003c\u003c20)\n62: \tr.ParseMultipartForm(10 \u003c\u003c 20)\n63: \tfile, _, err := r.FormFile(\"file\")\n",
+			"line": "62",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "41: \t}\n42: \tf.Close()\n43: \tdefer os.Remove(dumpFilename) // Hapus file SQL murni setelah selesai\n",
+			"line": "42",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "38: \t\tf.Close()\n39: \t\tos.Remove(dumpFilename)\n40: \t\treturn \"\", fmt.Errorf(\"gagal dump database: %v\", err)\n",
+			"line": "39",
+			"column": "3",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/service.go",
+			"code": "37: \tif err := mysqldump.Dump(sqlDB, f); err != nil {\n38: \t\tf.Close()\n39: \t\tos.Remove(dumpFilename)\n",
+			"line": "38",
+			"column": "3",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/handler.go",
+			"code": "59: \t}\n60: \ttmpFile.Close()\n61: \n",
+			"line": "60",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/handler.go",
+			"code": "55: \tif _, err := io.Copy(tmpFile, file); err != nil {\n56: \t\ttmpFile.Close()\n57: \t\tresponse.Error(w, http.StatusInternalServerError, \"Gagal menyalin file\", err)\n",
+			"line": "56",
+			"column": "3",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/home/muhammad-iqbal/projek/siakad-nawawi-be-fe-terbaru/backend/internal/backup/gdrive.go",
+			"code": "86: \tif maxFilesStr != \"\" {\n87: \t\tfmt.Sscanf(maxFilesStr, \"%d\", \u0026maxFiles)\n88: \t}\n",
+			"line": "87",
+			"column": "3",
+			"nosec": false,
+			"suppressions": null
+		}
+	],
+	"Stats": {
+		"files": 51,
+		"lines": 7997,
+		"nosec": 12,
+		"found": 34
+	},
+	"GosecVersion": "dev"
+}

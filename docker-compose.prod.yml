@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: siakad_mariadb_prod
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rahasia_prod}
+      MYSQL_DATABASE: siakad_db
+      MYSQL_USER: siakad_user
+      MYSQL_PASSWORD: ${DB_PASSWORD:-rahasia_prod}
+    volumes:
+      - siakad_db_data_prod:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - siakad_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: siakad_redis_prod
+    command: redis-server --requirepass ${REDIS_PASSWORD:-rahasia_redis_prod}
+    volumes:
+      - siakad_redis_data_prod:/data
+    restart: unless-stopped
+    networks:
+      - siakad_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: siakad_backend_prod
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=siakad_user
+      - DB_PASSWORD=${DB_PASSWORD:-rahasia_prod}
+      - DB_NAME=siakad_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-rahasia_redis_prod}
+      - JWT_SECRET=${JWT_SECRET:-super_secret_jwt_key_prod}
+      - APP_PORT=8080
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - siakad_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: siakad_frontend_prod
+    restart: unless-stopped
+    networks:
+      - siakad_net
+
+  mobile:
+    build:
+      context: ./mobile
+      dockerfile: Dockerfile
+    container_name: siakad_mobile_prod
+    restart: unless-stopped
+    networks:
+      - siakad_net
+
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: siakad_nginx_proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - backend
+      - frontend
+      - mobile
+    restart: unless-stopped
+    networks:
+      - siakad_net
+
+networks:
+  siakad_net:
+    driver: bridge
+
+volumes:
+  siakad_db_data_prod:
+  siakad_redis_data_prod:
