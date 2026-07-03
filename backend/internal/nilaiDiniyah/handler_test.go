@@ -273,3 +273,36 @@ func TestGetRaporDiniyahMasalHandler(t *testing.T) {
 		}
 	})
 }
+
+func TestDownloadTemplateNilaiDiniyahHandler(t *testing.T) {
+	setupTestDB()
+
+	// Seed data
+	sekolah := models.Sekolah{NamaSekolah: "SMP Test"}
+	database.DB.Create(&sekolah)
+	kelas := models.Kelas{SekolahID: int(sekolah.ID), NamaKelas: "7A"}
+	database.DB.Create(&kelas)
+
+	database.DB.Create(&models.MapelDiniyah{SekolahID: int(sekolah.ID), NamaMapel: "Fikih", Aktif: true})
+	database.DB.Create(&models.MapelDiniyah{SekolahID: int(sekolah.ID), NamaMapel: "Aqidah", Aktif: true})
+
+	req, _ := http.NewRequest("GET", "/api/nilai-diniyah/template/1", nil)
+	req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(DownloadTemplateNilaiDiniyahHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status OK, got %v", rr.Code)
+	}
+	
+	reqInvalid, _ := http.NewRequest("GET", "/api/nilai-diniyah/template/abc", nil)
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"kelas_id": "abc"})
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("Expected status Bad Request, got %v", rrInvalid.Code)
+	}
+}

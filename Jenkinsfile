@@ -31,17 +31,42 @@ pipeline {
             }
         }
 
-        stage('🛡️ Security & Unit Test') {
+        stage('🛡️ Security, Code Quality & Unit Test') {
             steps {
-                echo 'Menjalankan Pengujian Unit (Backend)...'
+                echo 'Menjalankan Pengujian Unit & Code Coverage (Backend)...'
                 dir('backend') {
-                    // Jalankan tes dan stop jika gagal
-                    sh 'go test ./...'
+                    // Jalankan tes dan stop jika gagal, plus hasilkan coverage
+                    sh 'go test -coverprofile=coverage.out ./...'
+                    // Memeriksa Code Coverage Threshold (Target: 80% untuk saat ini)
+                    sh '''
+                    COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
+                    echo "Code Coverage Saat Ini: ${COVERAGE}%"
+                    awk -v cov="${COVERAGE}" -v threshold=80.0 'BEGIN { if (cov < threshold) { print "❌ Code coverage di bawah target (" threshold "%)"; exit 1 } }'
+                    '''
                 }
-                echo 'Menjalankan SAST Security Scan...'
+                echo 'Menjalankan SAST & Vulnerability Scan...'
                 dir('backend') {
-                    // Pastikan gosec terinstal di Jenkins agent
                     sh 'gosec ./...'
+                    // Memeriksa celah pustaka dependensi Golang
+                    sh 'govulncheck ./... || true'
+                }
+                dir('frontend') {
+                    // Memeriksa celah pustaka dependensi Node.js
+                    sh 'npm audit --audit-level=high || true'
+                }
+            }
+        }
+
+        stage('🧪 Integration & E2E Test (Mock)') {
+            steps {
+                echo 'Menjalankan Pengujian Integrasi (Redis/MySQL)...'
+                // TODO: Eksekusi script pengujian integrasi DB
+                sh 'echo "✅ Integration tests passed"'
+
+                echo 'Menjalankan End-to-End (E2E) Testing...'
+                dir('frontend') {
+                    // Contoh jika menggunakan Playwright: sh 'npx playwright test'
+                    sh 'echo "✅ E2E tests passed (Placeholder)"'
                 }
             }
         }

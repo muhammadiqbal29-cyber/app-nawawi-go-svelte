@@ -278,5 +278,45 @@ func TestImportMateriTahfizHandler_Success(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
 	}
+	
+	// Test Invalid ID
+	reqInvalid, _ := http.NewRequest("POST", "/api/materi-tahfiz/import/abc", nil)
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"sekolah_id": "abc"})
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("status code invalid id: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
+
+	// Test No File Uploaded
+	bodyNoFile := &bytes.Buffer{}
+	writerNoFile := multipart.NewWriter(bodyNoFile)
+	writerNoFile.Close()
+	reqNoFile, _ := http.NewRequest("POST", "/api/materi-tahfiz/import/1", bodyNoFile)
+	reqNoFile = mux.SetURLVars(reqNoFile, map[string]string{"sekolah_id": "1"})
+	reqNoFile.Header.Set("Content-Type", writerNoFile.FormDataContentType())
+	rrNoFile := httptest.NewRecorder()
+	handler.ServeHTTP(rrNoFile, reqNoFile)
+	if rrNoFile.Code != http.StatusBadRequest {
+		t.Errorf("status code no file: mendapat %d, diharapkan %d", rrNoFile.Code, http.StatusBadRequest)
+	}
+
+	// Test Empty Excel
+	fEmpty := excelize.NewFile()
+	var bufEmpty bytes.Buffer
+	_ = fEmpty.Write(&bufEmpty)
+	bodyEmpty := &bytes.Buffer{}
+	writerEmpty := multipart.NewWriter(bodyEmpty)
+	partEmpty, _ := writerEmpty.CreateFormFile("file", "empty.xlsx")
+	_, _ = io.Copy(partEmpty, &bufEmpty)
+	writerEmpty.Close()
+	reqEmpty, _ := http.NewRequest("POST", "/api/materi-tahfiz/import/1", bodyEmpty)
+	reqEmpty = mux.SetURLVars(reqEmpty, map[string]string{"sekolah_id": "1"})
+	reqEmpty.Header.Set("Content-Type", writerEmpty.FormDataContentType())
+	rrEmpty := httptest.NewRecorder()
+	handler.ServeHTTP(rrEmpty, reqEmpty)
+	if rrEmpty.Code != http.StatusBadRequest {
+		t.Errorf("status code empty excel: mendapat %d, diharapkan %d", rrEmpty.Code, http.StatusBadRequest)
+	}
 }
 

@@ -46,7 +46,12 @@ func GetAllGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetGuruHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id := vars["id"]
+	idStr := vars["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
 
 	var guru models.Guru
 	if err := database.DB.Preload("User").First(&guru, id).Error; err != nil {
@@ -129,7 +134,12 @@ func CreateGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 func UpdateGuruHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id := vars["id"]
+	idStr := vars["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
 
 	var req GuruRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -148,7 +158,7 @@ func UpdateGuruHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		// Update User Email / Password
 		if req.Email != "" {
 			guru.User.Email = req.Email
@@ -201,7 +211,12 @@ func UpdateGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 func DeleteGuruHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id := vars["id"]
+	idStr := vars["id"]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
 
 	var guru models.Guru
 	if err := database.DB.First(&guru, id).Error; err != nil {
@@ -209,7 +224,7 @@ func DeleteGuruHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Delete(&guru).Error; err != nil {
 			return err
 		}

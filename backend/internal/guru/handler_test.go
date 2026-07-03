@@ -39,7 +39,7 @@ func seedGuruData() (int, int) {
 		JamMasuk:     "07:00",
 		JamPulang:    "15:00",
 		AksesFitur:   "[]",
-		AksesSekolah: "[]",
+		AksesSekolah: `{"1": ["Tahfiz", "Diniyah"]}`,
 	}
 	database.DB.Create(&guru)
 
@@ -80,6 +80,14 @@ func TestGetGuruHandler(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+
+	reqInvalid, _ := http.NewRequest("GET", "/api/guru/abc", nil)
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"id": "abc"})
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
 	}
 	
 	_ = guruID
@@ -127,6 +135,13 @@ func TestCreateGuruHandler(t *testing.T) {
 	if rr.Code != http.StatusCreated {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusCreated)
 	}
+
+	reqInvalid, _ := http.NewRequest("POST", "/api/guru", bytes.NewBufferString("{invalid"))
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid json status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
 }
 
 func TestUpdateGuruHandler(t *testing.T) {
@@ -150,6 +165,23 @@ func TestUpdateGuruHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+
+	reqInvalid, _ := http.NewRequest("PUT", "/api/guru/1", bytes.NewBufferString("{invalid"))
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"id": "1"})
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid json status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
+
+	reqInvalidID, _ := http.NewRequest("PUT", "/api/guru/abc", bytes.NewBuffer(bodyBytes))
+	reqInvalidID = mux.SetURLVars(reqInvalidID, map[string]string{"id": "abc"})
+	rrInvalidID := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidID, reqInvalidID)
+	if rrInvalidID.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
+	}
+
 	_ = guruID
 }
 
@@ -167,6 +199,23 @@ func TestDeleteGuruHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+
+	reqInvalidID, _ := http.NewRequest("DELETE", "/api/guru/abc", nil)
+	reqInvalidID = mux.SetURLVars(reqInvalidID, map[string]string{"id": "abc"})
+	rrInvalidID := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidID, reqInvalidID)
+	if rrInvalidID.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
+	}
+	
+	reqNotFound, _ := http.NewRequest("DELETE", "/api/guru/999", nil)
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found delete status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
+	}
+
 	_ = guruID
 }
 
@@ -273,6 +322,37 @@ func TestPresensiPulangHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
 	}
+
+	// Test: no context -> 401
+	reqNoCtx, _ := http.NewRequest("POST", "/api/guru/me/presensi/pulang", bytes.NewBuffer(bodyBytes))
+	rrNoCtx := httptest.NewRecorder()
+	handler.ServeHTTP(rrNoCtx, reqNoCtx)
+	if rrNoCtx.Code != http.StatusUnauthorized {
+		t.Errorf("no ctx: mendapat %d, diharapkan %d", rrNoCtx.Code, http.StatusUnauthorized)
+	}
+
+	// Test: invalid json -> 400
+	reqInvalidJSON, _ := http.NewRequest("POST", "/api/guru/me/presensi/pulang", bytes.NewBufferString("{invalid"))
+	reqInvalidJSON = setGuruContext(reqInvalidJSON, "budi@test.com")
+	rrInvalidJSON := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidJSON, reqInvalidJSON)
+	if rrInvalidJSON.Code != http.StatusBadRequest {
+		t.Errorf("invalid json: mendapat %d, diharapkan %d", rrInvalidJSON.Code, http.StatusBadRequest)
+	}
+
+	// Test: out of radius -> 403
+	bodyFar := map[string]interface{}{
+		"latitude":  1.0,
+		"longitude": 1.0,
+	}
+	bodyFarBytes, _ := json.Marshal(bodyFar)
+	reqFar, _ := http.NewRequest("POST", "/api/guru/me/presensi/pulang", bytes.NewBuffer(bodyFarBytes))
+	reqFar = setGuruContext(reqFar, "budi@test.com")
+	rrFar := httptest.NewRecorder()
+	handler.ServeHTTP(rrFar, reqFar)
+	if rrFar.Code != http.StatusForbidden {
+		t.Errorf("far: mendapat %d, diharapkan %d", rrFar.Code, http.StatusForbidden)
+	}
 }
 
 func TestGetPresensiHistoryHandler(t *testing.T) {
@@ -291,6 +371,14 @@ func TestGetPresensiHistoryHandler(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	// Test: no context -> 401
+	reqNoCtx, _ := http.NewRequest("GET", "/api/guru/me/presensi", nil)
+	rrNoCtx := httptest.NewRecorder()
+	handler.ServeHTTP(rrNoCtx, reqNoCtx)
+	if rrNoCtx.Code != http.StatusUnauthorized {
+		t.Errorf("no ctx: mendapat %d, diharapkan %d", rrNoCtx.Code, http.StatusUnauthorized)
 	}
 }
 
@@ -333,6 +421,15 @@ func TestGetDashboardTahfizHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
 	}
+
+	reqInvalidID, _ := http.NewRequest("GET", "/api/guru/me/dashboard/tahfiz/abc", nil)
+	reqInvalidID = mux.SetURLVars(reqInvalidID, map[string]string{"sekolah_id": "abc"})
+	reqInvalidID = setGuruContext(reqInvalidID, "budi@test.com")
+	rrInvalidID := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidID, reqInvalidID)
+	if rrInvalidID.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
+	}
 }
 
 func TestGetDashboardDiniyahHandler(t *testing.T) {
@@ -353,6 +450,15 @@ func TestGetDashboardDiniyahHandler(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	reqInvalidID, _ := http.NewRequest("GET", "/api/guru/me/dashboard/diniyah/abc", nil)
+	reqInvalidID = mux.SetURLVars(reqInvalidID, map[string]string{"sekolah_id": "abc"})
+	reqInvalidID = setGuruContext(reqInvalidID, "budi@test.com")
+	rrInvalidID := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidID, reqInvalidID)
+	if rrInvalidID.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
 	}
 }
 

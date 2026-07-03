@@ -1,9 +1,12 @@
 package backup
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"siakad-nawawi-be/internal/database"
 )
 
 func TestCompressDecompress(t *testing.T) {
@@ -107,5 +110,96 @@ func TestEncryptDecrypt(t *testing.T) {
 	err = decryptFile(encryptedFile, wrongDecryptedFile)
 	if err == nil {
 		t.Errorf("Diharapkan error saat dekripsi dengan password salah, tapi malah sukses!")
+	}
+}
+
+func TestGetEncryptionKey_NotSet(t *testing.T) {
+	os.Unsetenv("BACKUP_ENCRYPTION_KEY")
+	_, err := getEncryptionKey()
+	if err == nil {
+		t.Error("Expected error when BACKUP_ENCRYPTION_KEY not set")
+	}
+}
+
+func TestGetEncryptionKey_WrongLength(t *testing.T) {
+	os.Setenv("BACKUP_ENCRYPTION_KEY", "short")
+	defer os.Unsetenv("BACKUP_ENCRYPTION_KEY")
+	_, err := getEncryptionKey()
+	if err == nil {
+		t.Error("Expected error for wrong-length key")
+	}
+}
+
+func TestGetEncryptionKey_Valid(t *testing.T) {
+	os.Setenv("BACKUP_ENCRYPTION_KEY", "12345678901234567890123456789012")
+	defer os.Unsetenv("BACKUP_ENCRYPTION_KEY")
+	key, err := getEncryptionKey()
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if len(key) != 32 {
+		t.Errorf("Expected 32-byte key, got %d", len(key))
+	}
+}
+
+func TestDecryptFile_CorruptedKey(t *testing.T) {
+	os.Setenv("BACKUP_ENCRYPTION_KEY", "12345678901234567890123456789012")
+	defer os.Unsetenv("BACKUP_ENCRYPTION_KEY")
+
+	// File with garbage content (not encrypted properly)
+	tmpFile, _ := os.CreateTemp("", "corrupt_*.enc")
+	tmpFile.WriteString("thisisnotvalidencryptedcontent-toolongtobevalid")
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	dstPath := tmpFile.Name() + "_dec.txt"
+	defer os.Remove(dstPath)
+
+	err := decryptFile(tmpFile.Name(), dstPath)
+	if err == nil {
+		t.Error("Expected error for corrupted file, got nil")
+	}
+}
+
+func TestExecuteSQLFile(t *testing.T) {
+	database.SetupTestDB()
+
+	// Write a simple SQL file
+	tmpFile, _ := os.CreateTemp("", "test_*.sql")
+	tmpFile.WriteString("-- This is a comment\nSELECT 1;\n")
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	if err := executeSQLFile(database.DB, tmpFile.Name()); err != nil {
+		t.Errorf("executeSQLFile error: %v", err)
+	}
+}
+
+func TestExecuteSQLFile_NotFound(t *testing.T) {
+	database.SetupTestDB()
+	err := executeSQLFile(database.DB, "/nonexistent/path.sql")
+	if err == nil {
+		t.Error("Expected error for nonexistent file")
+	}
+}
+
+func TestStrictLimitReader(t *testing.T) {
+	data := make([]byte, 100)
+	reader := &strictLimitReader{r: bytes.NewReader(data), limit: 50}
+	buf := make([]byte, 200)
+	n, err := reader.Read(buf)
+	// Should read up to 51 bytes (limit+1) then stop/error
+	t.Logf("Read %d bytes, err: %v", n, err)
+}
+
+func TestStrictLimitReader_ExceedLimit(t *testing.T) {
+	data := make([]byte, 1000)
+	reader := &strictLimitReader{r: bytes.NewReader(data), limit: 10}
+	buf := make([]byte, 500)
+	// Read until limit exceeded
+	reader.read = 10
+	_, err := reader.Read(buf)
+	if err == nil {
+		t.Error("Expected error when limit exceeded")
 	}
 }

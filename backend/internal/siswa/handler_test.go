@@ -98,6 +98,15 @@ func TestCheckNISNHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+
+	// Test Not Found
+	reqNotFound, _ := http.NewRequest("GET", "/api/siswa/check/999999", nil)
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"nisn": "999999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
+	}
 }
 
 func TestCreateSiswaHandler(t *testing.T) {
@@ -121,6 +130,53 @@ func TestCreateSiswaHandler(t *testing.T) {
 
 	if rr.Code != http.StatusCreated {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusCreated, rr.Body.String())
+	}
+	
+	// Duplicate test
+	reqDup, _ := http.NewRequest("POST", "/api/siswa", bytes.NewBuffer(body))
+	reqDup.Header.Set("X-Sekolah-ID", "1")
+	rrDup := httptest.NewRecorder()
+	handler.ServeHTTP(rrDup, reqDup)
+	if rrDup.Code != http.StatusConflict {
+		t.Errorf("duplicate status code: mendapat %d, diharapkan %d", rrDup.Code, http.StatusConflict)
+	}
+
+	// Invalid JSON
+	reqInvalid, _ := http.NewRequest("POST", "/api/siswa", bytes.NewBufferString("{invalid"))
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid json status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
+	
+	// Validation Error
+	payloadInvalid := models.Siswa{
+		NISN:         "09876543210987654321", // Too long
+		NamaLengkap:  "Siswa Baru",
+		JenisKelamin: "P",
+	}
+	bodyInvalid, _ := json.Marshal(payloadInvalid)
+	reqVal, _ := http.NewRequest("POST", "/api/siswa", bytes.NewBuffer(bodyInvalid))
+	rrVal := httptest.NewRecorder()
+	handler.ServeHTTP(rrVal, reqVal)
+	if rrVal.Code != http.StatusBadRequest {
+		t.Errorf("validation error status code: mendapat %d, diharapkan %d", rrVal.Code, http.StatusBadRequest)
+	}
+	
+	// TA not found
+	database.DB.Where("status = ?", "Active").Delete(&models.TahunAjaran{})
+	payload2 := models.Siswa{
+		NISN:         "1122334455",
+		NamaLengkap:  "Siswa Baru 2",
+		JenisKelamin: "P",
+		SekolahID:    1,
+	}
+	body2, _ := json.Marshal(payload2)
+	reqTA, _ := http.NewRequest("POST", "/api/siswa", bytes.NewBuffer(body2))
+	rrTA := httptest.NewRecorder()
+	handler.ServeHTTP(rrTA, reqTA)
+	if rrTA.Code != http.StatusBadRequest {
+		t.Errorf("TA not found status code: mendapat %d, diharapkan %d", rrTA.Code, http.StatusBadRequest)
 	}
 }
 
@@ -165,6 +221,17 @@ func TestDeleteSiswaHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+	
+	// Test Not Found
+	reqNotFound, _ := http.NewRequest("DELETE", "/api/siswa/999", nil)
+	reqNotFound.Header.Set("X-Sekolah-ID", "1")
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found delete status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
+	}
+
 	_ = siswaID
 }
 
@@ -195,6 +262,35 @@ func TestMutasiSiswaHandler(t *testing.T) {
 	// Since status is "Aktif", it should fail and return 400 with "Hanya siswa berstatus 'Mutasi', 'Pindah', atau 'Lulus' yang bisa dimutasi ke sekolah baru"
 	if rr.Code != http.StatusForbidden {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusForbidden, rr.Body.String())
+	}
+
+	// Update status to 'Pindah'
+	database.DB.Model(&models.Siswa{}).Where("id = ?", siswaID).Update("status", "Pindah")
+
+	// Delete existing RiwayatKelas for this active TahunAjaran to avoid UNIQUE constraint
+	database.DB.Where("siswa_id = ?", siswaID).Delete(&models.RiwayatKelas{})
+
+	rr2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBuffer(body))
+	req2.Header.Set("X-Sekolah-ID", "2") // Admin header check
+	handler.ServeHTTP(rr2, req2)
+	
+	if rr2.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr2.Code, http.StatusOK, rr2.Body.String())
+	}
+	
+	// Test Not Found
+	payloadNotFound := map[string]interface{}{
+		"nisn":       "99999999999",
+		"sekolah_id": 2,
+	}
+	bodyNotFound, _ := json.Marshal(payloadNotFound)
+	reqNotFound, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBuffer(bodyNotFound))
+	reqNotFound.Header.Set("X-Sekolah-ID", "2")
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found mutasi status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
 	}
 }
 

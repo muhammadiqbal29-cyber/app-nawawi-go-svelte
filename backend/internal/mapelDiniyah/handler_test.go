@@ -215,4 +215,18 @@ func TestDeleteMapelDiniyahHandler(t *testing.T) {
 			t.Errorf("Expected status Not Found, got %v", rr.Code)
 		}
 	})
+	
+	t.Run("Invalid ID", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/api/mapel-diniyah/abc", nil)
+		req = mux.SetURLVars(req, map[string]string{"id": "abc"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(DeleteMapelDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
 }

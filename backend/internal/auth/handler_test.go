@@ -98,16 +98,48 @@ func TestLoginHandler(t *testing.T) {
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},
+		{
+			name: "Request Tidak Valid (Bad Request)",
+			reqBody: LoginRequest{
+				Email:    "notanemail",
+				Password: "",
+			},
+			mockSetup: func() {
+				// No DB call expected
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "Request Tidak Valid (Bad Request - JSON Parsing)",
+			reqBody: LoginRequest{},
+			mockSetup: func() {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "Terjadi Kesalahan Server (DB Error)",
+			reqBody: LoginRequest{
+				Email:    "error@siakad.com",
+				Password: "password123",
+			},
+			mockSetup: func() {
+				mock.ExpectQuery("SELECT \\* FROM `users` WHERE email = \\? ORDER BY `users`.`id` LIMIT \\?").
+					WithArgs("error@siakad.com", 1).
+					WillReturnError(gorm.ErrInvalidDB)
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mockSetup()
 
-			body, _ := json.Marshal(tt.reqBody)
-			req, err := http.NewRequest("POST", "/api/login", bytes.NewBuffer(body))
-			if err != nil {
-				t.Fatal(err)
+			var req *http.Request
+			if tt.name == "Request Tidak Valid (Bad Request - JSON Parsing)" {
+				req, _ = http.NewRequest("POST", "/api/login", bytes.NewBuffer([]byte("{invalid-json")))
+			} else {
+				body, _ := json.Marshal(tt.reqBody)
+				req, _ = http.NewRequest("POST", "/api/login", bytes.NewBuffer(body))
 			}
 
 			rr := httptest.NewRecorder()
@@ -138,5 +170,46 @@ func TestLoginHandler(t *testing.T) {
 				t.Errorf("ada mock expectation yang tidak terpenuhi: %v", err)
 			}
 		})
+	}
+}
+
+func TestLogoutHandler(t *testing.T) {
+	req, _ := http.NewRequest("POST", "/api/auth/logout", nil)
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(LogoutHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+
+	cookies := rr.Result().Cookies()
+	var found bool
+	for _, c := range cookies {
+		if c.Name == "token" {
+			found = true
+			if c.Value != "" {
+				t.Errorf("cookie token harus kosong, didapat %s", c.Value)
+			}
+			if c.MaxAge != -1 {
+				t.Errorf("cookie MaxAge harus -1, didapat %d", c.MaxAge)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("cookie token tidak ditemukan dalam respons")
+	}
+}
+
+func TestLogoutHandler_Options(t *testing.T) {
+	req, _ := http.NewRequest("OPTIONS", "/api/auth/logout", nil)
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(LogoutHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code OPTIONS: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
 }

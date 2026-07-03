@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
+	"github.com/xuri/excelize/v2"
 	"github.com/gorilla/mux"
+	"siakad-nawawi-be/internal/database"
 )
 
 func TestDownloadTemplateIndikatorHandler(t *testing.T) {
@@ -29,7 +30,6 @@ func TestDownloadTemplateIndikatorHandler(t *testing.T) {
 }
 
 func TestImportIndikatorHandler_NoFile(t *testing.T) {
-	// Test case: Upload tanpa file untuk memastikan penanganan error yang baik
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 	w.Close()
@@ -42,8 +42,59 @@ func TestImportIndikatorHandler_NoFile(t *testing.T) {
 	router.HandleFunc("/api/sekolah/{sekolah_id}/keseharian/indikator/import", ImportIndikatorHandler)
 	router.ServeHTTP(rr, req)
 
-	// Seharusnya bad request karena tidak ada file
 	if rr.Code != http.StatusBadRequest {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
 	}
 }
+
+func TestImportIndikatorHandler_Success(t *testing.T) {
+	database.SetupTestDB()
+	f := excelize.NewFile()
+	sheetName := "Sheet1"
+	f.SetCellValue(sheetName, "A1", "Nama Indikator")
+	f.SetCellValue(sheetName, "B1", "Poin Pengurang")
+	f.SetCellValue(sheetName, "A2", "Indikator 1")
+	f.SetCellValue(sheetName, "B2", "1.5")
+	f.SetCellValue(sheetName, "A3", "Indikator 2")
+	f.SetCellValue(sheetName, "B3", "2")
+	
+	var buf bytes.Buffer
+	_ = f.Write(&buf)
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	fileWriter, _ := w.CreateFormFile("file", "test.xlsx")
+	fileWriter.Write(buf.Bytes())
+	w.Close()
+
+	req, _ := http.NewRequest("POST", "/api/sekolah/1/keseharian/indikator/import", &b)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	rr := httptest.NewRecorder()
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/sekolah/{sekolah_id}/keseharian/indikator/import", ImportIndikatorHandler)
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+}
+
+func TestImportIndikatorHandler_InvalidSekolah(t *testing.T) {
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	w.Close()
+
+	req, _ := http.NewRequest("POST", "/api/sekolah/abc/keseharian/indikator/import", &b)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	rr := httptest.NewRecorder()
+
+	router := mux.NewRouter()
+	router.HandleFunc("/api/sekolah/{sekolah_id}/keseharian/indikator/import", ImportIndikatorHandler)
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}
+

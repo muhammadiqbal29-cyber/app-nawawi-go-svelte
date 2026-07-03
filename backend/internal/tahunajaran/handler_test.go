@@ -77,6 +77,34 @@ func TestCreateTahunAjaranHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+	
+	// Test Duplicate
+	reqDup, _ := http.NewRequest("POST", "/api/tahun-ajaran", bytes.NewBuffer(bodyBytes))
+	rrDup := httptest.NewRecorder()
+	handler.ServeHTTP(rrDup, reqDup)
+	if rrDup.Code != http.StatusConflict {
+		t.Errorf("duplicate status code: mendapat %d, diharapkan %d", rrDup.Code, http.StatusConflict)
+	}
+
+	// Test Invalid JSON
+	reqInvalid, _ := http.NewRequest("POST", "/api/tahun-ajaran", bytes.NewBufferString("{invalid"))
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid json status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
+	
+	// Test Validation Error
+	bodyInvalid := map[string]interface{}{
+		"tahun_awal": 1000,
+	}
+	bodyBytesInvalid, _ := json.Marshal(bodyInvalid)
+	reqVal, _ := http.NewRequest("POST", "/api/tahun-ajaran", bytes.NewBuffer(bodyBytesInvalid))
+	rrVal := httptest.NewRecorder()
+	handler.ServeHTTP(rrVal, reqVal)
+	if rrVal.Code != http.StatusBadRequest {
+		t.Errorf("validation err status code: mendapat %d, diharapkan %d", rrVal.Code, http.StatusBadRequest)
+	}
 }
 
 func TestUpdateTahunAjaranHandler(t *testing.T) {
@@ -99,6 +127,34 @@ func TestUpdateTahunAjaranHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+	
+	// Test Invalid JSON
+	reqInvalid, _ := http.NewRequest("PUT", "/api/tahun-ajaran/1", bytes.NewBufferString("{invalid"))
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"id": "1"})
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid json status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
+	
+	// Test Invalid ID
+	reqInvalidID, _ := http.NewRequest("PUT", "/api/tahun-ajaran/abc", bytes.NewBuffer(bodyBytes))
+	reqInvalidID = mux.SetURLVars(reqInvalidID, map[string]string{"id": "abc"})
+	rrInvalidID := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidID, reqInvalidID)
+	if rrInvalidID.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
+	}
+	
+	// Test Not Found
+	reqNotFound, _ := http.NewRequest("PUT", "/api/tahun-ajaran/999", bytes.NewBuffer(bodyBytes))
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
+	}
+
 	_ = taID
 }
 
@@ -116,6 +172,24 @@ func TestActivateSemesterHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
+	
+	// Test Invalid ID
+	reqInvalidID, _ := http.NewRequest("PUT", "/api/semester/abc/activate", nil)
+	reqInvalidID = mux.SetURLVars(reqInvalidID, map[string]string{"id": "abc"})
+	rrInvalidID := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidID, reqInvalidID)
+	if rrInvalidID.Code != http.StatusBadRequest {
+		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
+	}
+
+	// Test Not Found
+	reqNotFound, _ := http.NewRequest("PUT", "/api/semester/999/activate", nil)
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusInternalServerError {
+		t.Errorf("not found status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusInternalServerError)
+	}
 }
 
 func TestDeleteTahunAjaranHandler(t *testing.T) {
@@ -131,6 +205,24 @@ func TestDeleteTahunAjaranHandler(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+
+	// Test Invalid ID
+	reqInvalid, _ := http.NewRequest("DELETE", "/api/tahun-ajaran/abc", nil)
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"id": "abc"})
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("invalid delete status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
+	}
+
+	// Test Not Found
+	reqNotFound, _ := http.NewRequest("DELETE", "/api/tahun-ajaran/999", nil)
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found delete status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
 	}
 }
 

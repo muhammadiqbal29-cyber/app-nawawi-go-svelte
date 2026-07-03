@@ -68,3 +68,83 @@ func TestUpsertKonfigurasiNilaiTahfizHandler(t *testing.T) {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusCreated, rr.Body.String())
 	}
 }
+
+func TestGetKonfigurasiNilaiTahfizHandler_InvalidSekolah(t *testing.T) {
+	setupTestDB()
+	req, _ := http.NewRequest("GET", "/api/konfigurasi-tahfiz/abc", nil)
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "abc"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(GetKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidSekolah(t *testing.T) {
+	setupTestDB()
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/abc", nil)
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "abc"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidPayloadJSON(t *testing.T) {
+	setupTestDB()
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBuffer([]byte("{invalid json")))
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidValidation(t *testing.T) {
+	setupTestDB()
+	// Pembagi < 1 should trigger validation error
+	payload := map[string]interface{}{
+		"pembagi": 0,
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBuffer(body))
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidJenis(t *testing.T) {
+	setupTestDB()
+	payload := map[string]interface{}{
+		"pembagi":         1,
+		"jenis_penilaian": "invalid",
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBuffer(body))
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}

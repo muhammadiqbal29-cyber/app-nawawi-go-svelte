@@ -127,7 +127,7 @@ func GetAnggotaHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 				Select("kelas.nama_kelas as nama_kelas, riwayat_kelas.rombel as rombel").
 				Joins("JOIN kelas ON kelas.id = riwayat_kelas.kelas_id").
 				Where("riwayat_kelas.siswa_id = ? AND riwayat_kelas.tahun_ajaran_id = ? AND riwayat_kelas.status_akhir = 'Aktif'", anggota[i].SiswaID, taID).
-				First(&rk).Error
+				Scan(&rk).Error
 			if err != nil {
 				slog.Debug("Gagal mengambil riwayat kelas siswa", "siswa_id", anggota[i].SiswaID, "error", err)
 			}

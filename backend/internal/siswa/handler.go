@@ -150,7 +150,7 @@ func CreateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := tx.Create(&siswa).Error; err != nil {
 		tx.Rollback()
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			response.Error(w, http.StatusConflict, "NISN atau NIS sudah terdaftar", err)
 			return
 		}
@@ -241,7 +241,7 @@ func UpdateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 	// Di sini hanya update biodata pokok.
 
 	if err := database.DB.WithContext(r.Context()).Save(&siswa).Error; err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			response.Error(w, http.StatusConflict, "NISN atau NIS sudah terdaftar", err)
 			return
 		}

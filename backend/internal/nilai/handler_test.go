@@ -346,3 +346,72 @@ func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
 		}
 	})
 }
+
+func TestGetKelasBySekolahForGuruHandler(t *testing.T) {
+	setupTestDB()
+	seedNilaiData()
+
+	database.DB.Create(&models.Kelas{ID: 2, SekolahID: 1, NamaKelas: "8A", Tingkat: "SMP", TingkatLevel: 8})
+
+	t.Run("Success", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/nilai/kelas/sekolah/1?jenis_penilaian=semester", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetKelasBySekolahForGuruHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("Invalid Sekolah ID", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/nilai/kelas/sekolah/abc?jenis_penilaian=semester", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "abc"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetKelasBySekolahForGuruHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid Jenis Penilaian", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/nilai/kelas/sekolah/1?jenis_penilaian=INVALID", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetKelasBySekolahForGuruHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Jenis Penilaian Kelulusan No Konfig", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/nilai/kelas/sekolah/1?jenis_penilaian=kelulusan", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetKelasBySekolahForGuruHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK (empty), got %v", rr.Code)
+		}
+	})
+}
+
+func TestDecodeTingkatLevelKelulusan(t *testing.T) {
+	levels := decodeTingkatLevelKelulusan("")
+	if len(levels) != 0 {
+		t.Errorf("Expected empty, got %v", levels)
+	}
+
+	levels = decodeTingkatLevelKelulusan("[7,8,9]")
+	if len(levels) != 3 {
+		t.Errorf("Expected 3 levels, got %v", levels)
+	}
+
+	levels = decodeTingkatLevelKelulusan("INVALID_JSON")
+	if len(levels) != 0 {
+		t.Errorf("Expected empty for invalid json, got %v", levels)
+	}
+}
+
