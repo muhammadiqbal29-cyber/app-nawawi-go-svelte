@@ -130,6 +130,15 @@ func ImportGuruExcelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ambil KonfigurasiPresensi global sebagai fallback jika jam masuk/pulang tidak diisi di Excel
+	var konfigPresensi models.KonfigurasiPresensi
+	if err := database.DB.WithContext(r.Context()).First(&konfigPresensi).Error; err != nil {
+		konfigPresensi = models.KonfigurasiPresensi{
+			JamMasuk:  "07:00",
+			JamPulang: "16:00",
+		}
+	}
+
 	for i, h := range headers {
 		cleanHeader := strings.TrimSpace(h)
 		lowerHeader := strings.ToLower(cleanHeader)
@@ -265,21 +274,32 @@ func ImportGuruExcelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		aksesFiturJSON, _ := json.Marshal(combinedFitur)
 
-		// Buat Guru
 		jamMasuk := getVal("jam masuk (hh:mm)")
 		if jamMasuk == "" {
-			jamMasuk = "07:00"
+			jamMasuk = konfigPresensi.JamMasuk
 		}
 		jamPulang := getVal("jam pulang (hh:mm)")
 		if jamPulang == "" {
-			jamPulang = "16:00"
+			jamPulang = konfigPresensi.JamPulang
+		}
+
+		nikVal := getVal("nik")
+		var nikPtr *string
+		if nikVal != "" {
+			nikPtr = &nikVal
+		}
+
+		noHpVal := getVal("no hp")
+		var noHpPtr *string
+		if noHpVal != "" {
+			noHpPtr = &noHpVal
 		}
 
 		newGuru := models.Guru{
 			UserID:       int32(newUser.ID), /* #nosec G115 */
 			NamaLengkap:  getVal("nama lengkap"),
-			NIK:          getVal("nik"),
-			NoHP:         getVal("no hp"),
+			NIK:          nikPtr,
+			NoHP:         noHpPtr,
 			JamMasuk:     jamMasuk,
 			JamPulang:    jamPulang,
 			StatusAktif:  statusAktif,

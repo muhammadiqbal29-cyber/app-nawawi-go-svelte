@@ -5,7 +5,7 @@ package response
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -40,7 +40,7 @@ func JSON(w http.ResponseWriter, status int, data interface{}) {
 	w.WriteHeader(status)
 	if data != nil {
 		if err := json.NewEncoder(w).Encode(data); err != nil {
-			log.Printf("response.JSON: gagal encode data: %v", err)
+			slog.Error("Gagal encode JSON response", "error", err)
 		}
 	}
 }
@@ -50,7 +50,11 @@ func JSON(w http.ResponseWriter, status int, data interface{}) {
 // hanya dicatat di server log — TIDAK PERNAH dikirim ke client.
 func Error(w http.ResponseWriter, status int, clientMsg string, internalErr error) {
 	if internalErr != nil {
-		log.Printf("response.Error [%d] %s | internal: %v", status, clientMsg, internalErr)
+		slog.Error("Response error",
+			"status", status,
+			"message", clientMsg,
+			"error", internalErr.Error(),
+		)
 	}
 	JSON(w, status, ErrorPayload{Message: clientMsg})
 }

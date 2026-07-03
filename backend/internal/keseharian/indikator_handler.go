@@ -7,10 +7,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
 	"siakad-nawawi-be/internal/utils"
-	"siakad-nawawi-be/internal/middleware"
 )
 
 type IndikatorPayload struct {

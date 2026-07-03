@@ -2,7 +2,7 @@ package guru
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -23,10 +23,13 @@ type DashboardTahfizResponse struct {
 	Makhraj     float64 `json:"makhraj"`
 }
 
-type DashboardDiniyahResponse struct {
-	MapelID int     `json:"mapel_id"`
-	Label   string  `json:"label"`
-	Value   float64 `json:"value"`
+type DashboardDiniyahStudentScore struct {
+	SiswaID int     `json:"id"`
+	Nama    string  `json:"nama"`
+	Tingkat string  `json:"tingkat"`
+	Rombel  string  `json:"rombel"`
+	Mapel   string  `json:"mapel"`
+	Nilai   float64 `json:"nilai"`
 }
 
 // GetDashboardTahfizHandler mengambil rata-rata nilai Tahfiz per siswa
@@ -49,6 +52,8 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT 
 			s.id, 
 			s.nama_lengkap as nama,
+			COALESCE(k.tingkat, '-') as tingkat,
+			COALESCE(rk.rombel, '-') as rombel,
 			COUNT(n.id) as jumlah_surah,
 			COALESCE(AVG(n.skor_hafalan), 0) as hafalan,
 			COALESCE(AVG(n.skor_kelancaran), 0) as lancar,
@@ -56,23 +61,25 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(AVG(n.skor_tajwid), 0) as tajwid,
 			COALESCE(AVG(n.skor_makharijul_huruf), 0) as makhraj
 		FROM siswas s
+		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ?
+		LEFT JOIN kelas k ON k.id = rk.kelas_id
 		LEFT JOIN nilai_tahfizs nt ON nt.siswa_id = s.id AND nt.sekolah_id = ?
 		LEFT JOIN nilai_tahfiz_details n ON n.nilai_tahfiz_id = nt.id
 		WHERE s.status = 'Aktif'
-		GROUP BY s.id, s.nama_lengkap
+		GROUP BY s.id, s.nama_lengkap, k.tingkat, rk.rombel
 	`
-	if err := database.DB.Raw(query, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard tahfiz", err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
-// GetDashboardDiniyahHandler mengambil agregasi nilai Diniyah per mapel
+// GetDashboardDiniyahHandler mengambil agregasi nilai Diniyah per mapel per siswa
 func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sekolahIDStr, ok := vars["sekolah_id"]
@@ -87,24 +94,29 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var results []DashboardDiniyahResponse
+	var results []DashboardDiniyahStudentScore
 	query := `
 		SELECT 
-			m.id as mapel_id,
-			m.nama_mapel as label,
-			COALESCE(AVG(nd.nilai_rapor), 0) as value
-		FROM mapel_diniyahs m
-		LEFT JOIN nilai_diniyahs nd ON nd.mapel_diniyah_id = m.id
-		WHERE m.sekolah_id = ? AND m.aktif = 1
-		GROUP BY m.id, m.nama_mapel
+			s.id as siswa_id,
+			s.nama_lengkap as nama,
+			COALESCE(k.tingkat, '-') as tingkat,
+			COALESCE(rk.rombel, '-') as rombel,
+			COALESCE(m.nama_mapel, 'Tanpa Mapel') as mapel,
+			COALESCE(nd.nilai_rapor, 0) as nilai
+		FROM siswas s
+		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ?
+		LEFT JOIN kelas k ON k.id = rk.kelas_id
+		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id
+		INNER JOIN mapel_diniyahs m ON m.id = nd.mapel_diniyah_id AND m.sekolah_id = ?
+		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 	`
-	if err := database.DB.Raw(query, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard diniyah", err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }

@@ -33,16 +33,7 @@
         <li class:active={currentPath.startsWith('/guru/input-nilai')}>
           <button class="nav-link" onclick={() => goto('/guru/input-nilai')}>
             <Icon name="edit" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Nilai</span>
-          </button>
-        </li>
-      {/if}
-
-      {#if hasRapor}
-        <li class:active={currentPath.startsWith('/guru/rapot')}>
-          <button class="nav-link" onclick={() => goto('/guru/rapot')}>
-            <Icon name="fileText" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Rapot</span>
+            <span class="label" class:hidden={!isOpen}>Input Nilai Tahfiz</span>
           </button>
         </li>
       {/if}
@@ -51,7 +42,16 @@
         <li class:active={currentPath.startsWith('/guru/input-diniyah')}>
           <button class="nav-link" onclick={() => goto('/guru/input-diniyah')}>
             <Icon name="book" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Nilai Diniyah</span>
+            <span class="label" class:hidden={!isOpen}>Input Nilai Diniyah</span>
+          </button>
+        </li>
+      {/if}
+
+      {#if hasKeseharian}
+        <li class:active={currentPath.startsWith('/guru/input-keseharian')}>
+          <button class="nav-link" onclick={() => goto('/guru/input-keseharian')}>
+            <Icon name="checkCircle" size={20} class="icon" />
+            <span class="label" class:hidden={!isOpen}>Input Nilai Keseharian</span>
           </button>
         </li>
       {/if}
@@ -65,11 +65,11 @@
         </li>
       {/if}
 
-      {#if hasKeseharian}
-        <li class:active={currentPath.startsWith('/guru/input-keseharian')}>
-          <button class="nav-link" onclick={() => goto('/guru/input-keseharian')}>
-            <Icon name="checkCircle" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Keseharian</span>
+      {#if hasRapor}
+        <li class:active={currentPath.startsWith('/guru/rapot')}>
+          <button class="nav-link" onclick={() => goto('/guru/rapot')}>
+            <Icon name="fileText" size={20} class="icon" />
+            <span class="label" class:hidden={!isOpen}>Rapot</span>
           </button>
         </li>
       {/if}

@@ -16,6 +16,11 @@
     year: 'numeric'
   });
 
+  // Dynamic Print Settings
+  let customTanggalRapot = $state(currentDate);
+  let customKepalaAsrama = $state('AJI SYAFAAT');
+  let customMusyrif = $state('');
+
   $effect(() => {
     if (siswaId) {
       fetchData();
@@ -84,14 +89,37 @@
       </button>
     </div>
 
+    <!-- Edit Settings -->
+    <div class="settings-box no-print">
+      <h4 class="font-bold mb-2">Pengaturan Cetak (Tidak ikut terprint)</h4>
+      <div class="settings-grid">
+        <label>
+          Tanggal Rapot:
+          <input type="text" class="form-input" bind:value={customTanggalRapot} />
+        </label>
+        <label>
+          Kepala Asrama:
+          <input type="text" class="form-input" bind:value={customKepalaAsrama} />
+        </label>
+        <label>
+          Musyrif/Musyrifah:
+          <input
+            type="text"
+            class="form-input"
+            bind:value={customMusyrif}
+            placeholder="Nama Musyrif"
+          />
+        </label>
+      </div>
+    </div>
+
     <div class="a4-container">
       <!-- Header -->
       <div class="header-section">
-        <h2 class="header-yayasan">YAYASAN IMAM NAWAWI PALANGKA RAYA</h2>
-        <h1 class="header-sekolah">SMP ISLAM IMAM NAWAWI</h1>
+        <h1 class="header-sekolah">{raporData.sekolah?.nama_sekolah || 'SMP ISLAM IMAM NAWAWI'}</h1>
         <p class="header-address">
-          Jl. Tjilik Riwut KM 8 (Jl. Gajah Mada) Kel. Bukit Tunggal Kec. Jekan Raya Kota Palangka
-          Raya
+          {raporData.sekolah?.alamat ||
+            'Jl. Tjilik Riwut KM 8 (Jl. Gajah Mada) Kel. Bukit Tunggal Kec. Jekan Raya Kota Palangka Raya'}
         </p>
         <p class="header-contact">Email: smpislamnawawi@gmail.com Telp. 0898 1567 898</p>
       </div>
@@ -226,19 +254,19 @@
       <!-- Signatures -->
       <div class="signature-section">
         <div class="sig-col">
-          <p class="sig-invisible">Palangka Raya, 30 Mei 2026</p>
+          <p class="sig-invisible">Palangka Raya, {customTanggalRapot}</p>
           <!-- Spacer -->
           <p>Kepala Asrama</p>
           <div class="sig-space"></div>
           <!-- Space for signature -->
-          <p class="sig-name">AJI SYAFAAT</p>
+          <p class="sig-name">{customKepalaAsrama || '____________________'}</p>
         </div>
         <div class="sig-col">
-          <p>Palangka Raya, {currentDate}</p>
+          <p>Palangka Raya, {customTanggalRapot}</p>
           <p>Musyrif/Musyrifah Asrama</p>
           <div class="sig-space"></div>
           <!-- Space for signature -->
-          <p class="sig-name">_________________________</p>
+          <p class="sig-name">{customMusyrif || '_________________________'}</p>
         </div>
       </div>
     </div>
@@ -269,16 +297,20 @@
     .no-print {
       display: none !important;
     }
+    .page-wrapper {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
     .a4-container {
       box-shadow: none !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: 1cm 2cm 2cm 2cm !important;
       width: 100% !important;
       max-width: none !important;
     }
     @page {
       size: A4 portrait;
-      margin: 15mm;
+      margin: 0;
     }
   }
 
@@ -293,6 +325,35 @@
     align-items: center;
     max-width: 210mm;
     margin: 0 auto 1.5rem;
+  }
+
+  .settings-box {
+    max-width: 210mm;
+    margin: 0 auto 1.5rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .settings-grid label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    gap: 0.25rem;
+  }
+  .form-input {
+    padding: 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
   }
 
   .btn-back {
@@ -334,9 +395,10 @@
     background: white;
     width: 100%;
     max-width: 210mm;
-    min-height: 297mm;
+    min-height: auto !important;
+    height: auto !important;
     margin: 0 auto;
-    padding: 40px;
+    padding: 1cm 2cm 2cm 2cm !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
     font-family: sans-serif;
     font-size: 14px;
@@ -346,12 +408,6 @@
   .header-section {
     text-align: center;
     margin-bottom: 16px;
-  }
-  .header-yayasan {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    margin: 0;
   }
   .header-sekolah {
     font-size: 24px;

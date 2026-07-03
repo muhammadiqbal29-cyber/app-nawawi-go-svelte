@@ -13,6 +13,11 @@
   let error = $state('');
   let rapor = $state(null);
 
+  // Dynamic Print Settings
+  let customTanggalRapot = $state('');
+  let customKoordinator = $state('AJI SYAFAAT');
+  let customKepalaSekolah = $state('');
+
   onMount(async () => {
     try {
       let query = '';
@@ -22,6 +27,12 @@
       });
       if (!res.ok) throw new Error('Gagal memuat rapor diniyah.');
       rapor = await res.json();
+
+      // Initialize dynamic print settings after data loads
+      customTanggalRapot = formatTanggal();
+      if (rapor.sekolah?.kepala_sekolah) {
+        customKepalaSekolah = rapor.sekolah.kepala_sekolah;
+      }
     } catch (err) {
       error = err.message;
     } finally {
@@ -209,7 +220,6 @@
   {:else if rapor}
     {@const groups = groupedMapel(rapor.mapel_nilai)}
 
-    <!-- Print Button -->
     <div class="print-actions no-print">
       <button class="btn-back" onclick={() => goto('/guru/rapot/diniyah')}>
         <Icon name="chevronLeft" size={16} /> Kembali
@@ -217,13 +227,29 @@
       <button class="btn-print" onclick={() => window.print()}> 🖨️ Cetak Rapor (Print) </button>
     </div>
 
+    <!-- Edit Settings -->
+    <div class="settings-box no-print">
+      <h4 style="margin-top: 0;">Pengaturan Cetak (Tidak ikut terprint)</h4>
+      <div class="settings-grid">
+        <label>
+          Tanggal Rapot:
+          <input type="text" class="form-input" bind:value={customTanggalRapot} />
+        </label>
+        <label>
+          Koordinator Diniyah:
+          <input type="text" class="form-input" bind:value={customKoordinator} />
+        </label>
+        <label>
+          Kepala Sekolah:
+          <input type="text" class="form-input" bind:value={customKepalaSekolah} />
+        </label>
+      </div>
+    </div>
+
     <!-- A4 Paper Container -->
     <div class="a4-container">
       <!-- Header -->
       <div class="header-section">
-        <h2 class="header-yayasan">
-          {rapor.sekolah?.kepala_sekolah ? 'YAYASAN IMAM NAWAWI PALANGKA RAYA' : 'YAYASAN'}
-        </h2>
         <h1 class="header-sekolah">{rapor.sekolah?.nama_sekolah || 'SEKOLAH'}</h1>
         <p class="header-address">{rapor.sekolah?.alamat || ''}</p>
         <p class="header-contact">Email: {rapor.sekolah?.email || '-'} Telp. 0898 1567 898</p>
@@ -261,7 +287,7 @@
               <tr>
                 <td class="info-label">KELAS</td>
                 <td class="info-sep">:</td>
-                <td>{kelasRomawi(rapor.kelas)} ({kelasTerbilang(rapor.kelas)})</td>
+                <td>{rapor.kelas?.nama_kelas || '-'}</td>
               </tr>
               <tr>
                 <td class="info-label">SEMESTER</td>
@@ -369,16 +395,16 @@
       <!-- Signatures -->
       <div class="signature-section">
         <div class="sig-col">
-          <p class="sig-invisible">{formatTanggal()}</p>
+          <p class="sig-invisible">{customTanggalRapot}</p>
           <p>Koordinator Diniyah</p>
           <div class="sig-space"></div>
-          <p class="sig-name">AJI SYAFAAT</p>
+          <p class="sig-name">{customKoordinator || '____________________'}</p>
         </div>
         <div class="sig-col">
-          <p>{formatTanggal()}</p>
+          <p>{customTanggalRapot}</p>
           <p>Kepala Sekolah</p>
           <div class="sig-space"></div>
-          <p class="sig-name">{rapor.sekolah?.kepala_sekolah || '____________________'}</p>
+          <p class="sig-name">{customKepalaSekolah || '____________________'}</p>
         </div>
       </div>
     </div>
@@ -409,16 +435,20 @@
     .no-print {
       display: none !important;
     }
+    .page-wrapper {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
     .a4-container {
       box-shadow: none !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: 1cm 2cm 2cm 2cm !important;
       width: 100% !important;
       max-width: none !important;
     }
     @page {
       size: A4 portrait;
-      margin: 15mm;
+      margin: 0;
     }
   }
 
@@ -433,6 +463,35 @@
     align-items: center;
     max-width: 210mm;
     margin: 0 auto 1.5rem;
+  }
+
+  .settings-box {
+    max-width: 210mm;
+    margin: 0 auto 1.5rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+  }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .settings-grid label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #475569;
+    gap: 0.25rem;
+  }
+  .form-input {
+    padding: 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
   }
 
   .btn-back {
@@ -474,9 +533,10 @@
     background: white;
     width: 100%;
     max-width: 210mm;
-    min-height: 297mm;
+    min-height: auto !important;
+    height: auto !important;
     margin: 0 auto;
-    padding: 40px;
+    padding: 1cm 2cm 2cm 2cm !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
     font-family: sans-serif;
     font-size: 14px;
@@ -486,12 +546,6 @@
   .header-section {
     text-align: center;
     margin-bottom: 16px;
-  }
-  .header-yayasan {
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    margin: 0;
   }
   .header-sekolah {
     font-size: 24px;

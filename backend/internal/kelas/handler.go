@@ -137,6 +137,12 @@ func UpdateKelasHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sekolahIDStrHeader := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStrHeader != "" && strconv.Itoa(k.SekolahID) != sekolahIDStrHeader {
+		response.Error(w, http.StatusForbidden, "Akses ditolak: Kelas bukan dari sekolah Anda", nil)
+		return
+	}
+
 	// Cek duplikasi jika nama kelas diubah
 	if req.NamaKelas != k.NamaKelas {
 		var count int64
@@ -171,6 +177,23 @@ func DeleteKelasHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "ID Kelas tidak valid", err)
+		return
+	}
+
+	sekolahIDStrHeader := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStrHeader == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
+	}
+
+	var k models.Kelas
+	if err := database.DB.First(&k, id).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Kelas tidak ditemukan", err)
+		return
+	}
+
+	if strconv.Itoa(k.SekolahID) != sekolahIDStrHeader {
+		response.Error(w, http.StatusForbidden, "Akses ditolak: Kelas bukan dari sekolah Anda", nil)
 		return
 	}
 

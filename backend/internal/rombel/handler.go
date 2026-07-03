@@ -85,6 +85,12 @@ func AssignSiswaToKelasHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStr == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
+	}
+
 	// Gunakan transaksi
 	tx := database.DB.WithContext(r.Context()).Begin()
 
@@ -102,11 +108,16 @@ func AssignSiswaToKelasHandler(w http.ResponseWriter, r *http.Request) {
 		taID = ta.ID
 	}
 
-	// Cari info kelas tujuan
 	var targetKelas models.Kelas
 	if err := tx.First(&targetKelas, kelasID).Error; err != nil {
 		tx.Rollback()
 		response.Error(w, http.StatusNotFound, "Kelas tujuan tidak ditemukan", nil)
+		return
+	}
+
+	if strconv.Itoa(targetKelas.SekolahID) != sekolahIDStr {
+		tx.Rollback()
+		response.Error(w, http.StatusForbidden, "Akses ditolak: Kelas tujuan bukan dari sekolah Anda", nil)
 		return
 	}
 
@@ -140,7 +151,7 @@ func AssignSiswaToKelasHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Update riwayat kelas
 	if err := tx.Model(&models.RiwayatKelas{}).
-		Where("siswa_id IN ? AND tahun_ajaran_id = ?", payload.SiswaIDs, taID).
+		Where("siswa_id IN ? AND tahun_ajaran_id = ? AND sekolah_id = ?", payload.SiswaIDs, taID, sekolahIDStr).
 		Updates(map[string]interface{}{"kelas_id": kelasID, "rombel": payload.Rombel}).Error; err != nil {
 		tx.Rollback()
 		response.Error(w, http.StatusInternalServerError, "Gagal memindahkan siswa ke rombel", err)
@@ -173,6 +184,12 @@ func RemoveSiswaFromKelasHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStr == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
+	}
+
 	tx := database.DB.WithContext(r.Context()).Begin()
 
 	var taID int
@@ -190,7 +207,7 @@ func RemoveSiswaFromKelasHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Kosongkan kelas_id dan rombel di riwayat_kelas
 	if err := tx.Model(&models.RiwayatKelas{}).
-		Where("siswa_id IN ? AND tahun_ajaran_id = ? AND kelas_id = ?", payload.SiswaIDs, taID, kelasID).
+		Where("siswa_id IN ? AND tahun_ajaran_id = ? AND kelas_id = ? AND sekolah_id = ?", payload.SiswaIDs, taID, kelasID, sekolahIDStr).
 		Updates(map[string]interface{}{"kelas_id": nil, "rombel": ""}).Error; err != nil {
 		tx.Rollback()
 		response.Error(w, http.StatusInternalServerError, "Gagal mengeluarkan siswa", err)

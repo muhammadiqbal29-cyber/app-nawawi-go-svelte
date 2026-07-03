@@ -32,14 +32,14 @@ func TestValidateSiswa(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Error - Sekolah ID kosong",
+			name: "Sukses - Sekolah ID kosong (di-handle oleh header di controller)",
 			siswa: models.Siswa{
 				NISN:         "12345",
 				NamaLengkap:  "Budi",
 				JenisKelamin: "L",
 				SekolahID:    0,
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "Error - Jenis Kelamin invalid",

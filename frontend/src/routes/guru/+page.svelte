@@ -12,7 +12,7 @@
   );
 
   let activeTab = $state('tahfiz');
-  
+
   let dataSantri = $state([]);
   let dataDiniyah = $state([]);
   let loadingData = $state(false);
@@ -20,19 +20,29 @@
   let selectedMetric = $state('hafalan');
 
   let avgHafalan = $derived(
-    dataSantri.length ? Math.round(dataSantri.reduce((a, b) => a + b.hafalan, 0) / dataSantri.length) : 0
+    dataSantri.length
+      ? Math.round(dataSantri.reduce((a, b) => a + b.hafalan, 0) / dataSantri.length)
+      : 0
   );
   let avgLancar = $derived(
-    dataSantri.length ? Math.round(dataSantri.reduce((a, b) => a + b.lancar, 0) / dataSantri.length) : 0
+    dataSantri.length
+      ? Math.round(dataSantri.reduce((a, b) => a + b.lancar, 0) / dataSantri.length)
+      : 0
   );
   let avgMad = $derived(
-    dataSantri.length ? Math.round(dataSantri.reduce((a, b) => a + b.mad, 0) / dataSantri.length) : 0
+    dataSantri.length
+      ? Math.round(dataSantri.reduce((a, b) => a + b.mad, 0) / dataSantri.length)
+      : 0
   );
   let avgTajwid = $derived(
-    dataSantri.length ? Math.round(dataSantri.reduce((a, b) => a + b.tajwid, 0) / dataSantri.length) : 0
+    dataSantri.length
+      ? Math.round(dataSantri.reduce((a, b) => a + b.tajwid, 0) / dataSantri.length)
+      : 0
   );
   let avgMakhraj = $derived(
-    dataSantri.length ? Math.round(dataSantri.reduce((a, b) => a + b.makhraj, 0) / dataSantri.length) : 0
+    dataSantri.length
+      ? Math.round(dataSantri.reduce((a, b) => a + b.makhraj, 0) / dataSantri.length)
+      : 0
   );
 
   let globalAverages = $derived({
@@ -51,21 +61,134 @@
     makhraj: { color: '#f43f5e', label: 'Makhraj' }
   };
 
+  function getRombelName(s) {
+    let rName = '';
+    if (s.tingkat && s.tingkat !== '-' && s.tingkat !== 'Belum ada Kelas') {
+      rName += `Kelas ${s.tingkat}`;
+    }
+    if (s.rombel && s.rombel !== '-') {
+      rName += rName ? ` ${s.rombel}` : s.rombel;
+    }
+    return rName || 'Belum ada Rombel';
+  }
+
+  let uniqueRombel = $derived([
+    'Semua Rombel',
+    ...new Set([
+      ...dataSantri.map((s) => getRombelName(s)),
+      ...dataDiniyah.map((d) => getRombelName(d))
+    ])
+  ]);
+
+  let selectedRombel = $state('Semua Rombel');
+
+  let filteredSantri = $derived(
+    selectedRombel === 'Semua Rombel'
+      ? dataSantri
+      : dataSantri.filter((s) => getRombelName(s) === selectedRombel)
+  );
+
+  let rombelAverages = $derived(() => {
+    const groups = {};
+    for (const s of filteredSantri) {
+      const r = getRombelName(s);
+
+      if (!groups[r]) {
+        groups[r] = {
+          count: 0,
+          hafalan: 0,
+          lancar: 0,
+          mad: 0,
+          tajwid: 0,
+          makhraj: 0,
+          jumlahSurah: 0
+        };
+      }
+      groups[r].count++;
+      groups[r].hafalan += s.hafalan;
+      groups[r].lancar += s.lancar;
+      groups[r].mad += s.mad;
+      groups[r].tajwid += s.tajwid;
+      groups[r].makhraj += s.makhraj;
+      groups[r].jumlahSurah += s.jumlahSurah;
+    }
+
+    return Object.keys(groups)
+      .map((rombel) => {
+        const g = groups[rombel];
+        return {
+          label: rombel,
+          hafalan: g.hafalan / g.count,
+          lancar: g.lancar / g.count,
+          mad: g.mad / g.count,
+          tajwid: g.tajwid / g.count,
+          makhraj: g.makhraj / g.count,
+          jumlahSurah: g.jumlahSurah / g.count
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  });
+
   let detailData = $derived(
-    dataSantri.map((s) => ({
-      label: s.nama,
-      value: s[selectedMetric]
-    }))
+    selectedRombel === 'Semua Rombel'
+      ? rombelAverages().map((r) => ({
+          label: r.label,
+          value: r[selectedMetric]
+        }))
+      : filteredSantri.map((s) => ({
+          label: s.nama,
+          value: s[selectedMetric]
+        }))
   );
 
   let detailColor = $derived(metricConfig[selectedMetric].color);
 
   let surahData = $derived(
-    dataSantri.map((s) => ({
-      label: s.nama,
-      value: s.jumlahSurah
-    }))
+    selectedRombel === 'Semua Rombel'
+      ? rombelAverages().map((r) => ({
+          label: r.label,
+          value: r.jumlahSurah
+        }))
+      : filteredSantri.map((s) => ({
+          label: s.nama,
+          value: s.jumlahSurah
+        }))
   );
+
+  // --- Logika Statistik Diniyah ---
+  let uniqueMapel = $derived([
+    'Semua Mapel',
+    ...new Set(dataDiniyah.map((d) => d.mapel).filter((m) => m && m !== 'Tanpa Mapel'))
+  ]);
+  let selectedMapel = $state('Semua Mapel');
+
+  let filteredDiniyah = $derived(
+    dataDiniyah.filter((d) => {
+      const rName = getRombelName(d);
+      const matchRombel = selectedRombel === 'Semua Rombel' || rName === selectedRombel;
+      const matchMapel = selectedMapel === 'Semua Mapel' || d.mapel === selectedMapel;
+      return matchRombel && matchMapel;
+    })
+  );
+
+  let diniyahChartData = $derived(() => {
+    const groups = {};
+    for (const d of filteredDiniyah) {
+      const key = selectedRombel === 'Semua Rombel' ? getRombelName(d) : d.nama;
+      if (!groups[key]) {
+        groups[key] = { count: 0, total: 0 };
+      }
+      groups[key].count++;
+      groups[key].total += d.nilai;
+    }
+
+    return Object.keys(groups)
+      .map((k) => ({
+        label: k,
+        value: groups[k].total / groups[k].count
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  });
 
   $effect(() => {
     if (selectedSekolah) {
@@ -77,14 +200,20 @@
     if (!selectedSekolah) return;
     loadingData = true;
     try {
-      const resTahfiz = await fetch(`${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/tahfiz`, { credentials: 'include' });
+      const resTahfiz = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/tahfiz`,
+        { credentials: 'include' }
+      );
       if (resTahfiz.ok) {
-        dataSantri = await resTahfiz.json() || [];
+        dataSantri = (await resTahfiz.json()) || [];
       }
-      
-      const resDiniyah = await fetch(`${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/diniyah`, { credentials: 'include' });
+
+      const resDiniyah = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/diniyah`,
+        { credentials: 'include' }
+      );
       if (resDiniyah.ok) {
-        dataDiniyah = await resDiniyah.json() || [];
+        dataDiniyah = (await resDiniyah.json()) || [];
       }
     } catch (err) {
       console.error(err);
@@ -104,17 +233,17 @@
   {:else}
     <!-- Tab Navigation -->
     <div class="tabs">
-      <button 
-        class="tab-btn" 
-        class:active={activeTab === 'tahfiz'} 
-        onclick={() => activeTab = 'tahfiz'}
+      <button
+        class="tab-btn"
+        class:active={activeTab === 'tahfiz'}
+        onclick={() => (activeTab = 'tahfiz')}
       >
         <Icon name="book" size={18} /> Statistik Tahfiz
       </button>
-      <button 
-        class="tab-btn" 
-        class:active={activeTab === 'diniyah'} 
-        onclick={() => activeTab = 'diniyah'}
+      <button
+        class="tab-btn"
+        class:active={activeTab === 'diniyah'}
+        onclick={() => (activeTab = 'diniyah')}
       >
         <Icon name="bookOpen" size={18} /> Statistik Diniyah
       </button>
@@ -159,25 +288,54 @@
             <div class="chart-card">
               <div class="chart-header-row">
                 <div>
-                  <h3>Statistik Per Santri</h3>
-                  <p>Perbandingan nilai masing-masing anak</p>
+                  <h3>
+                    {selectedRombel === 'Semua Rombel'
+                      ? 'Statistik Per Rombel'
+                      : `Statistik Siswa - ${selectedRombel}`}
+                  </h3>
+                  <p>
+                    {selectedRombel === 'Semua Rombel'
+                      ? 'Perbandingan rata-rata nilai antar rombel'
+                      : 'Perbandingan nilai masing-masing siswa'}
+                  </p>
                 </div>
-                <select bind:value={selectedMetric} class="metric-select">
-                  <option value="hafalan">Hafalan (%)</option>
-                  <option value="lancar">Kelancaran</option>
-                  <option value="mad">Hukum Mad</option>
-                  <option value="tajwid">Tajwid</option>
-                  <option value="makhraj">Makhraj</option>
-                </select>
+                <div class="filter-group">
+                  <select bind:value={selectedRombel} class="metric-select">
+                    {#each uniqueRombel as rombel}
+                      <option value={rombel}>{rombel}</option>
+                    {/each}
+                  </select>
+                  <select bind:value={selectedMetric} class="metric-select">
+                    <option value="hafalan">Hafalan (%)</option>
+                    <option value="lancar">Kelancaran</option>
+                    <option value="mad">Hukum Mad</option>
+                    <option value="tajwid">Tajwid</option>
+                    <option value="makhraj">Makhraj</option>
+                  </select>
+                </div>
               </div>
-              <BarChart data={detailData} color={detailColor} max={100} labelFormat={(v) => Math.round(v) + '%'} />
+              <BarChart
+                data={detailData}
+                color={detailColor}
+                max={100}
+                labelFormat={(v) => Math.round(v) + '%'}
+              />
             </div>
 
             <!-- Chart Jumlah Surah -->
             <div class="chart-card">
               <h3>Status Jumlah Surah</h3>
-              <p>Total hafalan surah</p>
-              <BarChart data={surahData} color="#4f46e5" max={37} labelFormat={(v) => Math.round(v) + ' Surah'} />
+              <p>
+                {selectedRombel === 'Semua Rombel'
+                  ? 'Rata-rata hafalan surah per rombel'
+                  : 'Total hafalan surah siswa'}
+              </p>
+              <BarChart
+                data={surahData}
+                color="#4f46e5"
+                max={37}
+                labelFormat={(v) => Math.round(v) + ' Surah'}
+              />
             </div>
           </div>
         {/if}
@@ -186,21 +344,39 @@
           <div class="empty-state">Belum ada data nilai diniyah untuk sekolah ini.</div>
         {:else}
           <div class="chart-card diniyah-chart-card">
-            <h3>Rata-rata Rapor Mapel Diniyah</h3>
-            <p>Perbandingan nilai rata-rata tiap mata pelajaran diniyah secara keseluruhan.</p>
-            
-            <div class="vanilla-bar-chart">
-              {#each dataDiniyah as item}
-                <div class="bar-row">
-                  <div class="bar-label">{item.label}</div>
-                  <div class="bar-track">
-                    <div class="bar-fill" style="width: {item.value}%;">
-                      <span class="bar-value">{Math.round(item.value)}</span>
-                    </div>
-                  </div>
-                </div>
-              {/each}
+            <div class="chart-header-row">
+              <div>
+                <h3>
+                  {selectedRombel === 'Semua Rombel'
+                    ? 'Statistik Diniyah Per Rombel'
+                    : `Statistik Diniyah Siswa - ${selectedRombel}`}
+                </h3>
+                <p>
+                  {selectedRombel === 'Semua Rombel'
+                    ? 'Rata-rata nilai rapor diniyah antar rombel'
+                    : 'Rata-rata nilai rapor diniyah masing-masing siswa'}
+                </p>
+              </div>
+              <div class="filter-group">
+                <select bind:value={selectedRombel} class="metric-select">
+                  {#each uniqueRombel as rombel}
+                    <option value={rombel}>{rombel}</option>
+                  {/each}
+                </select>
+                <select bind:value={selectedMapel} class="metric-select">
+                  {#each uniqueMapel as mapel}
+                    <option value={mapel}>{mapel}</option>
+                  {/each}
+                </select>
+              </div>
             </div>
+
+            <BarChart
+              data={diniyahChartData()}
+              color="#10b981"
+              max={100}
+              labelFormat={(v) => Math.round(v)}
+            />
           </div>
         {/if}
       {/if}
@@ -367,6 +543,12 @@
     box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
   }
 
+  .filter-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
   /* Tabs */
   .tabs {
     display: flex;
@@ -457,6 +639,6 @@
     color: white;
     font-weight: 700;
     font-size: 0.9rem;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 </style>

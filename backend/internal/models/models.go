@@ -200,8 +200,8 @@ type Guru struct {
 	ID           int32     `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       int32     `gorm:"uniqueIndex;not null" json:"user_id"`
 	NamaLengkap  string    `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
-	NIK          string    `gorm:"type:varchar(50);uniqueIndex" json:"nik"`
-	NoHP         string    `gorm:"type:varchar(20)" json:"no_hp"`
+	NIK          *string   `gorm:"type:varchar(50);uniqueIndex" json:"nik"`
+	NoHP         *string   `gorm:"type:varchar(20)" json:"no_hp"`
 	JamMasuk     string    `gorm:"type:varchar(5)" json:"jam_masuk"`
 	JamPulang    string    `gorm:"type:varchar(5)" json:"jam_pulang"`
 	AksesFitur   string    `gorm:"type:json" json:"akses_fitur"`

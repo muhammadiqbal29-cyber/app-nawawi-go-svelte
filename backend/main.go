@@ -20,6 +20,7 @@ import (
 	"siakad-nawawi-be/internal/kelas"
 	"siakad-nawawi-be/internal/keseharian"
 	"siakad-nawawi-be/internal/konfigurasiTahfiz"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/mapelDiniyah"
 	"siakad-nawawi-be/internal/materiTahfiz"
 	"siakad-nawawi-be/internal/middleware"
@@ -63,18 +64,19 @@ func HandleCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	// Inisialisasi structured logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	slog.SetDefault(logger)
-
-	slog.Info("Memulai server Siakad Nawawi...")
-
 	if err := godotenv.Load("../.env"); err != nil {
-		slog.Warn("Peringatan: File .env di root (../.env) tidak ditemukan")
+		// Abaikan error saat init awal karena logger belum siap
 	}
 	if err := godotenv.Load(); err != nil {
-		slog.Warn("Peringatan: File .env lokal tidak ditemukan, menggunakan environment system")
+		// Abaikan error saat init awal
 	}
+
+	// Inisialisasi structured logging terpusat (JSON + redaction filter)
+	// Di production, isi LOG_FILE_PATH di .env (misal: /var/log/siakad/app.log)
+	logFilePath := os.Getenv("LOG_FILE_PATH")
+	logger.Init(logFilePath)
+
+	slog.Info("Memulai server Siakad Nawawi...")
 
 	// Inisialisasi Database
 	database.InitDB()
@@ -85,8 +87,9 @@ func main() {
 	// Inisialisasi Router
 	r := mux.NewRouter()
 
-	// Terapkan Security Headers Middleware ke semua rute
+	// Terapkan Security Headers & Request Logger Middleware ke semua rute
 	r.Use(middleware.SecurityHeadersMiddleware)
+	r.Use(middleware.RequestLoggerMiddleware)
 
 	// Endpoint publik
 	r.HandleFunc("/api/login", middleware.RateLimiter(auth.LoginHandler)).Methods("POST", "OPTIONS")
@@ -94,9 +97,9 @@ func main() {
 
 	// Subrouter untuk /api
 	apiRouter := r.PathPrefix("/api").Subrouter()
-	apiRouter.Use(middleware.MaxBytesMiddleware(10 << 20)) // Batas maksimum 10MB untuk semua request API
+	apiRouter.Use(middleware.MaxBytesMiddleware(10 << 20))                    // Batas maksimum 10MB untuk semua request API
 	apiRouter.Use(middleware.GlobalRateLimiterMiddleware(300, 1*time.Minute)) // Batas 300 request per menit (Anti-DDoS)
-	apiRouter.Use(middleware.AntiCSRFMiddleware) // Proteksi CSRF untuk rute API
+	apiRouter.Use(middleware.AntiCSRFMiddleware)                              // Proteksi CSRF untuk rute API
 
 	// Endpoint terproteksi (Contoh)
 	apiRouter.HandleFunc("/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -188,6 +191,7 @@ func main() {
 	guruRouter.HandleFunc("/kelas/{kelas_id}/nilai", nilai.GetNilaiByKelasHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai", nilai.GetNilaiBySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz", nilai.GetNilaiTahfizBySiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/tahfiz-masal", nilai.GetNilaiTahfizMasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz/detail", nilai.AutosaveNilaiTahfizDetailHandler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.GetRiwayatTahfizHarianHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.PostSetoranTahfizHarianHandler).Methods("POST")
@@ -207,6 +211,7 @@ func main() {
 	guruRouter.HandleFunc("/kelas/{kelas_id}/mapel-diniyah/{mapel_id}/template", nilaiDiniyah.DownloadTemplateNilaiDiniyahHandler).Methods("GET")
 	guruRouter.HandleFunc("/nilai-diniyah", nilaiDiniyah.UpsertNilaiDiniyahHandler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/rapor-diniyah", nilaiDiniyah.GetRaporDiniyahHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/rapor-diniyah-masal", nilaiDiniyah.GetRaporDiniyahMasalHandler).Methods("GET")
 
 	// Rute Halaqah Tahfiz Guru
 	guruRouter.HandleFunc("/me/halaqah", tahfiz.GetHalaqahKuHandler).Methods("GET")
@@ -226,6 +231,7 @@ func main() {
 	guruRouter.HandleFunc("/keseharian/sesi", keseharian.SubmitSesiKeseharianHandler).Methods("POST")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/keseharian/rekap", keseharian.GetRekapKeseharianHandler).Methods("GET")
 	guruRouter.HandleFunc("/keseharian/rapor/{siswa_id}", keseharian.GetRaporSiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/keseharian-masal", keseharian.GetRaporKeseharianMasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/keseharian/penyesuaian/{id:[0-9]+}", keseharian.UpdatePenyesuaianHandler).Methods("PUT")
 
 	// Rute Rapor Keseharian (Guru) - Konfigurasi Indikator

@@ -1,37 +1,41 @@
 <script>
   import Icon from '$lib/components/ui/Icon.svelte';
-  
+
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   let isTriggering = $state(false);
   let isDownloading = $state(false);
   let isRestoring = $state(false);
   let triggerMessage = $state('');
   let triggerError = $state('');
-  
+
   let restoreMessage = $state('');
   let restoreError = $state('');
-  
+
   let fileInput;
-  
+
   async function handleTriggerBackup() {
-    if (!confirm('Apakah Anda yakin ingin memicu backup sekarang? Proses ini mungkin membutuhkan waktu beberapa detik.')) {
-        return;
+    if (
+      !confirm(
+        'Apakah Anda yakin ingin memicu backup sekarang? Proses ini mungkin membutuhkan waktu beberapa detik.'
+      )
+    ) {
+      return;
     }
 
     isTriggering = true;
     triggerMessage = '';
     triggerError = '';
-    
+
     try {
       const res = await fetch(`${apiUrl}/api/backup/trigger`, {
-          method: 'POST',
-          credentials: 'include'
+        method: 'POST',
+        credentials: 'include'
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-          triggerMessage = data.message || 'Backup berhasil dilakukan dan diupload.';
+        triggerMessage = data.message || 'Backup berhasil dilakukan dan diupload.';
       } else {
-          triggerError = data.message || 'Terjadi kesalahan saat mem-backup.';
+        triggerError = data.message || 'Terjadi kesalahan saat mem-backup.';
       }
     } catch (e) {
       triggerError = 'Kesalahan jaringan atau server tidak merespon.';
@@ -44,35 +48,35 @@
     isDownloading = true;
     triggerMessage = '';
     triggerError = '';
-    
+
     try {
       const res = await fetch(`${apiUrl}/api/backup/download`, {
-          method: 'GET',
-          credentials: 'include'
+        method: 'GET',
+        credentials: 'include'
       });
-      
+
       if (res.ok) {
-          const blob = await res.blob();
-          const contentDisposition = res.headers.get('Content-Disposition');
-          let filename = 'siakad_backup.enc';
-          if (contentDisposition) {
-              const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-              if (filenameMatch && filenameMatch.length === 2) {
-                  filename = filenameMatch[1];
-              }
+        const blob = await res.blob();
+        const contentDisposition = res.headers.get('Content-Disposition');
+        let filename = 'siakad_backup.enc';
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+          if (filenameMatch && filenameMatch.length === 2) {
+            filename = filenameMatch[1];
           }
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          triggerMessage = 'File backup berhasil disiapkan dan mulai diunduh.';
+        }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        triggerMessage = 'File backup berhasil disiapkan dan mulai diunduh.';
       } else {
-          const data = await res.json().catch(() => ({}));
-          triggerError = data.message || 'Terjadi kesalahan saat meracik backup.';
+        const data = await res.json().catch(() => ({}));
+        triggerError = data.message || 'Terjadi kesalahan saat meracik backup.';
       }
     } catch (e) {
       triggerError = 'Kesalahan jaringan atau server tidak merespon.';
@@ -86,13 +90,17 @@
     if (!file) return;
 
     if (!file.name.endsWith('.enc')) {
-        restoreError = 'Hanya menerima file backup terenkripsi (.enc)';
-        return;
+      restoreError = 'Hanya menerima file backup terenkripsi (.enc)';
+      return;
     }
 
-    if (!confirm('PERINGATAN BAHAYA: Merestore database akan MENIMPA semua data yang ada di sistem saat ini dengan data dari file backup. Pastikan ini adalah tindakan yang benar. Lanjutkan?')) {
-        fileInput.value = '';
-        return;
+    if (
+      !confirm(
+        'PERINGATAN BAHAYA: Merestore database akan MENIMPA semua data yang ada di sistem saat ini dengan data dari file backup. Pastikan ini adalah tindakan yang benar. Lanjutkan?'
+      )
+    ) {
+      fileInput.value = '';
+      return;
     }
 
     isRestoring = true;
@@ -103,23 +111,24 @@
     formData.append('backup_file', file);
 
     try {
-        const res = await fetch(`${apiUrl}/api/backup/restore`, {
-            method: 'POST',
-            credentials: 'include',
-            body: formData
-        });
-        const data = await res.json().catch(() => ({}));
-        
-        if (res.ok) {
-            restoreMessage = 'Proses Restore Selesai! Database telah dipulihkan. Silakan muat ulang (refresh) halaman atau login kembali.';
-        } else {
-            restoreError = data.message || 'Gagal merestore database.';
-        }
+      const res = await fetch(`${apiUrl}/api/backup/restore`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        restoreMessage =
+          'Proses Restore Selesai! Database telah dipulihkan. Silakan muat ulang (refresh) halaman atau login kembali.';
+      } else {
+        restoreError = data.message || 'Gagal merestore database.';
+      }
     } catch (err) {
-        restoreError = 'Terjadi kesalahan jaringan atau server terputus saat merestore.';
+      restoreError = 'Terjadi kesalahan jaringan atau server terputus saat merestore.';
     } finally {
-        isRestoring = false;
-        if (fileInput) fileInput.value = '';
+      isRestoring = false;
+      if (fileInput) fileInput.value = '';
     }
   }
 </script>
@@ -138,92 +147,116 @@
   </div>
 
   <div class="grid">
-      <!-- Backup Section -->
-      <div class="card backup-card">
-          <div class="card-header">
-              <div class="icon-circle primary">
-                  <Icon name="save" size={24} />
-              </div>
-              <h2>Backup Manual</h2>
-          </div>
-          <div class="card-body">
-              <p>Sistem secara otomatis melakukan backup ke Google Drive setiap 3 jam. Namun Anda dapat memaksa sistem untuk melakukan backup seketika melalui tombol di bawah.</p>
-              
-              {#if triggerMessage}
-                  <div class="alert alert-success">{triggerMessage}</div>
-              {/if}
-              {#if triggerError}
-                  <div class="alert alert-error">{triggerError}</div>
-              {/if}
-              
-              <div class="button-group">
-                  <button class="btn-primary" onclick={handleTriggerBackup} disabled={isTriggering || isDownloading}>
-                      {#if isTriggering}
-                        <Icon name="loader" size={18} class="spin" />
-                        Mengeksekusi...
-                      {:else}
-                        <Icon name="cloudLightning" size={18} />
-                        Upload GDrive
-                      {/if}
-                  </button>
-                  <button class="btn-secondary" onclick={handleDownloadBackup} disabled={isTriggering || isDownloading}>
-                      {#if isDownloading}
-                        <Icon name="loader" size={18} class="spin" />
-                        Menyiapkan...
-                      {:else}
-                        <Icon name="download" size={18} />
-                        Unduh ke PC
-                      {/if}
-                  </button>
-              </div>
-          </div>
+    <!-- Backup Section -->
+    <div class="card backup-card">
+      <div class="card-header">
+        <div class="icon-circle primary">
+          <Icon name="save" size={24} />
+        </div>
+        <h2>Backup Manual</h2>
       </div>
+      <div class="card-body">
+        <p>
+          Sistem secara otomatis melakukan backup ke Google Drive setiap 3 jam. Namun Anda dapat
+          memaksa sistem untuk melakukan backup seketika melalui tombol di bawah.
+        </p>
 
-      <!-- Restore Section -->
-      <div class="card restore-card">
-          <div class="card-header">
-              <div class="icon-circle danger">
-                  <Icon name="refreshCcw" size={24} />
-              </div>
-              <h2>Restore Database</h2>
-          </div>
-          <div class="card-body">
-              <p class="warning-text">
-                  <Icon name="alertTriangle" size={16} />
-                  <span><strong>PERINGATAN:</strong> Merestore akan menimpa seluruh data yang ada saat ini. Tindakan ini tidak bisa dibatalkan.</span>
-              </p>
-              
-              <p>Unggah file backup berekstensi <code>.enc</code> (File Terenkripsi AES-256) yang didapat dari Google Drive.</p>
+        {#if triggerMessage}
+          <div class="alert alert-success">{triggerMessage}</div>
+        {/if}
+        {#if triggerError}
+          <div class="alert alert-error">{triggerError}</div>
+        {/if}
 
-              {#if restoreMessage}
-                  <div class="alert alert-success">{restoreMessage}</div>
-              {/if}
-              {#if restoreError}
-                  <div class="alert alert-error">{restoreError}</div>
-              {/if}
-
-              <div class="upload-area" onclick={() => !isRestoring && fileInput.click()} class:disabled={isRestoring} role="button" tabindex="0" onkeypress={(e) => e.key === 'Enter' && !isRestoring && fileInput.click()}>
-                  <Icon name="uploadCloud" size={32} class="upload-icon" />
-                  <span class="upload-title">Klik untuk Mengunggah File Backup</span>
-                  <span class="upload-subtitle">Hanya ekstensi .enc didukung</span>
-              </div>
-              <input
-                type="file"
-                accept=".enc"
-                style="display: none;"
-                bind:this={fileInput}
-                onchange={handleRestore}
-                disabled={isRestoring}
-              />
-              
-              {#if isRestoring}
-                  <div class="progress-info">
-                      <Icon name="loader" size={18} class="spin" />
-                      Sedang memulihkan database. Mohon tunggu, proses ini dapat memakan waktu...
-                  </div>
-              {/if}
-          </div>
+        <div class="button-group">
+          <button
+            class="btn-primary"
+            onclick={handleTriggerBackup}
+            disabled={isTriggering || isDownloading}
+          >
+            {#if isTriggering}
+              <Icon name="loader" size={18} class="spin" />
+              Mengeksekusi...
+            {:else}
+              <Icon name="cloudLightning" size={18} />
+              Upload GDrive
+            {/if}
+          </button>
+          <button
+            class="btn-secondary"
+            onclick={handleDownloadBackup}
+            disabled={isTriggering || isDownloading}
+          >
+            {#if isDownloading}
+              <Icon name="loader" size={18} class="spin" />
+              Menyiapkan...
+            {:else}
+              <Icon name="download" size={18} />
+              Unduh ke PC
+            {/if}
+          </button>
+        </div>
       </div>
+    </div>
+
+    <!-- Restore Section -->
+    <div class="card restore-card">
+      <div class="card-header">
+        <div class="icon-circle danger">
+          <Icon name="refreshCcw" size={24} />
+        </div>
+        <h2>Restore Database</h2>
+      </div>
+      <div class="card-body">
+        <p class="warning-text">
+          <Icon name="alertTriangle" size={16} />
+          <span
+            ><strong>PERINGATAN:</strong> Merestore akan menimpa seluruh data yang ada saat ini. Tindakan
+            ini tidak bisa dibatalkan.</span
+          >
+        </p>
+
+        <p>
+          Unggah file backup berekstensi <code>.enc</code> (File Terenkripsi AES-256) yang didapat dari
+          Google Drive.
+        </p>
+
+        {#if restoreMessage}
+          <div class="alert alert-success">{restoreMessage}</div>
+        {/if}
+        {#if restoreError}
+          <div class="alert alert-error">{restoreError}</div>
+        {/if}
+
+        <div
+          class="upload-area"
+          onclick={() => !isRestoring && fileInput.click()}
+          class:disabled={isRestoring}
+          role="button"
+          tabindex="0"
+          onkeypress={(e) => e.key === 'Enter' && !isRestoring && fileInput.click()}
+        >
+          <Icon name="uploadCloud" size={32} class="upload-icon" />
+          <span class="upload-title">Klik untuk Mengunggah File Backup</span>
+          <span class="upload-subtitle">Hanya ekstensi .enc didukung</span>
+        </div>
+        <input
+          type="file"
+          accept=".enc"
+          style="display: none;"
+          bind:this={fileInput}
+          onchange={handleRestore}
+          disabled={isRestoring}
+        />
+
+        {#if isRestoring}
+          <div class="progress-info">
+            <Icon name="loader" size={18} class="spin" />
+            Sedang memulihkan database. Mohon tunggu, proses ini dapat memakan waktu...
+          </div>
+        {/if}
+      </div>
+    </div>
   </div>
 </div>
 
@@ -263,14 +296,14 @@
   }
 
   .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
   @media (min-width: 768px) {
-      .grid {
-          grid-template-columns: 1fr 1fr;
-      }
+    .grid {
+      grid-template-columns: 1fr 1fr;
+    }
   }
 
   .card {
@@ -278,81 +311,88 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-radius: 1.25rem;
-    border: 1px solid rgba(255,255,255,0.3);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow:
+      0 10px 25px -5px rgba(0, 0, 0, 0.05),
+      0 8px 10px -6px rgba(0, 0, 0, 0.01);
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
   }
   .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    transform: translateY(-4px);
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
+      0 8px 10px -6px rgba(0, 0, 0, 0.05);
   }
 
   .card-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid #f1f5f9;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      background: linear-gradient(to right, rgba(255,255,255,0.9), rgba(248,250,252,0.5));
+    padding: 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.5));
   }
   .card-header h2 {
-      margin: 0;
-      font-size: 1.25rem;
-      color: #0f172a;
-      font-weight: 600;
+    margin: 0;
+    font-size: 1.25rem;
+    color: #0f172a;
+    font-weight: 600;
   }
 
   .icon-circle {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .icon-circle.primary {
-      background: #e0e7ff;
-      color: #4338ca;
+    background: #e0e7ff;
+    color: #4338ca;
   }
   .icon-circle.danger {
-      background: #fee2e2;
-      color: #b91c1c;
+    background: #fee2e2;
+    color: #b91c1c;
   }
 
   .card-body {
-      padding: 1.5rem;
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+    padding: 1.5rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
   .card-body p {
-      margin: 0;
-      color: #475569;
-      line-height: 1.6;
+    margin: 0;
+    color: #475569;
+    line-height: 1.6;
   }
 
   .warning-text {
-      display: flex;
-      gap: 0.5rem;
-      align-items: flex-start;
-      padding: 1rem;
-      background: #fef2f2;
-      border-left: 4px solid #ef4444;
-      border-radius: 0.5rem;
-      color: #991b1b !important;
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 1rem;
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    border-radius: 0.5rem;
+    color: #991b1b !important;
   }
 
   .button-group {
-      display: flex;
-      gap: 1rem;
-      margin-top: auto;
+    display: flex;
+    gap: 1rem;
+    margin-top: auto;
   }
 
-  .btn-primary, .btn-secondary {
+  .btn-primary,
+  .btn-secondary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -365,7 +405,7 @@
     transition: all 0.2s;
     flex: 1;
   }
-  
+
   .btn-primary {
     background: #4f46e5;
     color: white;
@@ -376,8 +416,8 @@
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
   }
   .btn-primary:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .btn-secondary {
@@ -391,47 +431,47 @@
     border-color: #94a3b8;
   }
   .btn-secondary:disabled {
-      opacity: 0.7;
-      cursor: not-allowed;
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .upload-area {
-      border: 2px dashed #cbd5e1;
-      border-radius: 1rem;
-      padding: 2rem;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      background: #f8fafc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: auto;
+    border: 2px dashed #cbd5e1;
+    border-radius: 1rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: auto;
   }
   .upload-area:hover:not(.disabled) {
-      border-color: #ef4444;
-      background: #fef2f2;
+    border-color: #ef4444;
+    background: #fef2f2;
   }
   .upload-area.disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    opacity: 0.6;
+    cursor: not-allowed;
   }
   .upload-icon {
-      color: #94a3b8;
-      margin-bottom: 0.5rem;
-      transition: color 0.2s;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+    transition: color 0.2s;
   }
   .upload-area:hover:not(.disabled) .upload-icon {
-      color: #ef4444;
+    color: #ef4444;
   }
   .upload-title {
-      font-weight: 600;
-      color: #334155;
+    font-weight: 600;
+    color: #334155;
   }
   .upload-subtitle {
-      font-size: 0.875rem;
-      color: #64748b;
+    font-size: 0.875rem;
+    color: #64748b;
   }
 
   .alert {
@@ -451,19 +491,23 @@
   }
 
   .progress-info {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: #b91c1c;
-      font-weight: 500;
-      margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #b91c1c;
+    font-weight: 500;
+    margin-top: 1rem;
   }
 
   :global(.spin) {
-      animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
   }
   @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 </style>

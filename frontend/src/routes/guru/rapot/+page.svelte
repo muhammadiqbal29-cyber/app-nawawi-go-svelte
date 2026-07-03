@@ -1,5 +1,14 @@
 <script>
+  import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('rapot_ujian_tahfiz_kelas');
+      sessionStorage.removeItem('rapot_diniyah_kelas');
+      sessionStorage.removeItem('rapot_keseharian_kelas');
+    }
+  });
 
   const reportCards = [
     {

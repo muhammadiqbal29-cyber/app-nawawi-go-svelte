@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
 	"siakad-nawawi-be/internal/tahunajaran"
@@ -135,6 +137,10 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !middleware.VerifyGuruAccessJSON(w, r, payload.SekolahID) {
+		return
+	}
+
 	// Resolve TA & Semester
 	if payload.TahunAjaranID == 0 || payload.SemesterID == 0 {
 		taID, semID, err := tahunajaran.ResolveActivePeriod(r)
@@ -226,16 +232,6 @@ func GetRaporDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ambil semua nilai diniyah siswa
-	var nilaiList []models.NilaiDiniyah
-	if err := database.DB.Where(
-		"siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
-		siswaID, riwayat.SekolahID, taID, semID,
-	).Find(&nilaiList).Error; err != nil {
-		response.Error(w, http.StatusInternalServerError, "Gagal mengambil nilai", err)
-		return
-	}
-
 	// Ambil semua mapel diniyah aktif untuk sekolah ini
 	var mapelList []models.MapelDiniyah
 	if err := database.DB.Where("sekolah_id = ? AND aktif = ?", riwayat.SekolahID, true).
@@ -272,7 +268,112 @@ func GetRaporDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build response
+	data, err := buildRaporDiniyahData(siswa, riwayat, sekolah, kelas, semester, mapelList, taID, semID)
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal memproses rapot", err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, data)
+}
+
+// GetRaporDiniyahMasalHandler mengambil semua nilai diniyah untuk 1 kelas/rombel secara masal
+func GetRaporDiniyahMasalHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	kelasID, err := strconv.Atoi(vars["kelas_id"])
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "ID Kelas tidak valid", err)
+		return
+	}
+
+	rombel := r.URL.Query().Get("rombel")
+	if rombel == "__kosong__" {
+		rombel = ""
+	}
+
+	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+
+	// Get Kelas
+	var kelas models.Kelas
+	if err := database.DB.First(&kelas, kelasID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Data kelas tidak ditemukan", err)
+		return
+	}
+
+	// Get Sekolah
+	var sekolah models.Sekolah
+	if err := database.DB.First(&sekolah, kelas.SekolahID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Data sekolah tidak ditemukan", err)
+		return
+	}
+
+	// Get Semester
+	var semester models.Semester
+	if err := database.DB.First(&semester, semID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Data semester tidak ditemukan", err)
+		return
+	}
+
+	// Get Mapel
+	var mapelList []models.MapelDiniyah
+	if err := database.DB.Where("sekolah_id = ? AND aktif = ?", sekolah.ID, true).
+		Order("urutan ASC, id ASC").
+		Find(&mapelList).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal mengambil mapel", err)
+		return
+	}
+
+	// Get all students in this class/rombel
+	var riwayatList []models.RiwayatKelas
+	query := database.DB.Where("kelas_id = ? AND tahun_ajaran_id = ? AND status_akhir = 'Aktif'", kelasID, taID)
+	if rombel != "" {
+		query = query.Where("rombel = ?", rombel)
+	} else {
+		query = query.Where("(rombel = '' OR rombel IS NULL)")
+	}
+
+	if err := query.Find(&riwayatList).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal mengambil daftar siswa", err)
+		return
+	}
+
+	var results []map[string]interface{}
+	for _, riwayat := range riwayatList {
+		var siswa models.Siswa
+		if err := database.DB.First(&siswa, riwayat.SiswaID).Error; err == nil {
+			data, err := buildRaporDiniyahData(siswa, riwayat, sekolah, kelas, semester, mapelList, taID, semID)
+			if err == nil {
+				results = append(results, data)
+			}
+		}
+	}
+
+	response.JSON(w, http.StatusOK, results)
+}
+
+// buildRaporDiniyahData adalah fungsi helper untuk merakit data satu rapot diniyah
+func buildRaporDiniyahData(
+	siswa models.Siswa,
+	riwayat models.RiwayatKelas,
+	sekolah models.Sekolah,
+	kelas models.Kelas,
+	semester models.Semester,
+	mapelList []models.MapelDiniyah,
+	taID, semID int,
+) (map[string]interface{}, error) {
+	// Ambil semua nilai diniyah siswa
+	var nilaiList []models.NilaiDiniyah
+	if err := database.DB.Where(
+		"siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
+		siswa.ID, sekolah.ID, taID, semID,
+	).Find(&nilaiList).Error; err != nil {
+		return nil, err
+	}
+
 	type MapelNilai struct {
 		MapelDiniyah models.MapelDiniyah   `json:"mapel"`
 		Nilai        *nilaiDiniyahResponse `json:"nilai"`
@@ -293,14 +394,14 @@ func GetRaporDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		result = append(result, mn)
 	}
 
-	response.JSON(w, http.StatusOK, map[string]interface{}{
+	return map[string]interface{}{
 		"siswa":       siswa,
 		"kelas":       kelas,
 		"rombel":      riwayat.Rombel,
 		"sekolah":     sekolah,
 		"semester":    semester,
 		"mapel_nilai": result,
-	})
+	}, nil
 }
 
 // DownloadTemplateNilaiDiniyahHandler mengunduh template Excel untuk kelas & mapel tertentu
@@ -398,6 +499,6 @@ func DownloadTemplateNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"template_nilai_%s.xlsx\"", mapelName))
 
 	if err := f.Write(w); err != nil {
-		fmt.Printf("Failed to write template: %v\n", err)
+		slog.Error("Gagal menulis template Excel", "error", err)
 	}
 }

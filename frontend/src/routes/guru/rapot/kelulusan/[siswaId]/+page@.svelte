@@ -409,7 +409,7 @@
   .page {
     width: var(--print-width);
     min-height: var(--print-height);
-    padding: 15mm 20mm;
+    padding: 20mm;
     margin: 20px auto;
     background: white;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -708,10 +708,11 @@
     }
     .page {
       margin: 0;
-      padding: 12mm 15mm;
+      padding: 1cm 2cm 2cm 2cm !important;
       box-shadow: none;
       width: 100%;
-      min-height: 100%;
+      min-height: auto !important;
+      height: auto !important;
     }
     .no-print {
       display: none !important;

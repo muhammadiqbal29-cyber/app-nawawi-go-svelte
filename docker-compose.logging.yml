@@ -1,0 +1,47 @@
+version: '3.8'
+
+# Docker Compose khusus untuk monitoring log (Grafana + Loki + Promtail)
+# Jalankan dengan: docker compose -f docker-compose.logging.yml up -d
+# Akses Grafana di: http://localhost:3000 (user: admin / pass: admin)
+
+services:
+  loki:
+    image: grafana/loki:latest
+    container_name: siakad_loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./logging/loki-config.yml:/etc/loki/config.yml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/config.yml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: siakad_promtail
+    volumes:
+      - ./logging/promtail-config.yml:/etc/promtail/config.yml
+      - ./logs:/var/log/siakad:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: siakad_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./logging/grafana-datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+volumes:
+  loki_data:
+  grafana_data:

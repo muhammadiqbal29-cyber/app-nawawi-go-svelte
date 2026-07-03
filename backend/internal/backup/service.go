@@ -98,7 +98,7 @@ func RestoreDatabase(encFile string) error {
 	return nil
 }
 
-// executeSQLFile membaca file SQL baris demi baris dan mengeksekusinya per kueri 
+// executeSQLFile membaca file SQL baris demi baris dan mengeksekusinya per kueri
 // untuk menghindari OOM dan masalah max_allowed_packet di MySQL.
 func executeSQLFile(db *gorm.DB, filepath string) error {
 	/* #nosec G304 G703 */

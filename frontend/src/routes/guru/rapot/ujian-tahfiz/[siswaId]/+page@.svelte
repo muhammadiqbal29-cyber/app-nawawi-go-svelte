@@ -13,11 +13,15 @@
   let nisn = $derived($page.url.searchParams.get('nisn') || '-');
   let kelas = $derived($page.url.searchParams.get('kelas') || '-');
   let selectedKelasId = $derived($page.url.searchParams.get('selectedKelasId') || '');
-  let tanggalCetak = new Date().toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  let customTanggalRapot = $state(
+    new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  );
+  let customGuruPembimbing = $state('Ust. Muhammad Rasyid, S.Pd.I');
+  let customSubJudul = $state("Evaluasi Pembelajaran Juz 30 (Juz 'Amma)");
 
   let sekolah = $state(null);
   let nilaiHeader = $state(null);
@@ -127,29 +131,58 @@
   </button>
 </div>
 
+<div
+  class="settings-box no-print"
+  style="max-width: 210mm; margin: 0 auto 1.5rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;"
+>
+  <h4 style="margin-top: 0;">Pengaturan Cetak (Tidak ikut terprint)</h4>
+  <div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"
+  >
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Tanggal Rapot (contoh: 21 Juni 2026):
+      <input type="text" class="form-input" bind:value={customTanggalRapot} />
+    </label>
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Guru Pembimbing Tahfiz:
+      <input type="text" class="form-input" bind:value={customGuruPembimbing} />
+    </label>
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Keterangan Evaluasi (Sub-Judul):
+      <input type="text" class="form-input" bind:value={customSubJudul} />
+    </label>
+  </div>
+</div>
+
 <div class="page">
   <div>
     <div class="report-header">
-      <div class="kop-sekolah">
-        <div class="kop-text">
-          <h1 class="kop-nama">{sekolah?.nama_sekolah || 'Memuat...'}</h1>
-          <p class="kop-npsn">NPSN: {sekolah?.npsn || '-'}</p>
-          <p class="kop-alamat">
-            {sekolah?.alamat || ''}{sekolah?.kode_pos ? `, Kode Pos: ${sekolah.kode_pos}` : ''}
-          </p>
-          <p class="kop-kontak">
-            {#if sekolah?.email}Email: {sekolah.email}{/if}
-            {#if sekolah?.email && sekolah?.website}
-              |
-            {/if}
-            {#if sekolah?.website}Website: {sekolah.website}{/if}
-          </p>
-        </div>
+      <!-- Header -->
+      <div class="header-section">
+        <h1 class="header-sekolah">{sekolah?.nama_sekolah || 'Memuat...'}</h1>
+        <p class="header-npsn">NPSN: {sekolah?.npsn || '-'}</p>
+        <p class="header-address">
+          {sekolah?.alamat || ''}{sekolah?.kode_pos ? `, Kode Pos: ${sekolah.kode_pos}` : ''}
+        </p>
+        <p class="header-contact">
+          {#if sekolah?.email}Email: {sekolah.email}{/if}
+          {#if sekolah?.email && sekolah?.website}
+            |
+          {/if}
+          {#if sekolah?.website}Website: {sekolah.website}{/if}
+        </p>
       </div>
-      <div class="kop-divider"></div>
+      <!-- Double Border Line -->
+      <div class="header-line"></div>
       <div class="report-title">
         <h2>RAPOR HAFALAN AL-QUR'AN</h2>
-        <h3>Evaluasi Pembelajaran Juz 30 (Juz 'Amma)</h3>
+        <h3>{customSubJudul}</h3>
       </div>
     </div>
 
@@ -264,9 +297,9 @@
             <div class="signature-line">( ____________________ )</div>
           </div>
           <div>
-            <p id="print-date">Jakarta, {tanggalCetak}</p>
+            <p id="print-date">Jakarta, {customTanggalRapot}</p>
             <p class="signature-title">Guru Pembimbing Tahfiz</p>
-            <div class="signature-line">( Ust. Muhammad Rasyid, S.Pd.I )</div>
+            <div class="signature-line">( {customGuruPembimbing} )</div>
           </div>
         </div>
       </div>
@@ -297,6 +330,13 @@
     color: #000;
     margin: 0;
     padding: 0;
+  }
+
+  .form-input {
+    padding: 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
   }
 
   .controls {
@@ -367,7 +407,7 @@
   .page {
     width: var(--print-width);
     min-height: var(--print-height);
-    padding: 15mm 20mm;
+    padding: 20mm;
     margin: 20px auto;
     background: white;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -383,52 +423,34 @@
     margin-bottom: 1.5rem;
   }
 
-  .kop-sekolah {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    padding-bottom: 0.75rem;
-  }
-
-  .kop-text {
+  .header-section {
     text-align: center;
+    margin-bottom: 16px;
   }
-
-  .kop-nama {
-    margin: 0.15rem 0 0.25rem;
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: #000;
+  .header-sekolah {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    margin-top: 4px;
+    margin-bottom: 4px;
   }
-
-  .kop-npsn {
+  .header-npsn {
     margin: 0;
     font-size: 0.8rem;
     font-weight: 700;
     color: #333;
     letter-spacing: 0.05em;
   }
-
-  .kop-alamat {
-    margin: 0.25rem 0 0;
-    font-size: 0.78rem;
-    color: #333;
+  .header-address,
+  .header-contact {
+    font-size: 12px;
+    margin: 4px 0 0;
   }
-
-  .kop-kontak {
-    margin: 0.1rem 0 0;
-    font-size: 0.75rem;
-    color: #555;
-  }
-
-  .kop-divider {
-    border-top: 3px solid #000;
-    border-bottom: 1px solid #000;
-    height: 4px;
-    margin-bottom: 0.75rem;
+  .header-line {
+    border-top: 3px double black;
+    border-bottom: none;
+    height: 0;
+    margin-bottom: 24px;
   }
 
   .report-title {
@@ -666,10 +688,11 @@
     }
     .page {
       margin: 0;
-      padding: 12mm 15mm;
+      padding: 1cm 2cm 2cm 2cm !important;
       box-shadow: none;
       width: 100%;
-      min-height: 100%;
+      min-height: auto !important;
+      height: auto !important;
     }
     .no-print {
       display: none !important;

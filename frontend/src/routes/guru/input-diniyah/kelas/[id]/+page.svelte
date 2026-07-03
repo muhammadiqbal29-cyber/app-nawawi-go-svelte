@@ -21,7 +21,7 @@
   let loadingNilai = $state(false);
   let error = $state('');
   let savingCell = $state('');
-  let uhColumnCount = $state(3);
+  let uhColumnCount = $state(4);
 
   const KKM = 65;
 
@@ -80,12 +80,8 @@
       nilaiMap = map;
 
       // Determine UH column count from existing data
-      let maxUh = 3;
-      for (const key in map) {
-        const arr = map[key].uh_scores || [];
-        if (arr.length > maxUh) maxUh = arr.length;
-      }
-      uhColumnCount = maxUh;
+      // Lock to 4 columns explicitly for ulangan harian
+      uhColumnCount = 4;
     } catch (err) {
       error = err.message;
     } finally {
@@ -307,6 +303,25 @@
       }
     })();
   }
+
+  function moveCell(event, rowIndex, colIndex) {
+    const keys = {
+      ArrowUp: [rowIndex - 1, colIndex],
+      ArrowDown: [rowIndex + 1, colIndex],
+      ArrowLeft: [rowIndex, colIndex - 1],
+      ArrowRight: [rowIndex, colIndex + 1]
+    };
+
+    if (!keys[event.key]) return;
+
+    const [nextRow, nextCol] = keys[event.key];
+    const nextCell = document.querySelector(`[data-cell="${nextRow}-${nextCol}"]`);
+    if (!nextCell) return;
+
+    event.preventDefault();
+    nextCell.focus();
+    nextCell.select();
+  }
 </script>
 
 <svelte:head>
@@ -353,12 +368,6 @@
     <div class="toolbar-right">
       <button class="btn-sm btn-primary" onclick={downloadTemplate}>
         <Icon name="download" size={14} /> Template Excel
-      </button>
-      <button class="btn-sm btn-secondary" onclick={removeUhColumn} disabled={uhColumnCount <= 1}>
-        <Icon name="minus" size={14} /> UH
-      </button>
-      <button class="btn-sm btn-secondary" onclick={addUhColumn}>
-        <Icon name="plus" size={14} /> UH
       </button>
       <span class="uh-info">{uhColumnCount} kolom UH</span>
     </div>
@@ -412,12 +421,14 @@
                     max="100"
                     data-field="uh"
                     data-idx={i}
+                    data-cell={`${idx}-${i}`}
                     value={getUhScore(siswa.siswa_id, i) || ''}
                     onblur={(e) => {
                       updateUh(siswa.siswa_id, i, e.target.value);
                       saveNilai(siswa.siswa_id);
                     }}
                     onchange={(e) => updateUh(siswa.siswa_id, i, e.target.value)}
+                    onkeydown={(e) => moveCell(e, idx, i)}
                   />
                 </td>
               {/each}
@@ -429,12 +440,14 @@
                   min="0"
                   max="100"
                   data-field="murni_pts"
+                  data-cell={`${idx}-${uhColumnCount}`}
                   value={data.murni_pts || ''}
                   onblur={(e) => {
                     updateField(siswa.siswa_id, 'murni_pts', e.target.value);
                     saveNilai(siswa.siswa_id);
                   }}
                   onchange={(e) => updateField(siswa.siswa_id, 'murni_pts', e.target.value)}
+                  onkeydown={(e) => moveCell(e, idx, uhColumnCount)}
                 />
               </td>
               <td>
@@ -444,6 +457,7 @@
                   min="0"
                   max="100"
                   data-field="remidi_pts"
+                  data-cell={`${idx}-${uhColumnCount + 1}`}
                   value={data.remidi_pts ?? ''}
                   placeholder="-"
                   onblur={(e) => {
@@ -451,6 +465,7 @@
                     saveNilai(siswa.siswa_id);
                   }}
                   onchange={(e) => updateField(siswa.siswa_id, 'remidi_pts', e.target.value)}
+                  onkeydown={(e) => moveCell(e, idx, uhColumnCount + 1)}
                 />
               </td>
               <td class="cell-calc">{data.na_pts || '-'}</td>
@@ -461,12 +476,14 @@
                   min="0"
                   max="100"
                   data-field="pas"
+                  data-cell={`${idx}-${uhColumnCount + 2}`}
                   value={data.pas || ''}
                   onblur={(e) => {
                     updateField(siswa.siswa_id, 'pas', e.target.value);
                     saveNilai(siswa.siswa_id);
                   }}
                   onchange={(e) => updateField(siswa.siswa_id, 'pas', e.target.value)}
+                  onkeydown={(e) => moveCell(e, idx, uhColumnCount + 2)}
                 />
               </td>
               <td class="cell-nr">{formatDecimal(data.nilai_rapor)}</td>

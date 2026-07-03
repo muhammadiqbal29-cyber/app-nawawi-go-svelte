@@ -47,6 +47,38 @@
   /** @type {any} */
   let currentSiswa = $state(null);
 
+  let displayTanggalLahir = $state('');
+
+  function parseDate(val) {
+    if (!val) return '';
+    // if already YYYY-MM-DD
+    if (val.includes('-')) return val;
+    // parse DD/MM/YYYY or DD-MM-YYYY
+    const parts = val.replace(/-/g, '/').split('/');
+    if (parts.length === 3) {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      let y = parts[2];
+      if (y.length === 2) y = (parseInt(y) < 50 ? '20' : '19') + y;
+      return `${y}-${m}-${d}`;
+    }
+    return val;
+  }
+
+  function formatDate(val) {
+    if (!val) return '';
+    const parts = val.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return val;
+  }
+
+  // Sync display state when form changes externally (e.g. edit/reset)
+  $effect(() => {
+    displayTanggalLahir = formatDate(form.tanggal_lahir);
+  });
+
   onMount(() => {
     loadData();
   });
@@ -451,7 +483,13 @@
                 bind:value={form.tempat_lahir}
                 placeholder="Kota"
               />
-              <input type="date" class="form-input" bind:value={form.tanggal_lahir} />
+              <input
+                type="text"
+                class="form-input"
+                placeholder="DD/MM/YYYY"
+                bind:value={displayTanggalLahir}
+                oninput={() => (form.tanggal_lahir = parseDate(displayTanggalLahir))}
+              />
             </div>
           </div>
 
@@ -485,11 +523,8 @@
 
 <!-- Drawer Profil -->
 {#if showProfile && currentSiswa}
-  <div class="modal-backdrop" style="justify-content: flex-end;">
-    <div
-      class="modal"
-      style="height: 100vh; width: 400px; border-radius: 0; margin: 0; display: flex; flex-direction: column;"
-    >
+  <div class="modal-backdrop" style="justify-content: center;">
+    <div class="modal" style="width: 400px; display: flex; flex-direction: column;">
       <div class="modal-header" style="background: var(--color-primary, #22c55e); color: white;">
         <h3>Profil Siswa</h3>
         <button class="close-btn" style="color: white;" onclick={() => (showProfile = false)}
@@ -504,7 +539,9 @@
             {currentSiswa.nama_lengkap.charAt(0)}
           </div>
           <h3 style="margin: 0;">{currentSiswa.nama_lengkap}</h3>
-          <p style="color: #64748b; margin: 0.2rem 0;">NISN: {currentSiswa.nisn}</p>
+          <p style="color: #64748b; margin: 0.2rem 0;">
+            NISN: {currentSiswa.nisn} | NIS: {currentSiswa.nis || '-'}
+          </p>
           <span class="badge bg-green">{currentSiswa.status}</span>
         </div>
 

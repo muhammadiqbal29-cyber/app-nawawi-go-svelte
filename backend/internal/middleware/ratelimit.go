@@ -28,7 +28,7 @@ func init() {
 func cleanupVisitors() {
 	for {
 		time.Sleep(3 * time.Minute)
-		
+
 		mtx.Lock()
 		for ip, v := range visitors {
 			if time.Since(v.LastSeen) > 3*time.Minute {

@@ -137,6 +137,14 @@ func CreateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Force SekolahID from X-Sekolah-ID header to prevent IDOR
+	sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStr != "" {
+		if sid, err := strconv.Atoi(sekolahIDStr); err == nil {
+			siswa.SekolahID = sid
+		}
+	}
+
 	// Gunakan transaksi
 	tx := database.DB.WithContext(r.Context()).Begin()
 
@@ -414,6 +422,12 @@ func KenaikanKelasHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStr == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
+	}
+
 	tx := database.DB.Begin()
 
 	// Cari Tahun Ajaran saat ini untuk patokan
@@ -446,6 +460,12 @@ func KenaikanKelasHandler(w http.ResponseWriter, r *http.Request) {
 		if err := tx.First(&sekolah, rLama.SekolahID).Error; err != nil {
 			skippedSiswa = append(skippedSiswa, d.SiswaID)
 			continue
+		}
+
+		if strconv.Itoa(rLama.SekolahID) != sekolahIDStr {
+			tx.Rollback()
+			response.Error(w, http.StatusForbidden, "Akses ditolak: Terdapat siswa yang bukan dari sekolah Anda", nil)
+			return
 		}
 
 		// Validasi Auto-Lulus jika TingkatLevel sudah mencapai batas maksimum Jenjang

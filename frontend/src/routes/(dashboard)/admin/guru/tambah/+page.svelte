@@ -141,8 +141,13 @@
         alert('Berhasil menambah data guru');
         goto('/admin/guru');
       } else {
-        const data = await res.json().catch(() => ({}));
-        errorMsg = data.message || 'Gagal menyimpan data';
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          errorMsg = data.message || 'Gagal menyimpan data';
+        } catch {
+          errorMsg = text || 'Gagal menyimpan data';
+        }
       }
     } catch (err) {
       errorMsg = err.message || 'Terjadi kesalahan jaringan';

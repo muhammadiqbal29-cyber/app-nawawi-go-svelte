@@ -3,7 +3,7 @@ package presensi
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -48,7 +48,7 @@ func DownloadTemplateImportPresensiHandler(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Disposition", "attachment; filename=\"template_import_presensi_guru.xlsx\"")
 
 	if err := f.Write(w); err != nil {
-		log.Printf("Failed to write template: %v", err)
+		slog.Error("Gagal menulis template", "error", err)
 	}
 }
 
@@ -213,6 +213,6 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 		"success_count": successCount,
 		"skip_count":    skipCount,
 	}); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }

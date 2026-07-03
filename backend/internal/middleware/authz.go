@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 
@@ -58,11 +59,17 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 
 		if userID, ok := claims["user_id"]; ok {
 			// JWT numbers are decoded as float64 by default, convert to int
+			var uidStr string
 			switch v := userID.(type) {
 			case float64:
 				ctx = context.WithValue(ctx, "user_id", int(v))
+				uidStr = fmt.Sprintf("%d", int(v))
 			case int:
 				ctx = context.WithValue(ctx, "user_id", v)
+				uidStr = fmt.Sprintf("%d", v)
+			}
+			if uidStr != "" {
+				r.Header.Set("X-User-ID", uidStr)
 			}
 		}
 

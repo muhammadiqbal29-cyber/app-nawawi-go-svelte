@@ -75,7 +75,7 @@
   }
 
   function kelasLabel(kelas) {
-    return `${kelas.tingkat || ''} - ${kelas.nama_kelas || ''}`.trim();
+    return (kelas.nama_kelas || kelas.tingkat || '').trim();
   }
   function rombelLabel(rombel) {
     return !rombel || rombel === '__kosong__' ? 'Tanpa Rombel' : `Rombel ${rombel}`;
@@ -132,14 +132,22 @@
   {:else}
     <!-- Pilih Siswa -->
     <div class="selected-header">
-      <button class="btn-back" onclick={resetKelas}>
-        <Icon name="chevronLeft" size={16} /> Ganti Kelas
-      </button>
-      <div class="selected-kelas">
-        <Icon name="book" size={16} />
-        <strong>{kelasLabel(selectedKelas)}</strong>
-        <span class="badge">{rombelLabel(selectedKelas.rombel)}</span>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <button class="btn-back" onclick={resetKelas}>
+          <Icon name="chevronLeft" size={16} /> Ganti Kelas
+        </button>
+        <div class="selected-kelas">
+          <Icon name="book" size={16} />
+          <strong>{kelasLabel(selectedKelas)}</strong>
+          <span class="badge">{rombelLabel(selectedKelas.rombel)}</span>
+        </div>
       </div>
+      <a
+        href={`/guru/rapot/diniyah/kelas/${selectedKelas.id}/masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}`}
+        class="btn-print-masal"
+      >
+        <Icon name="printer" size={16} /> Cetak Rapot Masal
+      </a>
     </div>
 
     {#if loadingSiswa}
@@ -255,7 +263,14 @@
   }
 
   .selected-header {
-    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 1rem 1.2rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
   }
   .btn-back {
     display: inline-flex;
@@ -268,11 +283,28 @@
     cursor: pointer;
     font-size: 0.9rem;
     font-family: inherit;
-    margin-bottom: 0.5rem;
     padding: 0;
   }
   .btn-back:hover {
     color: #4338ca;
+  }
+  .btn-print-masal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #0ea5e9;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-print-masal:hover {
+    background: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
   }
   .selected-kelas {
     display: flex;

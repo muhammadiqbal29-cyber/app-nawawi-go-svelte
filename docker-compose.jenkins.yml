@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    container_name: jenkins_siakad
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Mount Docker socket so Jenkins can run Docker if ever needed
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JAVA_OPTS="-Djenkins.install.runSetupWizard=true"
+
+volumes:
+  jenkins_home:

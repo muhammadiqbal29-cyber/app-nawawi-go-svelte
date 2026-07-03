@@ -3,7 +3,7 @@ package guru
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"strconv"
@@ -23,8 +23,8 @@ type GuruRequest struct {
 	Email        string `json:"email" validate:"required,email"`
 	Password     string `json:"password,omitempty" validate:"omitempty,min=6"`
 	NamaLengkap  string `json:"nama_lengkap" validate:"required"`
-	NIK          string `json:"nik" validate:"required"`
-	NoHP         string `json:"no_hp" validate:"required"`
+	NIK          string `json:"nik"`
+	NoHP         string `json:"no_hp"`
 	JamMasuk     string `json:"jam_masuk"`
 	JamPulang    string `json:"jam_pulang"`
 	AksesFitur   string `json:"akses_fitur"`
@@ -40,7 +40,7 @@ func GetAllGuruHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(gurus); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -55,7 +55,7 @@ func GetGuruHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(guru); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -89,11 +89,19 @@ func CreateGuruHandler(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		var nikPtr, noHpPtr *string
+		if req.NIK != "" {
+			nikPtr = &req.NIK
+		}
+		if req.NoHP != "" {
+			noHpPtr = &req.NoHP
+		}
+
 		guru := models.Guru{
 			UserID:       int32(user.ID), /* #nosec G115 */
 			NamaLengkap:  req.NamaLengkap,
-			NIK:          req.NIK,
-			NoHP:         req.NoHP,
+			NIK:          nikPtr,
+			NoHP:         noHpPtr,
 			JamMasuk:     req.JamMasuk,
 			JamPulang:    req.JamPulang,
 			AksesFitur:   req.AksesFitur,
@@ -115,7 +123,7 @@ func CreateGuruHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Guru created successfully"}); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -156,10 +164,18 @@ func UpdateGuruHandler(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
+		var nikPtr, noHpPtr *string
+		if req.NIK != "" {
+			nikPtr = &req.NIK
+		}
+		if req.NoHP != "" {
+			noHpPtr = &req.NoHP
+		}
+
 		// Update Guru
 		guru.NamaLengkap = req.NamaLengkap
-		guru.NIK = req.NIK
-		guru.NoHP = req.NoHP
+		guru.NIK = nikPtr
+		guru.NoHP = noHpPtr
 		guru.JamMasuk = req.JamMasuk
 		guru.JamPulang = req.JamPulang
 		guru.AksesFitur = req.AksesFitur
@@ -179,7 +195,7 @@ func UpdateGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Guru updated successfully"}); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -210,7 +226,7 @@ func DeleteGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Guru deleted successfully"}); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -265,7 +281,7 @@ func GetMeProfileHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(guruObj); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -337,7 +353,7 @@ func GetSekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(res); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -424,7 +440,7 @@ func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Presensi masuk berhasil dicatat", "status": status}); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -484,7 +500,7 @@ func PresensiPulangHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Presensi pulang berhasil dicatat"}); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }
 
@@ -503,6 +519,6 @@ func GetPresensiHistoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(presensis); err != nil {
-		log.Printf("Error encoding response: %v", err)
+		slog.Error("Gagal encode response", "error", err)
 	}
 }

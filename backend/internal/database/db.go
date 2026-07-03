@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -30,12 +30,13 @@ func InitDB() {
 		if err == nil {
 			break
 		}
-		log.Printf("Gagal terhubung ke database (percobaan %d/10): %v. Menunggu 2 detik...", i, err)
+		slog.Warn("Gagal terhubung ke database, mencoba ulang", "percobaan", i, "max", 10, "error", err)
 		time.Sleep(2 * time.Second)
 	}
 
 	if err != nil {
-		log.Fatalf("Gagal membuka koneksi GORM db setelah 10 percobaan: %v", err)
+		slog.Error("Gagal membuka koneksi database setelah 10 percobaan", "error", err)
+		os.Exit(1)
 	}
 
 	// Atur Connection Pool agar database tidak hang jika di-bombardir test Playwright
@@ -46,7 +47,7 @@ func InitDB() {
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
 
-	log.Println("Berhasil terhubung ke database via GORM")
+	slog.Info("Berhasil terhubung ke database via GORM")
 	migrateAndSeed()
 }
 
@@ -79,16 +80,17 @@ func migrateAndSeed() {
 		&models.NilaiAkhirKeseharian{},
 	)
 	if err != nil {
-		log.Fatalf("Gagal melakukan migrasi tabel: %v", err)
+		slog.Error("Gagal melakukan migrasi tabel", "error", err)
+		os.Exit(1)
 	}
 
 	if DB.Migrator().HasIndex(&models.Nilai{}, "idx_nilai_unique") {
 		if err := DB.Migrator().DropIndex(&models.Nilai{}, "idx_nilai_unique"); err != nil {
-			log.Printf("Gagal menghapus index nilai lama idx_nilai_unique: %v", err)
+			slog.Warn("Gagal menghapus index nilai lama idx_nilai_unique", "error", err)
 		}
 	}
 
-	log.Println("Migrasi tabel selesai")
+	slog.Info("Migrasi tabel selesai")
 
 	// Selalu seed akun Admin Utama (Super Admin)
 	adminEmail := os.Getenv("ADMIN_EMAIL")
@@ -123,11 +125,9 @@ func seedUser(email, password, role string) {
 			Role:     role,
 		}
 		if err := DB.Create(&user).Error; err != nil {
-			// #nosec G706 - Log internal seed data
-			log.Printf("Gagal insert user %s: %v", email, err)
+			slog.Error("Gagal insert user seed", "email", email, "error", err)
 		} else {
-			// #nosec G706 - Log internal seed data
-			log.Printf("Seeded user %s dengan role %s", email, role)
+			slog.Info("Seeded user", "email", email, "role", role)
 		}
 	}
 }
@@ -145,9 +145,9 @@ func seedKonfigurasiPresensi() {
 			RadiusMeter: 50,
 		}
 		if err := DB.Create(&cfg).Error; err != nil {
-			log.Printf("Gagal seed konfigurasi presensi: %v", err)
+			slog.Error("Gagal seed konfigurasi presensi", "error", err)
 		} else {
-			log.Println("Seeded konfigurasi presensi default")
+			slog.Info("Seeded konfigurasi presensi default")
 		}
 	}
 }

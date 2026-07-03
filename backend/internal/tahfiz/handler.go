@@ -2,7 +2,7 @@ package tahfiz
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -129,14 +129,13 @@ func GetAnggotaHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 				Where("riwayat_kelas.siswa_id = ? AND riwayat_kelas.tahun_ajaran_id = ? AND riwayat_kelas.status_akhir = 'Aktif'", anggota[i].SiswaID, taID).
 				First(&rk).Error
 			if err != nil {
-				fmt.Printf("DEBUG: Error rk for siswa %d: %v\n", anggota[i].SiswaID, err)
+				slog.Debug("Gagal mengambil riwayat kelas siswa", "siswa_id", anggota[i].SiswaID, "error", err)
 			}
 			anggota[i].Siswa.NamaKelas = rk.NamaKelas
 			anggota[i].Siswa.Rombel = rk.Rombel
 		}
 	}
 
-	fmt.Printf("DEBUG ANGGOTA: %+v\n", anggota)
 	response.JSON(w, http.StatusOK, anggota)
 }
 

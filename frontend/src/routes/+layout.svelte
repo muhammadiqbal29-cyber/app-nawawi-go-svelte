@@ -16,7 +16,7 @@
       if (config == null) {
         config = {};
       }
-      
+
       const method = (config.method || 'GET').toUpperCase();
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
       const isApiRequest = typeof resource === 'string' && resource.startsWith(apiUrl);
