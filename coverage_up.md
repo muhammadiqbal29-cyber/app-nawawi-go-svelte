@@ -1,75 +1,73 @@
 # Rencana Peningkatan Code Coverage ke 80%
 
-Saat ini, cakupan pengujian (*code coverage*) backend Golang secara keseluruhan berada di angka **57.6%** (naik dari 51.1%). Untuk mencapai target **80%**, kita telah mengerjakan beberapa modul secara bertahap dan masih perlu meningkatkan *coverage* di beberapa modul yang tersisa.
+Saat ini, cakupan pengujian (*code coverage*) backend Golang secara keseluruhan berada di angka **66.2%** (naik dari 63.3% → 66.2%). Untuk mencapai target **80%**, kita terus menambah test case bertahap.
 
-## Kondisi Saat Ini (Per Modul)
-Berikut adalah modul-modul utama dan *coverage* mereka saat ini:
+## Kondisi Terkini (Update Terakhir)
 
-- `response`: 100.0% ✅
-- `utils`: 95.0% ✅
-- `logger`: 90.5% ✅
-- [x] auth: 88.4%
-- [x] kelas: 81.7%
-- [x] rombel: 83.0%
-- [x] presensi: 80.3%
-- [x] sekolah: 80.2%
-- [x] utils: 95.0%
-- [x] logger: 90.5%
-- [x] response: 100%
+| Modul | Coverage | Status |
+|-------|----------|--------|
+| `response` | 100.0% | ✅ |
+| `utils` | 95.0% | ✅ |
+| `logger` | 90.5% | ✅ |
+| `auth` | 88.4% | ✅ |
+| `rombel` | 83.0% | ✅ |
+| `kelas` | 81.7% | ✅ |
+| `presensi` | 80.3% | ✅ |
+| `sekolah` | 80.2% | ✅ |
+| `keseharian` | 76.2% | 🔄 |
+| `tahunajaran` | 75.0% | 🔄 |
+| `materiTahfiz` | 73.8% | 🔄 |
+| `middleware` | 72.5% | 🔄 |
+| `nilaiDiniyah` | 72.6% | 🔄 |
+| `nilai` | 71.4% | 🔄 *(Naik dari 65.2%)* |
+| `konfigurasiTahfiz` | 71.4% | 🔄 |
+| `mapelDiniyah` | 68.4% | 🔄 *(Naik)* |
+| `tahfiz` | 67.5% | 🔄 |
+| `guru` | 66.9% | 🔄 *(Naik dari 61.5%)* |
+| `siswa` | 63.5% | 🔄 |
+| `database` | 50.7% | ⚠️ |
+| `backup` | 39.9% | ⚠️ *(Naik dari 25.9%)* |
 
-### Menengah (60% - 79%)
-- [x] keseharian: 76.2% *(Naik dari 56.2%)*
-- [x] tahunajaran: 75.0% *(Naik dari 68.2%)*
-- [x] konfigurasiTahfiz: 71.4% *(Naik dari 59.5%)*
-- [ ] materiTahfiz: 70.8%
-- [ ] tahfiz: 68.4%
-- [ ] mapelDiniyah: 66.7%
-- [ ] guru: 65.8%
-- [x] nilai: 65.2% *(Naik dari 55.0%)*
-- [ ] siswa: 63.5% *(Naik dari 60.9%)*
+**TOTAL KUMULATIF BACKEND SAAT INI: 66.2%**
+(Target: 80.0% — Gap: -13.8%)
 
-### Rendah (Di Bawah 60%)
-- [ ] nilaiDiniyah: 59.3%
-- [ ] database: 50.7%
-- [ ] backup: 25.9%
+## Progress Pencapaian
 
-**TOTAL KUMULATIF BACKEND SAAT INI: 63.3%**
-(Target: 80.0%)
+| Dari | Ke | Kenaikan |
+|------|-----|---------|
+| 51.1% (awal) | 63.3% | +12.2% |
+| 63.3% | 66.2% | +2.9% |
 
-## Pencapaian
+### Apa yang sudah dikerjakan (sesi terakhir):
+- **guru**: Validasi ID sebagai integer (`strconv.Atoi`) di `GetGuruHandler`, `UpdateGuruHandler`, `DeleteGuruHandler`. Fix SQL error dengan menggunakan `Scan` alih-alih `First` di `GetAnggotaHalaqahHandler`. Tambah negative test: invalid ID, no context, out of radius, invalid JSON.
+- **tahfiz**: Fix SQL error `Scan` vs `First` di handler anggota halaqah.
+- **materiTahfiz**: Tambah test negative untuk import (invalid ID, no file, empty excel). Coverage naik ke 73.8%.
+- **mapelDiniyah**: Tambah `Invalid ID` test untuk `DeleteMapelDiniyahHandler`.
+- **nilaiDiniyah**: Tambah `TestDownloadTemplateNilaiDiniyahHandler` (happy + invalid ID). Coverage naik ke 72.6%.
+- **nilai**: Tambah `TestGetKelasBySekolahForGuruHandler` (4 sub-test) + `TestDecodeTingkatLevelKelulusan`. Coverage naik dari 65.2% → 71.4%.
+- **backup**: Tambah `service_test.go` dengan test komprehensif (encrypt/decrypt, compress/decompress, executeSQLFile, strictLimitReader, getEncryptionKey). Coverage naik dari 25.9% → 39.9%.
 
-Kita sudah menaikkan coverage dari 51.1% menjadi **63.3%** dengan peningkatan signifikan pada modul-modul berikut:
-- Modul `auth` naik menjadi 88.4% (penambahan negative case).
-- Modul `presensi` naik drastis menjadi 80.3%.
-- Modul `middleware` naik menjadi 72.5% dengan security & logger handler testing.
-- Modul `guru`, `siswa`, `rombel`, `tahunajaran` meningkat signifikan rata-rata di atas 60-65% dengan berbagai negative case testing.
-- Modul helper (`response`, `utils`, `logger`) mencapai 90-100%.
+## Langkah Selanjutnya (untuk mencapai 80%)
 
-Semua perubahan tes ini sudah menggunakan infrastruktur `database.SetupTestDB()` (SQLite In-Memory).
+Gap saat ini: ~14%. Modul yang paling strategis untuk ditingkatkan:
 
-## Langkah Selanjutnya
+### Prioritas 1: Modul Mendekati 80% (tinggal sedikit)
+- **`materiTahfiz`** (73.8% → 80%): Tambah test `UpdateMateriTahfizHandler` invalid JSON.
+- **`nilaiDiniyah`** (72.6% → 80%): Tambah test edge case pada `UpsertNilaiDiniyah`.
+- **`keseharian`** (76.2% → 80%): Tambah test edge case sesi keseharian.
+- **`middleware`** (72.5% → 80%): Tambah test untuk security headers.
 
-Target berikutnya adalah mencapai total coverage **>80%** untuk backend, dengan berfokus pada:
+### Prioritas 2: Modul Utama
+- **`tahfiz`** (67.5% → 80%): Tambah test `UpdateAnggotaHalaqahHandler` negative.
+- **`mapelDiniyah`** (68.4% → 80%): Tambah test export/import.
+- **`guru`** (66.9% → 80%): Tambah test `PresensiPulangHandler` sudah absen, tidak ada konfigurasi, dll.
+- **`siswa`** (63.5% → 80%): Tambah test `KenaikanKelasHandler`, `MutasiSiswaHandler` edge case.
 
-### Prioritas 1: Mendorong Modul yang Hampir Lulus
-Beberapa modul sudah di atas 60% dan hanya perlu sedikit pengujian tambahan (kasus gagal/validasi) untuk mencapai 80%:
-- `middleware` (72.5% -> 80%)
-- `materiTahfiz` (70.8% -> 80%)
-- `tahfiz` (68.4% -> 80%)
-- `tahunajaran` (68.2% -> 80%)
-- `mapelDiniyah` (66.7% -> 80%)
-
-### Prioritas 2: Modul Utama Lainnya
-- `siswa` (60.9%)
-- `rombel` (64.2%)
-- `keseharian` (56.2%)
-- `nilaiDiniyah` (59.3%)
-
-### Prioritas 3: Modul Kompleks / Untested
-- `backup` (masih di angka 25.9%)
-- `database` dan integrasi eksternal (memerlukan mocking service).
+### Prioritas 3: Modul Rendah
+- **`backup`** (39.9%): `TriggerBackupHandler` dan `DownloadBackupHandler` butuh DB real → skip/mock.
+- **`database`** (50.7%): `InitDB` butuh MySQL real → tidak bisa dinaikkan banyak.
 
 ## Verification Plan
-1. Lanjutkan penulisan unit test untuk sisa *handler* dan kasus-kasus negatif (misal: *invalid payload*, validasi gagal) pada modul berprioritas.
-2. Cek rutin `go test -coverprofile=coverage.out ./... -v` sampai total kumulatif menyentuh minimum 80.0%.
-3. Ubah aturan di `Jenkinsfile` menjadi `threshold=80.0`.
+1. Lanjutkan unit test untuk handler dan negative case yang belum ditangani.
+2. Jalankan `go test -coverprofile=coverage.out ./... -v` untuk validasi berkala.
+3. Setelah total mencapai ≥80.0%, update threshold di `Jenkinsfile` menjadi `threshold=80.0`.

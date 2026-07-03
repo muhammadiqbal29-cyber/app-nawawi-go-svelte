@@ -387,3 +387,78 @@ func TestImportSiswaExcelHandler_Success(t *testing.T) {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
 	}
 }
+
+func TestUpdateSiswaHandler_Negative(t *testing.T) {
+	setupTestDB()
+	seedSiswaData()
+
+	// Test: no X-Sekolah-ID -> 400
+	req, _ := http.NewRequest("PUT", "/api/siswa/1", bytes.NewBufferString(`{"nama_lengkap":"Test"}`))
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(UpdateSiswaHandler).ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("no header: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+
+	// Test: siswa not found -> 404
+	req2, _ := http.NewRequest("PUT", "/api/siswa/999", bytes.NewBufferString(`{"nama_lengkap":"Test","jenis_kelamin":"L","nisn":"123"}`))
+	req2 = mux.SetURLVars(req2, map[string]string{"id": "999"})
+	req2.Header.Set("X-Sekolah-ID", "1")
+	rr2 := httptest.NewRecorder()
+	http.HandlerFunc(UpdateSiswaHandler).ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusNotFound {
+		t.Errorf("not found: mendapat %d, diharapkan %d", rr2.Code, http.StatusNotFound)
+	}
+
+	// Test: invalid JSON -> 400
+	req3, _ := http.NewRequest("PUT", "/api/siswa/1", bytes.NewBufferString("{invalid"))
+	req3 = mux.SetURLVars(req3, map[string]string{"id": "1"})
+	req3.Header.Set("X-Sekolah-ID", "1")
+	rr3 := httptest.NewRecorder()
+	http.HandlerFunc(UpdateSiswaHandler).ServeHTTP(rr3, req3)
+	if rr3.Code != http.StatusBadRequest {
+		t.Errorf("invalid json: mendapat %d, diharapkan %d", rr3.Code, http.StatusBadRequest)
+	}
+}
+
+func TestMutasiSiswaHandler_Negative(t *testing.T) {
+	setupTestDB()
+	seedSiswaData()
+
+	// Test: no X-Sekolah-ID -> 400
+	req, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"1234567890"}`))
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("no header: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+
+	// Test: no NISN -> 400
+	req2, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{}`))
+	req2.Header.Set("X-Sekolah-ID", "1")
+	rr2 := httptest.NewRecorder()
+	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusBadRequest {
+		t.Errorf("no nisn: mendapat %d, diharapkan %d", rr2.Code, http.StatusBadRequest)
+	}
+
+	// Test: siswa not found -> 404
+	req3, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"9999999999"}`))
+	req3.Header.Set("X-Sekolah-ID", "1")
+	rr3 := httptest.NewRecorder()
+	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr3, req3)
+	if rr3.Code != http.StatusNotFound {
+		t.Errorf("not found: mendapat %d, diharapkan %d", rr3.Code, http.StatusNotFound)
+	}
+
+	// Test: siswa masih Aktif -> 403
+	req4, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"1234567890"}`))
+	req4.Header.Set("X-Sekolah-ID", "1")
+	rr4 := httptest.NewRecorder()
+	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr4, req4)
+	if rr4.Code != http.StatusForbidden {
+		t.Errorf("aktif siswa: mendapat %d, diharapkan %d", rr4.Code, http.StatusForbidden)
+	}
+}
+
