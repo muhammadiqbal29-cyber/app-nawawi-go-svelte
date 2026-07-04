@@ -9,9 +9,14 @@ pipeline {
         // Kredensial untuk Rsync/SSH ke VPS Produksi (Contoh)
         // Harus disetel di Jenkins Credentials
         SSH_CREDENTIAL_ID = 'vps-ssh-key'
-        VPS_USER = 'root'
+        VPS_USER = 'u0_a129'
         VPS_IP = '192.168.18.27'
-        DEPLOY_DIR = '/var/www/siakad'
+        DEPLOY_DIR = '/data/data/com.termux/files/home/siakad-nawawi'
+    }
+
+    triggers {
+        // Memicu pipeline berjalan otomatis setiap kali ada PUSH ke Github (via Github Webhook)
+        githubPush()
     }
 
     stages {
@@ -76,7 +81,7 @@ pipeline {
                 stage('Build Golang (Backend)') {
                     steps {
                         dir('backend') {
-                            sh 'CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o server main.go'
+                            sh 'CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o server main.go'
                         }
                     }
                 }
@@ -99,18 +104,40 @@ pipeline {
 
         stage('🚀 Deploy to VPS (PM2)') {
             steps {
-                echo 'Mentransfer file ke server produksi...'
+                echo 'Menyiapkan direktori artifact hasil build...'
+                sh '''
+                    mkdir -p release_artifact
+                    
+                    # 1. Backend Golang (Hanya Binary)
+                    mkdir -p release_artifact/backend
+                    cp backend/server release_artifact/backend/
+                    
+                    # 2. Frontend Svelte (Hanya folder build & package.json untuk production)
+                    mkdir -p release_artifact/frontend
+                    cp -r frontend/build release_artifact/frontend/
+                    cp frontend/package.json release_artifact/frontend/
+                    cp frontend/package-lock.json release_artifact/frontend/
+                    
+                    # 3. Mobile SPA (Hanya folder build)
+                    mkdir -p release_artifact/mobile
+                    cp -r mobile/build release_artifact/mobile/
+                    
+                    # 4. PM2 Config
+                    cp ecosystem.config.cjs release_artifact/
+                '''
+
+                echo 'Mentransfer file artifact ke server produksi...'
                 /* 
                   [NOTE] 
-                  Pada kenyataannya, perintah sinkronisasi ini membutuhkan 'ssh-agent' 
-                  plugin atau konfigurasi kredensial Jenkins.
-                  Ini adalah simulasi perintah rsync ke VPS target.
+                  Ini adalah perintah sinkronisasi rsync ke VPS target. 
+                  Hanya 'release_artifact' yang dikirim, SOURCE CODE TIDAK DIKIRIM!
                 */
-                // sh """
-                //     rsync -avz --exclude '.git' --exclude 'node_modules' ./ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
-                //     ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 restart ecosystem.config.cjs"
-                // """
-                echo '✅ Simulasi Deployment Native Selesai! (Kode telah dipindahkan dan PM2 di-restart)'
+                sh """
+                    rsync -avz -e 'ssh -p 8022' --delete release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                    ssh -p 8022 ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
+                    ssh -p 8022 ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
+                """
+                echo '✅ Deployment ke Termux VPS Selesai!'
             }
         }
     }
