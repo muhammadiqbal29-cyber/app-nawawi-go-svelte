@@ -180,7 +180,7 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				// Try common string formats
-				layouts := []string{"2006-01-02", "02/01/2006", "01/02/2006", "02-01-2006", "2006/01/02"}
+				layouts := []string{"2006-01-02", "02/01/2006", "01/02/2006", "02-01-2006", "2006/01/02", "2/1/2006", "1/2/2006", "2-1-2006"}
 				for _, l := range layouts {
 					if t, err := time.Parse(l, tglVal); err == nil {
 						parsedDate = t.Format("2006-01-02")
