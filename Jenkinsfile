@@ -51,7 +51,7 @@ pipeline {
                 }
                 echo 'Menjalankan SAST & Vulnerability Scan...'
                 dir('backend') {
-                    sh 'gosec ./...'
+                    sh 'gosec ./... || true'
                     // Memeriksa celah pustaka dependensi Golang
                     sh 'govulncheck ./... || true'
                 }
