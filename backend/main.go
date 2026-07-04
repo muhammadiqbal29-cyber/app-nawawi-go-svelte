@@ -44,10 +44,19 @@ func HandleCORS(next http.Handler) http.Handler {
 		}
 
 		// Izinkan origin spesifik ATAU izinkan jika berjalan di localhost (frontend web/mobile app)
-		if origin != "" && (origin == allowedOrigin || strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
+		allowedOriginsList := strings.Split(allowedOrigin, ",")
+		isAllowed := false
+		for _, o := range allowedOriginsList {
+			if origin == strings.TrimSpace(o) {
+				isAllowed = true
+				break
+			}
+		}
+
+		if origin != "" && (isAllowed || strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-		} else {
-			w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		} else if len(allowedOriginsList) > 0 {
+			w.Header().Set("Access-Control-Allow-Origin", allowedOriginsList[0])
 		}
 
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
