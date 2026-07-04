@@ -7,15 +7,18 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"siakad-nawawi-be/internal/database"
 	"strings"
 	"time"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jamf/go-mysqldump"
 	"gorm.io/gorm"
 )
@@ -23,10 +26,18 @@ import (
 // BackupDatabase melakukan proses dump MySQL, kompresi GZIP, dan Enkripsi AES-256-GCM.
 // Fungsi ini mengembalikan lokasi absolut dari file hasil yang sudah terenkripsi.
 func BackupDatabase() (string, error) {
-	sqlDB, err := database.DB.DB()
+	dbUser := os.Getenv("DB_USER")
+	dbPass := os.Getenv("DB_PASS")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=false&loc=Local", dbUser, dbPass, dbHost, dbPort, dbName)
+
+	rawDB, err := sql.Open("mysql", dsn)
 	if err != nil {
-		return "", fmt.Errorf("gagal mengambil instance sql.DB: %v", err)
+		return "", fmt.Errorf("gagal membuka koneksi raw sql.DB: %v", err)
 	}
+	defer rawDB.Close()
 
 	tmpDir := os.TempDir()
 	dumpFilename := filepath.Join(tmpDir, fmt.Sprintf("siakad_backup_%d.sql", time.Now().UnixNano()))
@@ -38,7 +49,7 @@ func BackupDatabase() (string, error) {
 	}
 
 	// 1. DUMP DATABASE
-	if err := mysqldump.Dump(sqlDB, f); err != nil {
+	if err := mysqldump.Dump(rawDB, f); err != nil {
 		_ = f.Close()
 		/* #nosec G703 */
 		_ = os.Remove(dumpFilename)
@@ -151,6 +162,8 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 	scanner.Buffer(buf, maxCapacity)
 
 	var statementBuilder strings.Builder
+	// Regex untuk memperbaiki string format pointer struct time.Time yang corrupt dari backup sebelumnya
+	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) [^}]+\}'`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -167,6 +180,10 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 		// go-mysqldump memformat setiap query utuh diakhiri dengan titik koma
 		if strings.HasSuffix(trimmed, ";") {
 			query := statementBuilder.String()
+			
+			// Perbaiki kueri jika mengandung datetime corrupt
+			query = reFixDate.ReplaceAllString(query, "'$1'")
+
 			if _, err := conn.ExecContext(ctx, query); err != nil {
 				return fmt.Errorf("gagal eksekusi kueri: %v\nKueri: %s", err, query)
 			}
