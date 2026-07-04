@@ -2,7 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'siakad-backend',
-      script: './backend/server',
+      script: './server',
+      cwd: './backend',
       instances: 1,
       exec_mode: 'fork',
       env: {
