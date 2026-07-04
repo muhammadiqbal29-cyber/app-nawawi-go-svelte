@@ -121,6 +121,22 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 	// Pastikan dinyalakan kembali
 	defer conn.ExecContext(ctx, "SET FOREIGN_KEY_CHECKS = 1;")
 
+	// HAPUS SEMUA TABEL LAMA SEBELUM RESTORE UNTUK MENCEGAH KONFLIK SKEMA/FOREIGN KEY
+	rows, err := conn.QueryContext(ctx, "SHOW TABLES")
+	if err == nil {
+		var tables []string
+		for rows.Next() {
+			var table string
+			if err := rows.Scan(&table); err == nil {
+				tables = append(tables, table)
+			}
+		}
+		rows.Close()
+		for _, table := range tables {
+			_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS `"+table+"`")
+		}
+	}
+
 	/* #nosec G304 G703 */
 	file, err := os.Open(filepath)
 	if err != nil {
