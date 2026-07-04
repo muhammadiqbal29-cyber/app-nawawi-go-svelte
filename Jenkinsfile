@@ -133,7 +133,7 @@ pipeline {
                   Hanya 'release_artifact' yang dikirim, SOURCE CODE TIDAK DIKIRIM!
                 */
                 sh """
-                    rsync -avz --delete --exclude 'backend/.env' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                    rsync -avz --delete --exclude 'backend/.env' --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
                     ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
                     ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
                 """
