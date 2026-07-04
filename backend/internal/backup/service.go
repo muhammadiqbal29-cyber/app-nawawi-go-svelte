@@ -3,6 +3,7 @@ package backup
 import (
 	"bufio"
 	"compress/gzip"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -101,6 +102,25 @@ func RestoreDatabase(encFile string) error {
 // executeSQLFile membaca file SQL baris demi baris dan mengeksekusinya per kueri
 // untuk menghindari OOM dan masalah max_allowed_packet di MySQL.
 func executeSQLFile(db *gorm.DB, filepath string) error {
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("gagal mengambil instance db: %v", err)
+	}
+
+	ctx := context.Background()
+	conn, err := sqlDB.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("gagal mendapatkan koneksi tunggal: %v", err)
+	}
+	defer conn.Close()
+
+	// Matikan foreign key checks agar proses restore tidak gagal
+	if _, err := conn.ExecContext(ctx, "SET FOREIGN_KEY_CHECKS = 0;"); err != nil {
+		return fmt.Errorf("gagal menonaktifkan foreign key checks: %v", err)
+	}
+	// Pastikan dinyalakan kembali
+	defer conn.ExecContext(ctx, "SET FOREIGN_KEY_CHECKS = 1;")
+
 	/* #nosec G304 G703 */
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -131,8 +151,8 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 		// go-mysqldump memformat setiap query utuh diakhiri dengan titik koma
 		if strings.HasSuffix(trimmed, ";") {
 			query := statementBuilder.String()
-			if err := db.Exec(query).Error; err != nil {
-				return err
+			if _, err := conn.ExecContext(ctx, query); err != nil {
+				return fmt.Errorf("gagal eksekusi kueri: %v\nKueri: %s", err, query)
 			}
 			statementBuilder.Reset() // Kosongkan untuk kueri berikutnya
 		}
@@ -144,7 +164,7 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 
 	// Eksekusi sisa statement jika tidak diakhiri titik koma
 	if statementBuilder.Len() > 0 {
-		if err := db.Exec(statementBuilder.String()).Error; err != nil {
+		if _, err := conn.ExecContext(ctx, statementBuilder.String()); err != nil {
 			return err
 		}
 	}
