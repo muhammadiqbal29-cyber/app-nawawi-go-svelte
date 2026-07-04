@@ -3,6 +3,8 @@
     import { navigate, routerState } from '../store/nav.svelte';
     import Icon from '../components/Icon.svelte';
     import { getSiswaAvailableTahfiz, getAnggotaHalaqah, createHalaqah, updateAnggotaHalaqah } from '../services/endpoints';
+    import { toastStore } from '../store/toast.svelte';
+    import { modalStore } from '../store/modal.svelte';
 
     let id_halaqah = $derived(routerState.navParams?.id_halaqah);
 
@@ -71,7 +73,7 @@
 
         } catch (e) {
             console.error(e);
-            alert("Gagal memuat data siswa");
+            toastStore.show("Gagal memuat data siswa", "error");
         } finally {
             isLoading = false;
         }
@@ -92,7 +94,8 @@
 
     async function handleSave() {
         if (selectedStudentIds.size === 0) {
-            if (!confirm("Anda tidak memilih satupun santri. Lanjutkan?")) return;
+            const confirmed = await modalStore.confirm("Konfirmasi", "Anda tidak memilih satupun santri. Lanjutkan?");
+            if (!confirmed) return;
         }
 
         isSaving = true;
@@ -108,11 +111,11 @@
             // Update members
             await updateAnggotaHalaqah(targetHalaqahId, Array.from(selectedStudentIds));
             
-            alert("Berhasil menyimpan anggota halaqah!");
+            toastStore.show("Berhasil menyimpan anggota halaqah!", "success");
             navigate('daftar_santri_tahfiz');
         } catch (e) {
             console.error(e);
-            alert("Gagal menyimpan halaqah.");
+            toastStore.show("Gagal menyimpan halaqah.", "error");
         } finally {
             isSaving = false;
         }

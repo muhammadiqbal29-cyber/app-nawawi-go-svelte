@@ -2,6 +2,7 @@
     import { navigate } from '../store/nav.svelte';
     import Icon from '../components/Icon.svelte';
     import { changePassword } from '../services/endpoints';
+    import { toastStore } from '../store/toast.svelte';
 
     let oldPassword = $state('');
     let newPassword = $state('');
@@ -30,21 +31,21 @@
 
     async function simpanPassword() {
         if (!oldPassword || !newPassword || !confirmPassword) {
-            alert('Harap lengkapi semua kolom!');
+            toastStore.show('Harap lengkapi semua kolom!', 'warning');
             return;
         }
         if (newPassword !== confirmPassword) {
-            alert('Password baru dan konfirmasi tidak cocok!');
+            toastStore.show('Password baru dan konfirmasi tidak cocok!', 'error');
             return;
         }
 
         isLoading = true;
         try {
             const res = await changePassword({ old_password: oldPassword, new_password: newPassword });
-            alert('Password berhasil diperbarui!');
+            toastStore.show('Password berhasil diperbarui!', 'success');
             navigate('profil');
         } catch (e: any) {
-            alert(e.message || 'Gagal mengubah password');
+            toastStore.show(e.message || 'Gagal mengubah password', 'error');
         } finally {
             isLoading = false;
         }

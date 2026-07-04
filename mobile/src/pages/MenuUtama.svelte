@@ -4,6 +4,8 @@
     import Icon from '../components/Icon.svelte';
     import { getCurrentGuru, clockInGuru, clockOutGuru, getKonfigurasiPresensi, getActiveTahunAjaran } from '../services/endpoints';
     import { navigate } from '../store/nav.svelte';
+    import { toastStore } from '../store/toast.svelte';
+    import { modalStore } from '../store/modal.svelte';
 
     let timeString = $state('');
     let timer: number;
@@ -147,26 +149,30 @@
     }
 
     async function handleClockIn() {
-        if (!confirm('Apakah Anda yakin ingin melakukan Absen Masuk sekarang?')) return;
+        const confirmed = await modalStore.confirm('Konfirmasi Absen', 'Apakah Anda yakin ingin melakukan Absen Masuk sekarang?');
+        if (!confirmed) return;
+        
         isLoadingAbsen = true;
         try {
             await clockInGuru({ latitude, longitude });
-            alert('Absen masuk berhasil direkam.');
+            toastStore.show('Absen masuk berhasil direkam.', 'success');
         } catch (e: any) {
-            alert(e.message || 'Gagal merekam absen.');
+            toastStore.show(e.message || 'Gagal merekam absen.', 'error');
         } finally {
             isLoadingAbsen = false;
         }
     }
 
     async function handleClockOut() {
-        if (!confirm('Apakah Anda yakin ingin melakukan Absen Pulang sekarang?')) return;
+        const confirmed = await modalStore.confirm('Konfirmasi Absen', 'Apakah Anda yakin ingin melakukan Absen Pulang sekarang?');
+        if (!confirmed) return;
+        
         isLoadingAbsen = true;
         try {
             await clockOutGuru({ latitude, longitude });
-            alert('Absen pulang berhasil direkam.');
+            toastStore.show('Absen pulang berhasil direkam.', 'success');
         } catch (e: any) {
-            alert(e.message || 'Gagal merekam absen.');
+            toastStore.show(e.message || 'Gagal merekam absen.', 'error');
         } finally {
             isLoadingAbsen = false;
         }

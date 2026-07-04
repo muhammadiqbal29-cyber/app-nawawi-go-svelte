@@ -17,6 +17,8 @@
     import DaftarKelasKeseharian from "./pages/DaftarKelasKeseharian.svelte";
     import InputKeseharian from "./pages/InputKeseharian.svelte";
     import DeviceOrientationOverlay from "./components/DeviceOrientationOverlay.svelte";
+    import ToastContainer from "./components/ToastContainer.svelte";
+    import ConfirmModal from "./components/ConfirmModal.svelte";
     import { onMount } from 'svelte';
     import { isAuthenticated } from './services/auth';
 
@@ -37,7 +39,10 @@
     });
 </script>
 
+<ToastContainer />
+<ConfirmModal />
 <DeviceOrientationOverlay />
+
 
 <main>
     <Route path="/">

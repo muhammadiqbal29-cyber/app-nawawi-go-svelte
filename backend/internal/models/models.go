@@ -217,8 +217,8 @@ type PresensiGuru struct {
 	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
 	GuruID       int     `gorm:"not null;uniqueIndex:idx_presensi_guru_tanggal;index" json:"guru_id"`
 	Tanggal      string    `gorm:"type:date;not null;uniqueIndex:idx_presensi_guru_tanggal" json:"tanggal"`
-	WaktuMasuk   *string   `gorm:"type:time" json:"waktu_masuk"`
-	WaktuPulang  *string   `gorm:"type:time" json:"waktu_pulang"`
+	WaktuMasuk   *string   `gorm:"type:varchar(10)" json:"waktu_masuk"`
+	WaktuPulang  *string   `gorm:"type:varchar(10)" json:"waktu_pulang"`
 	Status       string    `gorm:"type:varchar(20);not null;default:'Hadir'" json:"status"`
 	LokasiMasuk  string    `gorm:"type:varchar(255)" json:"lokasi_masuk"`
 	LokasiPulang string    `gorm:"type:varchar(255)" json:"lokasi_pulang"`

@@ -84,11 +84,9 @@ func HandleCORS(next http.Handler) http.Handler {
 }
 
 func main() {
-	// Set zona waktu default ke WIB (Asia/Jakarta)
-	loc, err := time.LoadLocation("Asia/Jakarta")
-	if err == nil {
-		time.Local = loc
-	}
+	// Set zona waktu default ke WIB (Asia/Jakarta) menggunakan FixedZone
+	// karena Termux/Android tidak memiliki database zoneinfo bawaan
+	time.Local = time.FixedZone("WIB", 7*3600)
 
 	if err := godotenv.Load("../.env"); err != nil {
 		// Abaikan error saat init awal karena logger belum siap
