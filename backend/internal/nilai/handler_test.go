@@ -43,7 +43,7 @@ func seedNilaiData() (int, int, int) {
 
 	user := models.User{Email: "guru@test.com", Role: "guru"}
 	database.DB.Create(&user)
-	guru := models.Guru{UserID: int32(user.ID), NamaLengkap: "Guru Test", AksesSekolah: `{"1":["*"]}`}
+	guru := models.Guru{UserID: int64(user.ID), NamaLengkap: "Guru Test", AksesSekolah: `{"1":["*"]}`}
 	database.DB.Create(&guru)
 	
 	return sekolahID, int(siswa.ID), int(user.ID)

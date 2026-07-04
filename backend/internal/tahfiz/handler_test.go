@@ -37,7 +37,7 @@ func setAdminContext(req *http.Request, email string) *http.Request {
 func seedGuru(email string) models.Guru {
 	user := models.User{Email: email, Role: "guru"}
 	database.DB.Create(&user)
-	guru := models.Guru{UserID: int32(user.ID), NamaLengkap: "Guru Test"}
+	guru := models.Guru{UserID: int64(user.ID), NamaLengkap: "Guru Test"}
 	database.DB.Create(&guru)
 	return guru
 }
@@ -47,7 +47,7 @@ func TestGetHalaqahKuHandler(t *testing.T) {
 	guruObj := seedGuru("guru@test.com")
 
 	database.DB.Create(&models.Halaqah{
-		GuruID:        int32(guruObj.ID),
+		GuruID:        int(guruObj.ID),
 		SekolahID:     1,
 		TahunAjaranID: 1,
 		SemesterID:    1,
@@ -172,7 +172,7 @@ func TestGetAnggotaHalaqahHandler(t *testing.T) {
 	setupTestDB()
 	guruObj := seedGuru("guru@test.com")
 
-	halaqah := models.Halaqah{GuruID: int32(guruObj.ID), SekolahID: 1, TahunAjaranID: 1, SemesterID: 1, NamaHalaqah: "Halaqah 1"}
+	halaqah := models.Halaqah{GuruID: int(guruObj.ID), SekolahID: 1, TahunAjaranID: 1, SemesterID: 1, NamaHalaqah: "Halaqah 1"}
 	database.DB.Create(&halaqah)
 
 	siswa := models.Siswa{NamaLengkap: "Budi", NISN: "1234567890", Status: "Aktif"}
@@ -212,7 +212,7 @@ func TestUpdateAnggotaHalaqahHandler(t *testing.T) {
 	setupTestDB()
 	guruObj := seedGuru("guru@test.com")
 
-	halaqah := models.Halaqah{GuruID: int32(guruObj.ID), SekolahID: 1, TahunAjaranID: 1, SemesterID: 1, NamaHalaqah: "Halaqah 1"}
+	halaqah := models.Halaqah{GuruID: int(guruObj.ID), SekolahID: 1, TahunAjaranID: 1, SemesterID: 1, NamaHalaqah: "Halaqah 1"}
 	database.DB.Create(&halaqah)
 
 	payload := UpdateAnggotaPayload{SiswaIDs: []int{1, 2}}
@@ -278,7 +278,7 @@ func TestGetSiswaAvailableTahfizHandler(t *testing.T) {
 	database.DB.Create(&siswa2)
 	database.DB.Create(&models.RiwayatKelas{SiswaID: int(siswa2.ID), KelasID: func(i int) *int { return &i }(1), TahunAjaranID: 1, StatusAkhir: "Aktif", SekolahID: 1, CreatedAt: time.Now()})
 	
-	halaqah := models.Halaqah{GuruID: int32(guruObj.ID), SekolahID: 1, TahunAjaranID: 1, SemesterID: 1, NamaHalaqah: "Halaqah 1"}
+	halaqah := models.Halaqah{GuruID: int(guruObj.ID), SekolahID: 1, TahunAjaranID: 1, SemesterID: 1, NamaHalaqah: "Halaqah 1"}
 	database.DB.Create(&halaqah)
 	database.DB.Create(&models.AnggotaHalaqah{HalaqahID: int(halaqah.ID), SiswaID: int(siswa2.ID)})
 

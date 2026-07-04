@@ -32,7 +32,7 @@ func seedGuruData() (int, int) {
 	nik := "12345"
 	nohp := "081234"
 	guru := models.Guru{
-		UserID:       int32(user.ID),
+		UserID:       int64(user.ID),
 		NamaLengkap:  "Budi",
 		NIK:          &nik,
 		NoHP:         &nohp,
@@ -315,7 +315,7 @@ func TestPresensiPulangHandler(t *testing.T) {
 	waktuMasuk := "07:00"
 	lokasiMasuk := "-6.200000,106.816666"
 	database.DB.Create(&models.PresensiGuru{
-		GuruID:       int32(guruID),
+		GuruID:       int(guruID),
 		Tanggal:      time.Now().Format("2006-01-02"),
 		WaktuMasuk:   &waktuMasuk,
 		Status:       "Hadir",

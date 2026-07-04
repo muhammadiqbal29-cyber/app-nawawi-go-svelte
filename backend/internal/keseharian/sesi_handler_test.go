@@ -36,7 +36,7 @@ func TestSubmitSesiKeseharianHandler(t *testing.T) {
 	// User for Guru Context
 	user := models.User{Email: "guru@test.com", Role: "guru"}
 	database.DB.Create(&user)
-	guru := models.Guru{UserID: int32(user.ID), NamaLengkap: "Guru Test", AksesSekolah: `{"1":["*"]}`}
+	guru := models.Guru{UserID: int64(user.ID), NamaLengkap: "Guru Test", AksesSekolah: `{"1":["*"]}`}
 	database.DB.Create(&guru)
 
 	t.Run("Success Create Sesi and Update Akhir", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestSubmitSesiKeseharianHandler(t *testing.T) {
 		// Create another guru without access to sekolahID 1
 		user2 := models.User{Email: "guru2@test.com", Role: "guru"}
 		database.DB.Create(&user2)
-		guru2 := models.Guru{UserID: int32(user2.ID), NamaLengkap: "Guru Test 2", AksesSekolah: `{"99":["*"]}`}
+		guru2 := models.Guru{UserID: int64(user2.ID), NamaLengkap: "Guru Test 2", AksesSekolah: `{"99":["*"]}`}
 		database.DB.Create(&guru2)
 
 		payload := SesiPayload{

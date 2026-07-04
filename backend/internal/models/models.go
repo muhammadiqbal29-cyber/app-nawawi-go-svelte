@@ -198,7 +198,7 @@ type MateriTahfiz struct {
 
 type Guru struct {
 	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID       int     `gorm:"uniqueIndex;not null" json:"user_id"`
+	UserID       int64   `gorm:"uniqueIndex;not null" json:"user_id"`
 	NamaLengkap  string    `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
 	NIK          *string   `gorm:"type:varchar(50);uniqueIndex" json:"nik"`
 	NoHP         *string   `gorm:"type:varchar(20)" json:"no_hp"`
