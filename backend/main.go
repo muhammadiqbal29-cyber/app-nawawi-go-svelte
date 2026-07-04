@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -33,6 +34,16 @@ import (
 	"siakad-nawawi-be/internal/tahfiz"
 	"siakad-nawawi-be/internal/tahunajaran"
 )
+
+func init() {
+	net.DefaultResolver = &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{}
+			return d.DialContext(ctx, "udp", "8.8.8.8:53")
+		},
+	}
+}
 
 // HandleCORS is a middleware to allow cross-origin requests
 func HandleCORS(next http.Handler) http.Handler {
