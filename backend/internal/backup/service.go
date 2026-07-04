@@ -7,7 +7,6 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -18,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/jamf/go-mysqldump"
 	"gorm.io/gorm"
 )
@@ -26,18 +24,10 @@ import (
 // BackupDatabase melakukan proses dump MySQL, kompresi GZIP, dan Enkripsi AES-256-GCM.
 // Fungsi ini mengembalikan lokasi absolut dari file hasil yang sudah terenkripsi.
 func BackupDatabase() (string, error) {
-	dbUser := os.Getenv("DB_USER")
-	dbPass := os.Getenv("DB_PASS")
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbName := os.Getenv("DB_NAME")
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=false&loc=Local", dbUser, dbPass, dbHost, dbPort, dbName)
-
-	rawDB, err := sql.Open("mysql", dsn)
+	sqlDB, err := database.DB.DB()
 	if err != nil {
-		return "", fmt.Errorf("gagal membuka koneksi raw sql.DB: %v", err)
+		return "", fmt.Errorf("gagal mengambil instance sql.DB: %v", err)
 	}
-	defer rawDB.Close()
 
 	tmpDir := os.TempDir()
 	dumpFilename := filepath.Join(tmpDir, fmt.Sprintf("siakad_backup_%d.sql", time.Now().UnixNano()))
@@ -49,13 +39,22 @@ func BackupDatabase() (string, error) {
 	}
 
 	// 1. DUMP DATABASE
-	if err := mysqldump.Dump(rawDB, f); err != nil {
+	if err := mysqldump.Dump(sqlDB, f); err != nil {
 		_ = f.Close()
 		/* #nosec G703 */
 		_ = os.Remove(dumpFilename)
 		return "", fmt.Errorf("gagal dump database: %v", err)
 	}
 	_ = f.Close()
+
+	// 1.5. PERBAIKI FORMAT WAKTU DI FILE HASIL DUMP
+	// go-mysqldump punya bug: jika parseTime=true, waktu dicetak sebagai pointer '&{2026-07-04...}'
+	// Kita baca file dump baris per baris dan perbaiki sebelum dikompres
+	if err := fixDumpDatetime(dumpFilename); err != nil {
+		_ = os.Remove(dumpFilename)
+		return "", fmt.Errorf("gagal memperbaiki format waktu di backup: %v", err)
+	}
+
 	/* #nosec G703 */
 	defer func() { _ = os.Remove(dumpFilename) }() // Hapus file SQL murni setelah selesai
 
@@ -73,6 +72,56 @@ func BackupDatabase() (string, error) {
 	}
 
 	return encFilename, nil
+}
+
+// fixDumpDatetime membersihkan file SQL mentah dari format pointer &{...} go-mysqldump
+func fixDumpDatetime(filepath string) error {
+	tmpPath := filepath + ".tmp"
+	in, err := os.Open(filepath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	/* #nosec G304 */
+	out, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	
+	scanner := bufio.NewScanner(in)
+	const maxCapacity = 64 * 1024 * 1024
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
+	writer := bufio.NewWriter(out)
+	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) [^}]+\}'`)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "'&{") {
+			line = reFixDate.ReplaceAllString(line, "'$1'")
+		}
+		if _, err := writer.WriteString(line + "\n"); err != nil {
+			out.Close()
+			return err
+		}
+	}
+	
+	if err := scanner.Err(); err != nil {
+		out.Close()
+		return err
+	}
+	
+	if err := writer.Flush(); err != nil {
+		out.Close()
+		return err
+	}
+	out.Close()
+	in.Close()
+
+	// Replace the old file with the fixed one
+	return os.Rename(tmpPath, filepath)
 }
 
 // RestoreDatabase melakukan dekripsi file .enc, dekompresi gz, dan restore (eksekusi) SQL ke DB.
