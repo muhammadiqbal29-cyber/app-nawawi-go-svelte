@@ -84,6 +84,12 @@ func HandleCORS(next http.Handler) http.Handler {
 }
 
 func main() {
+	// Set zona waktu default ke WIB (Asia/Jakarta)
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err == nil {
+		time.Local = loc
+	}
+
 	if err := godotenv.Load("../.env"); err != nil {
 		// Abaikan error saat init awal karena logger belum siap
 	}
