@@ -53,7 +53,11 @@ func CreateHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 		// if not in URL, get first school the guru is assigned to or default 1
 		sekolahIDStr = "1"
 	}
-	sekolahID, _ := strconv.Atoi(sekolahIDStr)
+	sekolahID, err := strconv.Atoi(sekolahIDStr)
+	if err != nil || sekolahID <= 0 {
+		response.Error(w, http.StatusBadRequest, "ID Sekolah tidak valid", err)
+		return
+	}
 
 	var input models.Halaqah
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -100,14 +104,17 @@ func GetAnggotaHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var halaqah models.Halaqah
-	if err := database.DB.First(&halaqah, halaqahID).Error; err == nil {
-		guruObj, err := guru.GetGuruFromContext(r)
-		if err == nil {
-			role, _ := r.Context().Value("role").(string)
-			if role != "admin" && halaqah.GuruID != guruObj.ID {
-				response.Error(w, http.StatusForbidden, "Akses ditolak: bukan halaqah Anda", nil)
-				return
-			}
+	if err := database.DB.First(&halaqah, halaqahID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Halaqah tidak ditemukan", err)
+		return
+	}
+
+	guruObj, err := guru.GetGuruFromContext(r)
+	if err == nil {
+		role, _ := r.Context().Value("role").(string)
+		if role != "admin" && halaqah.GuruID != guruObj.ID {
+			response.Error(w, http.StatusForbidden, "Akses ditolak: bukan halaqah Anda", nil)
+			return
 		}
 	}
 
@@ -205,7 +212,12 @@ func UpdateAnggotaHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 // GetSiswaAvailableTahfizHandler mengambil siswa yang belum masuk ke halaqah mana pun di semester aktif
 func GetSiswaAvailableTahfizHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	sekolahID := vars["sekolah_id"]
+	sekolahIDStr := vars["sekolah_id"]
+	sekolahID, err := strconv.Atoi(sekolahIDStr)
+	if err != nil || sekolahID <= 0 {
+		response.Error(w, http.StatusBadRequest, "ID Sekolah tidak valid", err)
+		return
+	}
 
 	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
 	if err != nil {

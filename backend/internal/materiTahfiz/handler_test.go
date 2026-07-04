@@ -181,6 +181,54 @@ func TestUpdateMateriTahfizHandler(t *testing.T) {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/materi-tahfiz/1", bytes.NewBufferString("{invalid"))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateMateriTahfizHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Validation Error", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/materi-tahfiz/1", bytes.NewBufferString(`{"nama_materi": "", "juz": 35}`))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateMateriTahfizHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Conflict Name Update", func(t *testing.T) {
+		setupTestDB()
+		materi2 := models.MateriTahfiz{SekolahID: 1, NamaMateri: "Juz 30", Juz: 30, Aktif: true, Urutan: 1}
+		database.DB.Create(&materi2)
+
+		tahfiz := models.NilaiTahfiz{SekolahID: 1, SiswaID: 1}
+		database.DB.Create(&tahfiz)
+		database.DB.Create(&models.NilaiTahfizDetail{NilaiTahfizID: int(tahfiz.ID), NamaMateri: "Juz 30"})
+
+		payload := materiPayload{NamaMateri: "Juz 29"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("PUT", "/api/materi-tahfiz/1", bytes.NewBuffer(body)) // materi2 ID is 1
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateMateriTahfizHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusConflict {
+			t.Errorf("Expected status Conflict, got %v", rr.Code)
+		}
+	})
 }
 
 func TestDeleteMateriTahfizHandler(t *testing.T) {
@@ -214,6 +262,41 @@ func TestDeleteMateriTahfizHandler(t *testing.T) {
 
 		if rr.Code != http.StatusNotFound {
 			t.Errorf("Expected status Not Found, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid ID", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/api/materi-tahfiz/abc", nil)
+		req = mux.SetURLVars(req, map[string]string{"id": "abc"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(DeleteMateriTahfizHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Conflict in use", func(t *testing.T) {
+		setupTestDB()
+		materi2 := models.MateriTahfiz{SekolahID: sekolahID, NamaMateri: "Juz 29", Juz: 29, Aktif: true, Urutan: 1}
+		database.DB.Create(&materi2)
+		tahfiz := models.NilaiTahfiz{SekolahID: 1, SiswaID: 1}
+		database.DB.Create(&tahfiz)
+		database.DB.Create(&models.NilaiTahfizDetail{NilaiTahfizID: int(tahfiz.ID), NamaMateri: "Juz 29"})
+
+		req, _ := http.NewRequest("DELETE", "/api/materi-tahfiz/1", nil) // materi2 ID is 1
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(DeleteMateriTahfizHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusConflict {
+			t.Errorf("Expected status Conflict, got %v", rr.Code)
 		}
 	})
 }
@@ -301,22 +384,61 @@ func TestImportMateriTahfizHandler_Success(t *testing.T) {
 		t.Errorf("status code no file: mendapat %d, diharapkan %d", rrNoFile.Code, http.StatusBadRequest)
 	}
 
-	// Test Empty Excel
-	fEmpty := excelize.NewFile()
-	var bufEmpty bytes.Buffer
-	_ = fEmpty.Write(&bufEmpty)
-	bodyEmpty := &bytes.Buffer{}
-	writerEmpty := multipart.NewWriter(bodyEmpty)
-	partEmpty, _ := writerEmpty.CreateFormFile("file", "empty.xlsx")
-	_, _ = io.Copy(partEmpty, &bufEmpty)
-	writerEmpty.Close()
-	reqEmpty, _ := http.NewRequest("POST", "/api/materi-tahfiz/import/1", bodyEmpty)
-	reqEmpty = mux.SetURLVars(reqEmpty, map[string]string{"sekolah_id": "1"})
-	reqEmpty.Header.Set("Content-Type", writerEmpty.FormDataContentType())
-	rrEmpty := httptest.NewRecorder()
-	handler.ServeHTTP(rrEmpty, reqEmpty)
-	if rrEmpty.Code != http.StatusBadRequest {
-		t.Errorf("status code empty excel: mendapat %d, diharapkan %d", rrEmpty.Code, http.StatusBadRequest)
+	// Test Duplicate
+	fDuplicate := excelize.NewFile()
+	_ = fDuplicate.SetSheetName("Sheet1", sheetName)
+	_ = fDuplicate.SetCellValue(sheetName, "A1", "Nama Materi")
+	_ = fDuplicate.SetCellValue(sheetName, "B1", "Juz")
+	_ = fDuplicate.SetCellValue(sheetName, "C1", "Urutan")
+	
+	_ = fDuplicate.SetCellValue(sheetName, "A2", "Juz 30") // this should be duplicate if we create it first
+	_ = fDuplicate.SetCellValue(sheetName, "B2", "30")
+	_ = fDuplicate.SetCellValue(sheetName, "C2", "1")
+	
+	var bufDup bytes.Buffer
+	_ = fDuplicate.Write(&bufDup)
+	bodyDup := &bytes.Buffer{}
+	writerDup := multipart.NewWriter(bodyDup)
+	partDup, _ := writerDup.CreateFormFile("file", "dup.xlsx")
+	_, _ = io.Copy(partDup, &bufDup)
+	writerDup.Close()
+
+	database.DB.Create(&models.MateriTahfiz{SekolahID: 1, NamaMateri: "Juz 30", Juz: 30, Aktif: true})
+	
+	reqDup, _ := http.NewRequest("POST", "/api/materi-tahfiz/import/1", bodyDup)
+	reqDup = mux.SetURLVars(reqDup, map[string]string{"sekolah_id": "1"})
+	reqDup.Header.Set("Content-Type", writerDup.FormDataContentType())
+	reqDup.Header.Set("X-Sekolah-ID", "1")
+	rrDup := httptest.NewRecorder()
+	handler.ServeHTTP(rrDup, reqDup)
+	if rrDup.Code != http.StatusOK {
+		t.Errorf("status code duplicate excel: mendapat %d, diharapkan %d", rrDup.Code, http.StatusOK)
+	}
+	
+	// Test DDoS / Too Many Lines
+	fTooMany := excelize.NewFile()
+	_ = fTooMany.SetSheetName("Sheet1", sheetName)
+	_ = fTooMany.SetCellValue(sheetName, "A1", "Nama Materi")
+	for i := 2; i <= 503; i++ {
+		cell, _ := excelize.CoordinatesToCellName(1, i)
+		_ = fTooMany.SetCellValue(sheetName, cell, "Materi")
+	}
+	var bufTooMany bytes.Buffer
+	_ = fTooMany.Write(&bufTooMany)
+	bodyTooMany := &bytes.Buffer{}
+	writerTooMany := multipart.NewWriter(bodyTooMany)
+	partTooMany, _ := writerTooMany.CreateFormFile("file", "toomany.xlsx")
+	_, _ = io.Copy(partTooMany, &bufTooMany)
+	writerTooMany.Close()
+
+	reqTooMany, _ := http.NewRequest("POST", "/api/materi-tahfiz/import/1", bodyTooMany)
+	reqTooMany = mux.SetURLVars(reqTooMany, map[string]string{"sekolah_id": "1"})
+	reqTooMany.Header.Set("Content-Type", writerTooMany.FormDataContentType())
+	reqTooMany.Header.Set("X-Sekolah-ID", "1")
+	rrTooMany := httptest.NewRecorder()
+	handler.ServeHTTP(rrTooMany, reqTooMany)
+	if rrTooMany.Code != http.StatusBadRequest {
+		t.Errorf("status code too many lines: mendapat %d, diharapkan %d", rrTooMany.Code, http.StatusBadRequest)
 	}
 }
 

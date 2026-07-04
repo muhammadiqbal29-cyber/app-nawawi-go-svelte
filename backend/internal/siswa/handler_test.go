@@ -460,5 +460,14 @@ func TestMutasiSiswaHandler_Negative(t *testing.T) {
 	if rr4.Code != http.StatusForbidden {
 		t.Errorf("aktif siswa: mendapat %d, diharapkan %d", rr4.Code, http.StatusForbidden)
 	}
+
+	// Test: invalid X-Sekolah-ID -> 400
+	req5, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"1234567890"}`))
+	req5.Header.Set("X-Sekolah-ID", "abc")
+	rr5 := httptest.NewRecorder()
+	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr5, req5)
+	if rr5.Code != http.StatusBadRequest {
+		t.Errorf("invalid x-sekolah-id: mendapat %d, diharapkan %d", rr5.Code, http.StatusBadRequest)
+	}
 }
 

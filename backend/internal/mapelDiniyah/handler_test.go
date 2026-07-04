@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -132,6 +133,25 @@ func TestCreateMapelDiniyahHandler(t *testing.T) {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
+
+	t.Run("Invalid Kategori", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"nama_mapel": "Akidah",
+			"kategori":   "invalid_kategori",
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/mapel-diniyah/sekolah/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(CreateMapelDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request for invalid kategori, got %v", rr.Code)
+		}
+	})
 }
 
 func TestUpdateMapelDiniyahHandler(t *testing.T) {
@@ -178,6 +198,59 @@ func TestUpdateMapelDiniyahHandler(t *testing.T) {
 		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/mapel-diniyah/1", bytes.NewBuffer([]byte(`{invalid json`)))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateMapelDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid Kategori", func(t *testing.T) {
+		payload := mapelPayload{
+			Kategori: "invalid_kat",
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("PUT", "/api/mapel-diniyah/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateMapelDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Success Update All Fields", func(t *testing.T) {
+		falsePtr := false
+		payload := mapelPayload{
+			NamaMapel:     "Tauhid",
+			NamaMapelArab: "توحيد",
+			Kategori:      "tes_lisan",
+			Urutan:        2,
+			Aktif:         &falsePtr,
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("PUT", "/api/mapel-diniyah/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateMapelDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
 		}
 	})
 }
@@ -228,5 +301,30 @@ func TestDeleteMapelDiniyahHandler(t *testing.T) {
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
+	})
+
+	t.Run("Conflict in Use", func(t *testing.T) {
+		// Buat mapel baru karena yang id 1 sudah dihapus di Success Delete
+		mapel2 := models.MapelDiniyah{SekolahID: sekolahID, NamaMapel: "Fikih2", Aktif: true, Kategori: "tes_tulis", Urutan: 2}
+		database.DB.Create(&mapel2)
+
+		// Buat nilai_diniyah terkait mapel
+		nilai := models.NilaiDiniyah{MapelDiniyahID: int(mapel2.ID), SiswaID: 1, NilaiRapor: 80}
+		database.DB.Create(&nilai)
+
+		idStr := fmt.Sprintf("%d", mapel2.ID)
+		req, _ := http.NewRequest("DELETE", "/api/mapel-diniyah/"+idStr, nil)
+		req = mux.SetURLVars(req, map[string]string{"id": idStr})
+		req = setAdminContext(req)
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(DeleteMapelDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusConflict {
+			t.Errorf("Expected status Conflict, got %v", rr.Code)
+		}
+
+		database.DB.Where("mapel_diniyah_id = ?", mapel2.ID).Unscoped().Delete(&models.NilaiDiniyah{})
 	})
 }

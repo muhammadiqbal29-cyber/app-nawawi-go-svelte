@@ -136,6 +136,15 @@ func TestUpdateTahunAjaranHandler(t *testing.T) {
 	if rrInvalid.Code != http.StatusBadRequest {
 		t.Errorf("invalid json status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
 	}
+
+	// Test Validation Error
+	reqVal, _ := http.NewRequest("PUT", "/api/tahun-ajaran/1", bytes.NewBufferString(`{"status": "InvalidStatus"}`))
+	reqVal = mux.SetURLVars(reqVal, map[string]string{"id": "1"})
+	rrVal := httptest.NewRecorder()
+	handler.ServeHTTP(rrVal, reqVal)
+	if rrVal.Code != http.StatusBadRequest {
+		t.Errorf("invalid validation status code: mendapat %d, diharapkan %d", rrVal.Code, http.StatusBadRequest)
+	}
 	
 	// Test Invalid ID
 	reqInvalidID, _ := http.NewRequest("PUT", "/api/tahun-ajaran/abc", bytes.NewBuffer(bodyBytes))
@@ -250,6 +259,40 @@ func TestDeleteTahunAjaranHandler_Active(t *testing.T) {
 	}
 }
 
+func TestDeleteTahunAjaranHandler_Conflict(t *testing.T) {
+	setupTestDB()
+	
+	// Seed TA
+	ta := models.TahunAjaran{
+		TahunAwal:  2026,
+		TahunAkhir: 2027,
+		NamaTahun:  "2026/2027",
+		Status:     "Draft",
+	}
+	database.DB.Create(&ta)
+
+	// Seed RiwayatKelas
+	kelasID := 1
+	rk := models.RiwayatKelas{
+		SiswaID:       1,
+		SekolahID:     1,
+		TahunAjaranID: int(ta.ID),
+		KelasID:       &kelasID,
+	}
+	database.DB.Create(&rk)
+
+	req, _ := http.NewRequest("DELETE", "/api/tahun-ajaran/1", nil) // TA id is 1
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(DeleteTahunAjaranHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
 func TestResolveActivePeriod(t *testing.T) {
 	setupTestDB()
 
@@ -275,6 +318,38 @@ func TestResolveActivePeriod(t *testing.T) {
 	}
 	if taID != int(ta.ID) || semID != int(semester.ID) {
 		t.Errorf("ResolveActivePeriod() got taID = %v, semID = %v", taID, semID)
+	}
+}
+
+func TestResolveActivePeriod_QueryParams(t *testing.T) {
+	setupTestDB()
+
+	req, _ := http.NewRequest("GET", "/?tahun_ajaran_id=99&semester_id=88", nil)
+	taID, semID, err := ResolveActivePeriod(req)
+	
+	if err != nil {
+		t.Errorf("ResolveActivePeriod() expected no error, got %v", err)
+	}
+	if taID != 99 || semID != 88 {
+		t.Errorf("ResolveActivePeriod() got taID = %v, semID = %v", taID, semID)
+	}
+}
+
+func TestResolveActivePeriod_SemesterNotFound(t *testing.T) {
+	setupTestDB()
+
+	ta := models.TahunAjaran{
+		TahunAwal:  2026,
+		TahunAkhir: 2027,
+		NamaTahun:  "2026/2027",
+		Status:     "Active",
+	}
+	database.DB.Create(&ta)
+
+	req, _ := http.NewRequest("GET", "/", nil)
+	_, _, err := ResolveActivePeriod(req)
+	if err == nil {
+		t.Errorf("ResolveActivePeriod() expected error, got nil")
 	}
 }
 

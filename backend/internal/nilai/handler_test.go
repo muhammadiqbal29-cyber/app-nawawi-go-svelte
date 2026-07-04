@@ -139,6 +139,18 @@ func TestGetNilaiBySiswaHandler(t *testing.T) {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
+
+	t.Run("No Active TA", func(t *testing.T) {
+		database.DB.Where("status = ?", "Active").Delete(&models.TahunAjaran{})
+		req, _ := http.NewRequest("GET", "/api/nilai/siswa/1?jenis_penilaian=semester&mata_pelajaran=Hafalan", nil)
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetNilaiBySiswaHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
 }
 
 func TestCreateNilaiHandler(t *testing.T) {
@@ -316,6 +328,18 @@ func TestGetNilaiTahfizBySiswaHandler(t *testing.T) {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
+
+	t.Run("Not Found", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/nilai/tahfiz/siswa/1?jenis_penilaian=semester&mata_pelajaran=TidakAda", nil)
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetNilaiTahfizBySiswaHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK (empty data), got %v", rr.Code)
+		}
+	})
 }
 
 func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
@@ -343,6 +367,113 @@ func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
 
 		if rr.Code != http.StatusOK {
 			t.Errorf("Expected status OK, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Success Create Detail Kelulusan", func(t *testing.T) {
+		database.DB.Create(&models.KonfigurasiNilaiTahfiz{
+			SekolahID:             1,
+			JenisPenilaian:        "kelulusan",
+			Aktif:                 true,
+			Pembagi:               2,
+		})
+		payload := tahfizDetailPayload{
+			JenisPenilaian: "kelulusan",
+			MataPelajaran:  "Tahfiz",
+			NamaMateri:     "Al-Baqarah",
+			Juz:            1,
+			SkorHafalan:    5,
+			SkorKelancaran: 4,
+			SkorMad:        4,
+			SkorTajwid:     3,
+			SkorMakharijulHuruf: 4,
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(AutosaveNilaiTahfizDetailHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Success Update Detail", func(t *testing.T) {
+		payload := tahfizDetailPayload{
+			JenisPenilaian: "semester",
+			MataPelajaran:  "Tahfiz",
+			NamaMateri:     "Al-Fatihah",
+			Juz:            30,
+			SkorHafalan:    5, // Changed from 10 to 5 since max is 5
+			SkorKelancaran: 5,
+			SkorMad:        5,
+			SkorTajwid:     5,
+			SkorMakharijulHuruf: 5,
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(AutosaveNilaiTahfizDetailHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Success Delete Detail", func(t *testing.T) {
+		payload := tahfizDetailPayload{
+			JenisPenilaian: "semester",
+			MataPelajaran:  "Tahfiz",
+			NamaMateri:     "Al-Fatihah",
+			Juz:            30,
+			SkorHafalan:    0, // All 0 triggers delete
+			SkorKelancaran: 0,
+			SkorMad:        0,
+			SkorTajwid:     0,
+			SkorMakharijulHuruf: 0,
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(AutosaveNilaiTahfizDetailHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid Payload", func(t *testing.T) {
+		payload := tahfizDetailPayload{
+			JenisPenilaian: "invalid",
+			NamaMateri:     "Al-Fatihah",
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(AutosaveNilaiTahfizDetailHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+	
+	t.Run("Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBufferString("{invalid"))
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(AutosaveNilaiTahfizDetailHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
 }
@@ -394,6 +525,23 @@ func TestGetKelasBySekolahForGuruHandler(t *testing.T) {
 		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
 			t.Errorf("Expected status OK (empty), got %v", rr.Code)
+		}
+	})
+
+	t.Run("Jenis Penilaian Kelulusan With Konfig", func(t *testing.T) {
+		database.DB.Create(&models.KonfigurasiNilaiTahfiz{
+			SekolahID:             1,
+			JenisPenilaian:        "kelulusan",
+			Aktif:                 true,
+			TingkatLevelKelulusan: "[6,9,12]",
+		})
+		req, _ := http.NewRequest("GET", "/api/nilai/kelas/sekolah/1?jenis_penilaian=kelulusan", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetKelasBySekolahForGuruHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
 		}
 	})
 }

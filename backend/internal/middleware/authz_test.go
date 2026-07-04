@@ -116,3 +116,41 @@ func TestRequireRole(t *testing.T) {
 		})
 	}
 }
+
+func TestRequireAuthMiddleware(t *testing.T) {
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "Success"}`))
+	})
+	
+	protectedHandler := RequireAuthMiddleware()(dummyHandler)
+
+	req, _ := http.NewRequest("GET", "/api/dummy", nil)
+	rr := httptest.NewRecorder()
+	protectedHandler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected Unauthorized, got %v", rr.Code)
+	}
+}
+
+func TestRequireRoleMiddleware(t *testing.T) {
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message": "Success"}`))
+	})
+	
+	protectedHandler := RequireRoleMiddleware("admin")(dummyHandler)
+
+	req, _ := http.NewRequest("GET", "/api/dummy", nil)
+	// Add token for guru
+	token := generateTestToken("guru")
+	req.AddCookie(&http.Cookie{Name: "token", Value: token})
+
+	rr := httptest.NewRecorder()
+	protectedHandler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("Expected Forbidden, got %v", rr.Code)
+	}
+}

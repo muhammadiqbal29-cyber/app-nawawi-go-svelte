@@ -245,3 +245,64 @@ func TestKenaikanKelasHandler_TinggalKelas(t *testing.T) {
 		t.Errorf("Rombel tidak dipertahankan. Diharapkan 'B', didapatkan '%s'", riwayatBaru.Rombel)
 	}
 }
+
+func TestKenaikanKelasHandler_Negative(t *testing.T) {
+	db := database.SetupTestDB()
+	sekolah := models.Sekolah{NamaSekolah: "SD Test", Jenjang: "SD"}
+	db.Create(&sekolah)
+	
+	payload := map[string]interface{}{
+		"tahun_ajaran_id": 1,
+		"data_siswa": []map[string]interface{}{},
+	}
+	body, _ := json.Marshal(payload)
+
+	// No Header
+	reqNoHeader, _ := http.NewRequest("POST", "/api/siswa/kenaikan-kelas", bytes.NewBuffer(body))
+	rrNoHeader := httptest.NewRecorder()
+	http.HandlerFunc(KenaikanKelasHandler).ServeHTTP(rrNoHeader, reqNoHeader)
+	if rrNoHeader.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rrNoHeader.Code)
+	}
+
+	// Invalid JSON
+	reqInvalid, _ := http.NewRequest("POST", "/api/siswa/kenaikan-kelas", bytes.NewBufferString("{invalid"))
+	reqInvalid.Header.Set("X-Sekolah-ID", "1")
+	rrInvalid := httptest.NewRecorder()
+	http.HandlerFunc(KenaikanKelasHandler).ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rrInvalid.Code)
+	}
+
+	// Invalid TA
+	reqInvalidTA, _ := http.NewRequest("POST", "/api/siswa/kenaikan-kelas", bytes.NewBuffer(body))
+	reqInvalidTA.Header.Set("X-Sekolah-ID", "1")
+	rrInvalidTA := httptest.NewRecorder()
+	http.HandlerFunc(KenaikanKelasHandler).ServeHTTP(rrInvalidTA, reqInvalidTA)
+	if rrInvalidTA.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rrInvalidTA.Code)
+	}
+}
+
+func TestGetMaxLevel(t *testing.T) {
+	tests := []struct {
+		jenjang  string
+		expected int
+	}{
+		{"TK", 2},
+		{"SD", 6},
+		{"MI", 6},
+		{"SMP", 3},
+		{"MTs", 3},
+		{"SMA", 3},
+		{"SMK", 3},
+		{"MA", 3},
+		{"UNKNOWN", 6},
+	}
+
+	for _, tt := range tests {
+		if got := getMaxLevel(tt.jenjang); got != tt.expected {
+			t.Errorf("getMaxLevel(%q) = %d, want %d", tt.jenjang, got, tt.expected)
+		}
+	}
+}

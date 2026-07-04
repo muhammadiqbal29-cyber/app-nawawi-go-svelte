@@ -140,6 +140,29 @@ func TestUpdateIndikatorHandler(t *testing.T) {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
+	t.Run("Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/keseharian/indikator/1", bytes.NewBufferString("{invalid"))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateIndikatorHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid Validation", func(t *testing.T) {
+		req, _ := http.NewRequest("PUT", "/api/keseharian/indikator/1", bytes.NewBufferString(`{"nama": ""}`))
+		req = mux.SetURLVars(req, map[string]string{"id": "1"})
+		req = setAdminContext(req)
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(UpdateIndikatorHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
 }
 
 func TestDeleteIndikatorHandler(t *testing.T) {
@@ -173,6 +196,17 @@ func TestDeleteIndikatorHandler(t *testing.T) {
 
 		if rr.Code != http.StatusNotFound {
 			t.Errorf("Expected status Not Found, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid ID", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/api/keseharian/indikator/abc", nil)
+		req = mux.SetURLVars(req, map[string]string{"id": "abc"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(DeleteIndikatorHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
 }

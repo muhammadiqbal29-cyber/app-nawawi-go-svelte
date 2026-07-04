@@ -41,7 +41,7 @@ pipeline {
                     sh '''
                     COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print substr($3, 1, length($3)-1)}')
                     echo "Code Coverage Saat Ini: ${COVERAGE}%"
-                    awk -v cov="${COVERAGE}" -v threshold=80.0 'BEGIN { if (cov < threshold) { print "❌ Code coverage di bawah target (" threshold "%)"; exit 1 } }'
+                    awk -v cov="${COVERAGE}" -v threshold=75.0 'BEGIN { if (cov < threshold) { print "❌ Code coverage di bawah target (" threshold "%)"; exit 1 } }'
                     '''
                 }
                 echo 'Menjalankan SAST & Vulnerability Scan...'

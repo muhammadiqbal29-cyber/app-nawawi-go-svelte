@@ -66,7 +66,20 @@ func TestGetNilaiDiniyahByKelasHandler(t *testing.T) {
 	})
 
 	t.Run("Success Get Nilai", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/api/nilai-diniyah/kelas/1?rombel=__kosong__", nil)
+		req, _ := http.NewRequest("GET", "/api/nilai-diniyah/kelas/1?rombel=__kosong__&mapel_diniyah_id=1", nil)
+		req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetNilaiDiniyahByKelasHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Success Get Nilai with rombel", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/nilai-diniyah/kelas/1?rombel=A", nil)
 		req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
 
 		rr := httptest.NewRecorder()
@@ -225,6 +238,20 @@ func TestGetRaporDiniyahHandler(t *testing.T) {
 			t.Errorf("Expected status Not Found, got %v", rr.Code)
 		}
 	})
+
+	t.Run("No Active TA", func(t *testing.T) {
+		database.DB.Where("status = ?", "Active").Delete(&models.TahunAjaran{})
+		req, _ := http.NewRequest("GET", "/api/rapor-diniyah/1", nil)
+		req = mux.SetURLVars(req, map[string]string{"siswa_id": "1"})
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetRaporDiniyahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
 }
 
 func TestGetRaporDiniyahMasalHandler(t *testing.T) {
@@ -260,6 +287,19 @@ func TestGetRaporDiniyahMasalHandler(t *testing.T) {
 		}
 	})
 	
+	t.Run("Success Get Rapor Masal with rombel", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/rapor-diniyah/masal/1?rombel=A", nil)
+		req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetRaporDiniyahMasalHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected status OK, got %v", rr.Code)
+		}
+	})
+
 	t.Run("Invalid Kelas ID", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/rapor-diniyah/masal/abc", nil)
 		req = mux.SetURLVars(req, map[string]string{"kelas_id": "abc"})
@@ -270,6 +310,19 @@ func TestGetRaporDiniyahMasalHandler(t *testing.T) {
 
 		if rr.Code != http.StatusBadRequest {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Kelas Not Found", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/rapor-diniyah/masal/999", nil)
+		req = mux.SetURLVars(req, map[string]string{"kelas_id": "999"})
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetRaporDiniyahMasalHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("Expected status Not Found, got %v", rr.Code)
 		}
 	})
 }
@@ -286,8 +339,8 @@ func TestDownloadTemplateNilaiDiniyahHandler(t *testing.T) {
 	database.DB.Create(&models.MapelDiniyah{SekolahID: int(sekolah.ID), NamaMapel: "Fikih", Aktif: true})
 	database.DB.Create(&models.MapelDiniyah{SekolahID: int(sekolah.ID), NamaMapel: "Aqidah", Aktif: true})
 
-	req, _ := http.NewRequest("GET", "/api/nilai-diniyah/template/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"kelas_id": "1"})
+	req, _ := http.NewRequest("GET", "/api/nilai-diniyah/template/1/1?rombel=__kosong__", nil)
+	req = mux.SetURLVars(req, map[string]string{"kelas_id": "1", "mapel_id": "1"})
 
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(DownloadTemplateNilaiDiniyahHandler)
@@ -304,5 +357,13 @@ func TestDownloadTemplateNilaiDiniyahHandler(t *testing.T) {
 	
 	if rrInvalid.Code != http.StatusBadRequest {
 		t.Errorf("Expected status Bad Request, got %v", rrInvalid.Code)
+	}
+
+	reqInvalidMapel, _ := http.NewRequest("GET", "/api/nilai-diniyah/template/1/xyz", nil)
+	reqInvalidMapel = mux.SetURLVars(reqInvalidMapel, map[string]string{"kelas_id": "1", "mapel_id": "xyz"})
+	rrInvalidMapel := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidMapel, reqInvalidMapel)
+	if rrInvalidMapel.Code != http.StatusOK { // It actually falls back to default mapel name
+		t.Errorf("Expected status OK for mapel (fallback), got %v", rrInvalidMapel.Code)
 	}
 }

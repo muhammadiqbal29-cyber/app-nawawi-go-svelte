@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"siakad-nawawi-be/internal/database"
 )
 
 func TestRestoreBackupHandler_NoFile(t *testing.T) {
@@ -57,5 +59,33 @@ func TestRestoreBackupHandler_NotEncFile(t *testing.T) {
 
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusInternalServerError, rr.Body.String())
+	}
+}
+
+func TestTriggerBackupHandler(t *testing.T) {
+	database.SetupTestDB()
+	req, _ := http.NewRequest("GET", "/api/backup/trigger", nil)
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(TriggerBackupHandler)
+	handler.ServeHTTP(rr, req)
+
+	// Will likely return 500 because mysqldump might not be present or env vars are empty
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusInternalServerError)
+	}
+}
+
+func TestDownloadBackupHandler(t *testing.T) {
+	database.SetupTestDB()
+	req, _ := http.NewRequest("GET", "/api/backup/download", nil)
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(DownloadBackupHandler)
+	handler.ServeHTTP(rr, req)
+
+	// Will likely return 500 because of BackupDatabase failure
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusInternalServerError)
 	}
 }

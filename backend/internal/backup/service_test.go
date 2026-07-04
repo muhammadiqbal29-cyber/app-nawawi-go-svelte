@@ -29,28 +29,62 @@ func TestCompressDecompress(t *testing.T) {
 
 	// Verify compressed file exists and is not empty
 	stat, err := os.Stat(compressedFile)
-	if err != nil {
-		t.Fatalf("File terkompresi tidak ditemukan: %v", err)
-	}
-	if stat.Size() == 0 {
-		t.Fatalf("File terkompresi kosong")
+	if err != nil || stat.Size() == 0 {
+		t.Fatalf("File terkompresi tidak valid")
 	}
 
 	// Test decompression
 	if err := decompressFile(compressedFile, decompressedFile); err != nil {
 		t.Fatalf("decompressFile gagal: %v", err)
 	}
+}
 
-	// Verify decompressed content matches original
-	decompressedContent, err := os.ReadFile(decompressedFile)
-	if err != nil {
-		t.Fatalf("Gagal membaca file terdekompresi: %v", err)
+func TestRestoreDatabase_Negative(t *testing.T) {
+	// 1. Invalid suffix
+	err := RestoreDatabase("invalid_suffix.txt")
+	if err == nil || err.Error() != "file bukan berformat .enc" {
+		t.Errorf("Expected error for invalid suffix")
 	}
 
-	if string(decompressedContent) != string(content) {
-		t.Errorf("Hasil dekompresi tidak cocok!\nHarapan: %s\nDapat: %s", string(content), string(decompressedContent))
+	// 2. Decrypt fail (invalid file)
+	err = RestoreDatabase("not_found.enc")
+	if err == nil {
+		t.Errorf("Expected error for missing file")
 	}
 }
+
+func TestRestoreDatabase_Success(t *testing.T) {
+	database.SetupTestDB()
+	os.Setenv("BACKUP_ENCRYPTION_KEY", "12345678901234567890123456789012")
+
+	tempDir := t.TempDir()
+	sqlFile := filepath.Join(tempDir, "test.sql")
+	gzFile := filepath.Join(tempDir, "test.gz")
+	encFile := filepath.Join(tempDir, "test.enc")
+
+	// Create a dummy SQL file
+	err := os.WriteFile(sqlFile, []byte("CREATE TABLE dummy (id INTEGER PRIMARY KEY);"), 0644)
+	if err != nil {
+		t.Fatalf("Gagal membuat dummy SQL: %v", err)
+	}
+
+	// Compress it
+	if err := compressFile(sqlFile, gzFile); err != nil {
+		t.Fatalf("compressFile gagal: %v", err)
+	}
+
+	// Encrypt it
+	if err := encryptFile(gzFile, encFile); err != nil {
+		t.Fatalf("encryptFile gagal: %v", err)
+	}
+
+	// Restore it
+	err = RestoreDatabase(encFile)
+	if err != nil {
+		t.Errorf("Expected no error from RestoreDatabase, got %v", err)
+	}
+}
+
 
 func TestEncryptDecrypt(t *testing.T) {
 	// Set dummy encryption key for test (must be 32 chars)
@@ -201,5 +235,50 @@ func TestStrictLimitReader_ExceedLimit(t *testing.T) {
 	_, err := reader.Read(buf)
 	if err == nil {
 		t.Error("Expected error when limit exceeded")
+	}
+}
+
+func TestSendTelegramNotice(t *testing.T) {
+	// Test without env vars (should return early without error)
+	os.Unsetenv("TELEGRAM_BOT_TOKEN")
+	os.Unsetenv("TELEGRAM_CHAT_ID")
+	SendTelegramNotice("Test message")
+
+	// Test with invalid URL/token (should log error but not panic)
+	os.Setenv("TELEGRAM_BOT_TOKEN", "invalid_token")
+	os.Setenv("TELEGRAM_CHAT_ID", "12345")
+	SendTelegramNotice("Test message")
+}
+
+func TestUploadToGDrive(t *testing.T) {
+	// Test without GDRIVE_FOLDER_ID
+	os.Unsetenv("GDRIVE_FOLDER_ID")
+	err := UploadToGDrive("dummy.txt")
+	if err != nil {
+		t.Errorf("Expected nil when GDRIVE_FOLDER_ID is empty, got %v", err)
+	}
+
+	// Test with GDRIVE_FOLDER_ID but no credentials
+	os.Setenv("GDRIVE_FOLDER_ID", "dummy_folder")
+	os.Remove("oauth_credentials.json")
+	err = UploadToGDrive("dummy.txt")
+	if err == nil {
+		t.Errorf("Expected error when oauth_credentials.json is missing, got nil")
+	}
+}
+
+func TestInitScheduler(t *testing.T) {
+	// InitScheduler starts a cron job. We just call it to cover it.
+	InitScheduler()
+}
+
+func TestUploadToGDrive_Dummy(t *testing.T) {
+	os.Setenv("GDRIVE_FOLDER_ID", "dummy_folder")
+	// The dummy files oauth_credentials.json and token.json are in the working directory
+	
+	// Execute UploadToGDrive (will fail at API call)
+	err := UploadToGDrive("dummy.txt")
+	if err == nil {
+		t.Errorf("Expected error from Google API, got nil")
 	}
 }

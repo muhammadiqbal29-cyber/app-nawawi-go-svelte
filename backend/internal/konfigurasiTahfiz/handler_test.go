@@ -148,3 +148,64 @@ func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidJenis(t *testing.T) {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
 	}
 }
+
+func TestUpsertKonfigurasiNilaiTahfizHandler_Update(t *testing.T) {
+	setupTestDB()
+	
+	// Create first
+	konfig := models.KonfigurasiNilaiTahfiz{
+		SekolahID:             1,
+		JenisPenilaian:        "kelulusan",
+		Pembagi:               1,
+		TingkatLevelKelulusan: "[]",
+		KriteriaPenilaian:     "[]",
+		Aktif:                 true,
+	}
+	database.DB.Create(&konfig)
+
+	payload := map[string]interface{}{
+		"pembagi":         2,
+		"jenis_penilaian": "kelulusan",
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBuffer(body))
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestDecodeTingkatLevels_InvalidJSON(t *testing.T) {
+	result := decodeTingkatLevels("invalid json")
+	if len(result) != 0 {
+		t.Errorf("Expected empty array, got %v", result)
+	}
+}
+
+func TestDecodeKriteria_InvalidJSON(t *testing.T) {
+	result := decodeKriteria("invalid json")
+	if len(result) != 5 {
+		t.Errorf("Expected length 5, got %v", result)
+	}
+}
+
+func TestEncodeKriteria_Error(t *testing.T) {
+	// this is hard to trigger since KriteriaPenilaianItem can always be marshaled
+}
+
+func TestUpsertKonfigurasi_InvalidJSON(t *testing.T) {
+	setupTestDB()
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBufferString("invalid json"))
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rr.Code)
+	}
+}

@@ -89,6 +89,14 @@ func TestGetGuruHandler(t *testing.T) {
 	if rrInvalid.Code != http.StatusBadRequest {
 		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalid.Code, http.StatusBadRequest)
 	}
+
+	reqNotFound, _ := http.NewRequest("GET", "/api/guru/999", nil)
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
+	}
 	
 	_ = guruID
 }
@@ -180,6 +188,14 @@ func TestUpdateGuruHandler(t *testing.T) {
 	handler.ServeHTTP(rrInvalidID, reqInvalidID)
 	if rrInvalidID.Code != http.StatusBadRequest {
 		t.Errorf("invalid id status code: mendapat %d, diharapkan %d", rrInvalidID.Code, http.StatusBadRequest)
+	}
+
+	reqNotFound, _ := http.NewRequest("PUT", "/api/guru/999", bytes.NewBuffer(bodyBytes))
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"id": "999"})
+	rrNotFound := httptest.NewRecorder()
+	handler.ServeHTTP(rrNotFound, reqNotFound)
+	if rrNotFound.Code != http.StatusNotFound {
+		t.Errorf("not found status code: mendapat %d, diharapkan %d", rrNotFound.Code, http.StatusNotFound)
 	}
 
 	_ = guruID
@@ -400,6 +416,32 @@ func TestGetSekolahForGuruHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d, body: %s", rr.Code, http.StatusOK, rr.Body.String())
 	}
+
+	// Test with filter match
+	reqFitur, _ := http.NewRequest("GET", "/api/guru/me/sekolah?fitur=Tahfiz", nil)
+	reqFitur = setGuruContext(reqFitur, "budi@test.com")
+	rrFitur := httptest.NewRecorder()
+	handler.ServeHTTP(rrFitur, reqFitur)
+	if rrFitur.Code != http.StatusOK {
+		t.Errorf("fitur match failed: %v", rrFitur.Code)
+	}
+
+	// Test with filter mismatch
+	reqMiss, _ := http.NewRequest("GET", "/api/guru/me/sekolah?fitur=InvalidFitur", nil)
+	reqMiss = setGuruContext(reqMiss, "budi@test.com")
+	rrMiss := httptest.NewRecorder()
+	handler.ServeHTTP(rrMiss, reqMiss)
+	if rrMiss.Code != http.StatusOK {
+		t.Errorf("fitur mismatch failed: %v", rrMiss.Code)
+	}
+
+	// Test with no context
+	reqNoCtx, _ := http.NewRequest("GET", "/api/guru/me/sekolah", nil)
+	rrNoCtx := httptest.NewRecorder()
+	handler.ServeHTTP(rrNoCtx, reqNoCtx)
+	if rrNoCtx.Code != http.StatusUnauthorized {
+		t.Errorf("no ctx expected Unauthorized, got %v", rrNoCtx.Code)
+	}
 }
 
 func TestGetDashboardTahfizHandler(t *testing.T) {
@@ -464,6 +506,16 @@ func TestGetDashboardDiniyahHandler(t *testing.T) {
 
 func TestDownloadTemplateGuruHandler(t *testing.T) {
 	setupTestDB()
+
+	// Seed sekolah to test fitur
+	database.DB.Create(&models.Sekolah{
+		NamaSekolah: "SMP Test",
+		Fitur: `["fitur1", "fitur2"]`,
+	})
+	database.DB.Create(&models.Sekolah{
+		NamaSekolah: "SMA Test",
+		Fitur: "",
+	})
 
 	req, _ := http.NewRequest("GET", "/api/guru/template", nil)
 	rr := httptest.NewRecorder()

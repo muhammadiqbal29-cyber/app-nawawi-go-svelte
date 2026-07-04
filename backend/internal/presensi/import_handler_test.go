@@ -101,3 +101,55 @@ func TestImportPresensiExcelHandler_Success(t *testing.T) {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
 	}
 }
+
+func TestImportPresensiExcelHandler_Negative(t *testing.T) {
+	mock, cleanup := setupMockDB(t)
+	defer cleanup()
+
+	// 1. > 501 rows
+	fTooMany := excelize.NewFile()
+	_ = fTooMany.SetSheetName("Sheet1", "Data")
+	for i := 1; i <= 502; i++ {
+		cell, _ := excelize.CoordinatesToCellName(1, i)
+		fTooMany.SetCellValue("Data", cell, "test")
+	}
+	var buf bytes.Buffer
+	_ = fTooMany.Write(&buf)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "presensi.xlsx")
+	_, _ = io.Copy(part, &buf)
+	writer.Close()
+
+	req, _ := http.NewRequest("POST", "/api/presensi/admin/import", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(ImportPresensiExcelHandler)
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for too many rows, got %d", rr.Code)
+	}
+
+	// 2. Empty rows (< 2)
+	fEmpty := excelize.NewFile()
+	_ = fEmpty.SetSheetName("Sheet1", "Data")
+	fEmpty.SetCellValue("Data", "A1", "Header")
+	var buf2 bytes.Buffer
+	_ = fEmpty.Write(&buf2)
+
+	body2 := &bytes.Buffer{}
+	writer2 := multipart.NewWriter(body2)
+	part2, _ := writer2.CreateFormFile("file", "presensi.xlsx")
+	_, _ = io.Copy(part2, &buf2)
+	writer2.Close()
+
+	req2, _ := http.NewRequest("POST", "/api/presensi/admin/import", body2)
+	req2.Header.Set("Content-Type", writer2.FormDataContentType())
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+	if rr2.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty rows, got %d", rr2.Code)
+	}
+	_ = mock
+}

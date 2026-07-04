@@ -1,0 +1,945 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>siswa: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">siakad-nawawi-be/internal/siswa/handler.go (73.4%)</option>
+				
+				<option value="file1">siakad-nawawi-be/internal/siswa/import_handler.go (70.3%)</option>
+				
+				<option value="file2">siakad-nawawi-be/internal/siswa/validation.go (90.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package siswa
+
+import (
+        "encoding/json"
+        "net/http"
+        "strconv"
+        "strings"
+
+        "siakad-nawawi-be/internal/database"
+        "siakad-nawawi-be/internal/models"
+        "siakad-nawawi-be/internal/response"
+
+        "github.com/gorilla/mux"
+        "gorm.io/gorm"
+)
+
+// GetSiswaBySekolahHandler mengambil data siswa berdasarkan sekolah_id dengan pagination
+func GetSiswaBySekolahHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        sekolahID := vars["sekolah_id"]
+
+        pageStr := r.URL.Query().Get("page")
+        limitStr := r.URL.Query().Get("limit")
+        search := r.URL.Query().Get("search")
+        statusFilter := r.URL.Query().Get("status")
+        taIDStr := r.URL.Query().Get("tahun_ajaran_id")
+
+        page := 1
+        limit := 10
+
+        if p, err := strconv.Atoi(pageStr); err == nil &amp;&amp; p &gt; 0 </span><span class="cov8" title="1">{
+                page = p
+        }</span>
+        <span class="cov8" title="1">if l, err := strconv.Atoi(limitStr); err == nil &amp;&amp; l &gt; 0 </span><span class="cov8" title="1">{
+                limit = l
+        }</span>
+
+        <span class="cov8" title="1">offset := (page - 1) * limit
+        query := database.DB.WithContext(r.Context()).Model(&amp;models.Siswa{})
+
+        // Dapatkan Tahun Ajaran filter, default ke yang aktif
+        var filterTaID int
+        if taIDStr != "" </span><span class="cov0" title="0">{
+                filterTaID, _ = strconv.Atoi(taIDStr)
+        }</span> else<span class="cov8" title="1"> {
+                var activeTa models.TahunAjaran
+                if err := database.DB.Where("status = ?", "Active").First(&amp;activeTa).Error; err != nil </span><span class="cov0" title="0">{
+                        response.Error(w, http.StatusBadRequest, "Tidak ada Tahun Ajaran aktif", err)
+                        return
+                }</span>
+                <span class="cov8" title="1">filterTaID = activeTa.ID</span>
+        }
+
+        // Join dengan riwayat_kelas untuk mengecek keterikatan dengan sekolah di tahun ajaran tertentu
+        <span class="cov8" title="1">query = query.Select("siswas.*, MAX(riwayat_kelas.sekolah_id) as sekolah_id, MAX(riwayat_kelas.kelas_id) as kelas_id, MAX(riwayat_kelas.rombel) as rombel, MAX(riwayat_kelas.kelas_asal) as kelas_asal, MAX(kelas.nama_kelas) as nama_kelas, MAX(tahun_ajarans.nama_tahun) as tahun_ajaran").
+                Joins("JOIN riwayat_kelas ON riwayat_kelas.siswa_id = siswas.id AND riwayat_kelas.tahun_ajaran_id = ?", filterTaID).
+                Joins("LEFT JOIN kelas ON kelas.id = riwayat_kelas.kelas_id").
+                Joins("LEFT JOIN tahun_ajarans ON tahun_ajarans.id = riwayat_kelas.tahun_ajaran_id").
+                Where("riwayat_kelas.sekolah_id = ?", sekolahID)
+
+        if statusFilter != "" </span><span class="cov0" title="0">{
+                if statusFilter == "Aktif" </span><span class="cov0" title="0">{
+                        query = query.Where("siswas.status = ?", "Aktif")
+                        if taIDStr != "" </span><span class="cov0" title="0">{
+                                query = query.Where("riwayat_kelas.status_akhir = ?", "Aktif")
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        // Status Lulus, Mutasi, dll
+                        query = query.Where("(siswas.status = ? OR riwayat_kelas.status_akhir = ?)", statusFilter, statusFilter)
+                }</span>
+        }
+
+        <span class="cov8" title="1">if search != "" </span><span class="cov8" title="1">{
+                query = query.Where("(siswas.nama_lengkap LIKE ? OR siswas.nisn LIKE ? OR siswas.nis LIKE ?)", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+        }</span>
+
+        <span class="cov8" title="1">query = query.Group("siswas.id")
+
+        var total int64
+        // GORM count with GROUP BY requires subquery or a distinct count
+        database.DB.Table("(?) as q", query.Session(&amp;gorm.Session{}).Select("siswas.id")).Count(&amp;total)
+
+        // Kembalikan Select yang utuh karena termodifikasi saat select id untuk count (walau dengan session, ini lebih aman)
+        query = query.Select("siswas.*, MAX(riwayat_kelas.sekolah_id) as sekolah_id, MAX(riwayat_kelas.kelas_id) as kelas_id, MAX(riwayat_kelas.rombel) as rombel, MAX(riwayat_kelas.kelas_asal) as kelas_asal, MAX(kelas.nama_kelas) as nama_kelas, MAX(tahun_ajarans.nama_tahun) as tahun_ajaran")
+
+        var list []models.Siswa
+        if err := query.Limit(limit).Offset(offset).Order("siswas.id DESC").Find(&amp;list).Error; err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusInternalServerError, "Gagal mengambil data siswa", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">totalPages := int(total) / limit
+        if int(total)%limit != 0 </span><span class="cov0" title="0">{
+                totalPages++
+        }</span>
+
+        <span class="cov8" title="1">res := response.PaginatedPayload{
+                Data: list,
+                Meta: response.MetaPayload{
+                        Total:      total,
+                        Page:       page,
+                        Limit:      limit,
+                        TotalPages: totalPages,
+                },
+        }
+        response.JSON(w, http.StatusOK, res)</span>
+}
+
+// CheckNISNHandler untuk flow Magic Pull
+func CheckNISNHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        nisn := vars["nisn"]
+
+        var siswa models.Siswa
+        if err := database.DB.WithContext(r.Context()).Where("nisn = ?", nisn).First(&amp;siswa).Error; err != nil </span><span class="cov8" title="1">{
+                if err == gorm.ErrRecordNotFound </span><span class="cov8" title="1">{
+                        response.Error(w, http.StatusNotFound, "Data siswa tidak ditemukan", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">response.Error(w, http.StatusInternalServerError, "Gagal mengecek NISN", err)
+                return</span>
+        }
+
+        <span class="cov8" title="1">response.JSON(w, http.StatusOK, siswa)</span>
+}
+
+// CreateSiswaHandler menambah siswa baru
+func CreateSiswaHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var siswa models.Siswa
+        if err := json.NewDecoder(r.Body).Decode(&amp;siswa); err != nil </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "Input tidak valid", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if err := ValidateSiswa(&amp;siswa); err != nil </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, err.Error(), nil)
+                return
+        }</span>
+
+        // Force SekolahID from X-Sekolah-ID header to prevent IDOR
+        <span class="cov8" title="1">sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+        if sekolahIDStr != "" </span><span class="cov8" title="1">{
+                if sid, err := strconv.Atoi(sekolahIDStr); err == nil </span><span class="cov8" title="1">{
+                        siswa.SekolahID = sid
+                }</span>
+        }
+
+        // Gunakan transaksi
+        <span class="cov8" title="1">tx := database.DB.WithContext(r.Context()).Begin()
+
+        if err := tx.Create(&amp;siswa).Error; err != nil </span><span class="cov8" title="1">{
+                tx.Rollback()
+                if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") </span><span class="cov8" title="1">{
+                        response.Error(w, http.StatusConflict, "NISN atau NIS sudah terdaftar", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">response.Error(w, http.StatusInternalServerError, "Gagal menyimpan data master siswa", err)
+                return</span>
+        }
+
+        // Cari TahunAjaran Aktif
+        <span class="cov8" title="1">var ta models.TahunAjaran
+        if err := tx.Where("status = ?", "Active").First(&amp;ta).Error; err != nil </span><span class="cov8" title="1">{
+                tx.Rollback()
+                response.Error(w, http.StatusBadRequest, "Tahun Ajaran aktif tidak ditemukan. Harap set minimal satu Tahun Ajaran aktif.", err)
+                return
+        }</span>
+
+        // Buat RiwayatKelas awal untuk mengikat siswa ke sekolah ini
+        <span class="cov8" title="1">riwayat := models.RiwayatKelas{
+                SiswaID:       siswa.ID,
+                SekolahID:     siswa.SekolahID,
+                TahunAjaranID: ta.ID,
+                StatusAkhir:   "Aktif",
+        }
+        if siswa.KelasID != nil </span><span class="cov0" title="0">{
+                riwayat.KelasID = siswa.KelasID
+                riwayat.Rombel = siswa.Rombel
+        }</span>
+
+        <span class="cov8" title="1">if err := tx.Create(&amp;riwayat).Error; err != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat kelas awal", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">tx.Commit()
+        response.JSON(w, http.StatusCreated, siswa)</span>
+}
+
+// UpdateSiswaHandler memperbarui data siswa
+func UpdateSiswaHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        id := vars["id"]
+        sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+        if sekolahIDStr == "" </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var siswa models.Siswa
+        // Verifikasi apakah siswa ini memiliki RiwayatKelas di sekolah ini
+        if err := database.DB.WithContext(r.Context()).
+                Joins("JOIN riwayat_kelas ON riwayat_kelas.siswa_id = siswas.id").
+                Where("siswas.id = ? AND riwayat_kelas.sekolah_id = ?", id, sekolahIDStr).
+                First(&amp;siswa).Error; err != nil </span><span class="cov8" title="1">{
+                if err == gorm.ErrRecordNotFound </span><span class="cov8" title="1">{
+                        response.Error(w, http.StatusNotFound, "Data siswa tidak ditemukan atau bukan milik sekolah Anda", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">response.Error(w, http.StatusInternalServerError, "Gagal mencari siswa", err)
+                return</span>
+        }
+
+        <span class="cov8" title="1">var input models.Siswa
+        if err := json.NewDecoder(r.Body).Decode(&amp;input); err != nil </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "Input tidak valid", err)
+                return
+        }</span>
+
+        // Timpa data
+        <span class="cov8" title="1">siswa.NISN = input.NISN
+        siswa.NIS = input.NIS
+        siswa.NamaLengkap = input.NamaLengkap
+        siswa.Status = input.Status
+        siswa.TempatLahir = input.TempatLahir
+        siswa.TanggalLahir = input.TanggalLahir
+        siswa.JenisKelamin = input.JenisKelamin
+        siswa.Agama = input.Agama
+        siswa.Alamat = input.Alamat
+        siswa.NamaAyah = input.NamaAyah
+        siswa.NamaIbu = input.NamaIbu
+        siswa.TeleponOrtu = input.TeleponOrtu
+
+        if err := ValidateSiswa(&amp;siswa); err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, err.Error(), nil)
+                return
+        }</span>
+
+        // Catatan: Jika KelasID berubah, sebaiknya ada logic khusus (Pindah Kelas).
+        // Di sini hanya update biodata pokok.
+
+        <span class="cov8" title="1">if err := database.DB.WithContext(r.Context()).Save(&amp;siswa).Error; err != nil </span><span class="cov0" title="0">{
+                if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") </span><span class="cov0" title="0">{
+                        response.Error(w, http.StatusConflict, "NISN atau NIS sudah terdaftar", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">response.Error(w, http.StatusInternalServerError, "Gagal mengupdate data siswa", err)
+                return</span>
+        }
+
+        <span class="cov8" title="1">response.JSON(w, http.StatusOK, siswa)</span>
+}
+
+// DeleteSiswaHandler (Hard Delete)
+func DeleteSiswaHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        id := vars["id"]
+        sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+        if sekolahIDStr == "" </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var siswa models.Siswa
+        if err := database.DB.WithContext(r.Context()).
+                Joins("JOIN riwayat_kelas ON riwayat_kelas.siswa_id = siswas.id").
+                Where("siswas.id = ? AND riwayat_kelas.sekolah_id = ?", id, sekolahIDStr).
+                First(&amp;siswa).Error; err != nil </span><span class="cov8" title="1">{
+                if err == gorm.ErrRecordNotFound </span><span class="cov8" title="1">{
+                        response.Error(w, http.StatusNotFound, "Data siswa tidak ditemukan atau bukan milik sekolah Anda", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">response.Error(w, http.StatusInternalServerError, "Gagal mencari siswa", err)
+                return</span>
+        }
+
+        <span class="cov8" title="1">if err := database.DB.WithContext(r.Context()).Unscoped().Delete(&amp;siswa).Error; err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusInternalServerError, "Gagal menghapus siswa", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">response.Success(w, "Siswa berhasil dihapus secara permanen (hard-delete)")</span>
+}
+
+// MutasiSiswaHandler (Tarik Data)
+func MutasiSiswaHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+        if sekolahIDStr == "" </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+                return
+        }</span>
+        <span class="cov8" title="1">sekolahID, err := strconv.Atoi(sekolahIDStr)
+        if err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "X-Sekolah-ID tidak valid", nil)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var input models.Siswa
+        if err := json.NewDecoder(r.Body).Decode(&amp;input); err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "Input tidak valid", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if input.NISN == "" </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "NISN diperlukan untuk mutasi", nil)
+                return
+        }</span>
+
+        // Gunakan transaksi
+        <span class="cov8" title="1">tx := database.DB.WithContext(r.Context()).Begin()
+
+        var siswa models.Siswa
+        if err := tx.Where("nisn = ?", input.NISN).First(&amp;siswa).Error; err != nil </span><span class="cov8" title="1">{
+                tx.Rollback()
+                if err == gorm.ErrRecordNotFound </span><span class="cov8" title="1">{
+                        response.Error(w, http.StatusNotFound, "Data siswa tidak ditemukan", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">response.Error(w, http.StatusInternalServerError, "Gagal mencari siswa", err)
+                return</span>
+        }
+
+        // Aturan Bisnis: Hanya boleh ditarik jika statusnya Lulus atau Pindah
+        <span class="cov8" title="1">if siswa.Status == "Aktif" </span><span class="cov8" title="1">{
+                tx.Rollback()
+                response.Error(w, http.StatusForbidden, "Tidak dapat menarik data: Siswa masih berstatus Aktif di sekolah asal.", nil)
+                return
+        }</span>
+
+        // Update biodata opsional jika dikirim
+        <span class="cov8" title="1">if input.NamaLengkap != "" </span><span class="cov0" title="0">{
+                siswa.NamaLengkap = input.NamaLengkap
+        }</span>
+        <span class="cov8" title="1">if input.NIS != "" </span><span class="cov0" title="0">{
+                siswa.NIS = input.NIS
+        }</span>
+        <span class="cov8" title="1">if input.TempatLahir != "" </span><span class="cov0" title="0">{
+                siswa.TempatLahir = input.TempatLahir
+        }</span>
+        <span class="cov8" title="1">if input.TanggalLahir != nil </span><span class="cov0" title="0">{
+                siswa.TanggalLahir = input.TanggalLahir
+        }</span>
+        <span class="cov8" title="1">if input.Agama != "" </span><span class="cov0" title="0">{
+                siswa.Agama = input.Agama
+        }</span>
+        <span class="cov8" title="1">if input.Alamat != "" </span><span class="cov0" title="0">{
+                siswa.Alamat = input.Alamat
+        }</span>
+        <span class="cov8" title="1">if input.NamaAyah != "" </span><span class="cov0" title="0">{
+                siswa.NamaAyah = input.NamaAyah
+        }</span>
+        <span class="cov8" title="1">if input.NamaIbu != "" </span><span class="cov0" title="0">{
+                siswa.NamaIbu = input.NamaIbu
+        }</span>
+        <span class="cov8" title="1">if input.TeleponOrtu != "" </span><span class="cov0" title="0">{
+                siswa.TeleponOrtu = input.TeleponOrtu
+        }</span>
+
+        <span class="cov8" title="1">siswa.Status = "Aktif"      // Set status menjadi aktif di sekolah baru
+        siswa.SekolahID = sekolahID // Update master data ke sekolah yang baru
+
+        if err := tx.Save(&amp;siswa).Error; err != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                response.Error(w, http.StatusInternalServerError, "Gagal melakukan mutasi pada master siswa", err)
+                return
+        }</span>
+
+        // Cari TahunAjaran Aktif
+        <span class="cov8" title="1">var ta models.TahunAjaran
+        if err := tx.Where("status = ?", "Active").First(&amp;ta).Error; err != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                response.Error(w, http.StatusBadRequest, "Tahun Ajaran aktif tidak ditemukan.", err)
+                return
+        }</span>
+
+        // Buat RiwayatKelas baru di sekolah tujuan
+        <span class="cov8" title="1">riwayat := models.RiwayatKelas{
+                SiswaID:       siswa.ID,
+                SekolahID:     sekolahID,
+                TahunAjaranID: ta.ID,
+                StatusAkhir:   "Aktif",
+        }
+
+        if err := tx.Create(&amp;riwayat).Error; err != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat mutasi siswa", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">tx.Commit()
+        response.JSON(w, http.StatusOK, siswa)</span>
+}
+
+// getMaxLevel mengembalikan batas maksimal level untuk suatu jenjang
+func getMaxLevel(jenjang string) int <span class="cov8" title="1">{
+        switch jenjang </span>{
+        case "TK":<span class="cov8" title="1">
+                return 2</span>
+        case "SD", "MI":<span class="cov8" title="1">
+                return 6</span>
+        case "SMP", "MTs":<span class="cov8" title="1">
+                return 3</span>
+        case "SMA", "SMK", "MA":<span class="cov8" title="1">
+                return 3</span>
+        default:<span class="cov8" title="1">
+                return 6</span> // Default safe value
+        }
+}
+
+// KenaikanKelasHandler memproses kelulusan/kenaikan kelas
+func KenaikanKelasHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var input struct {
+                TahunAjaranID int `json:"tahun_ajaran_id"`
+                DataSiswa     []struct {
+                        SiswaID     int    `json:"siswa_id"`
+                        StatusAkhir string `json:"status_akhir"` // "Naik Kelas", "Tinggal Kelas", "Lulus"
+                } `json:"data_siswa"`
+        }
+        if err := json.NewDecoder(r.Body).Decode(&amp;input); err != nil </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "Data tidak valid", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+        if sekolahIDStr == "" </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+                return
+        }</span>
+
+        <span class="cov8" title="1">tx := database.DB.Begin()
+
+        // Cari Tahun Ajaran saat ini untuk patokan
+        var currentTA models.TahunAjaran
+        if err := tx.First(&amp;currentTA, input.TahunAjaranID).Error; err != nil </span><span class="cov8" title="1">{
+                tx.Rollback()
+                response.Error(w, http.StatusBadRequest, "Tahun Ajaran asal tidak valid.", err)
+                return
+        }</span>
+
+        // Cari TahunAjaran berikutnya secara matematis
+        <span class="cov8" title="1">var nextTA models.TahunAjaran
+        if err := tx.Where("tahun_awal = ?", currentTA.TahunAwal+1).First(&amp;nextTA).Error; err != nil </span><span class="cov0" title="0">{
+                tx.Rollback()
+                response.Error(w, http.StatusBadRequest, "Tahun Ajaran baru untuk tahun berikutnya belum dibuat. Harap buat Tahun Ajaran baru terlebih dahulu.", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">var skippedSiswa []int
+
+        for _, d := range input.DataSiswa </span><span class="cov8" title="1">{
+                // Cari riwayat lama (tanpa Preload karena RiwayatKelas tidak punya relasi Kelas)
+                var rLama models.RiwayatKelas
+                if err := tx.Where("siswa_id = ? AND tahun_ajaran_id = ?", d.SiswaID, input.TahunAjaranID).First(&amp;rLama).Error; err != nil </span><span class="cov8" title="1">{
+                        skippedSiswa = append(skippedSiswa, d.SiswaID)
+                        continue</span> // Lewati jika tidak ada riwayat
+                }
+
+                <span class="cov8" title="1">var sekolah models.Sekolah
+                if err := tx.First(&amp;sekolah, rLama.SekolahID).Error; err != nil </span><span class="cov0" title="0">{
+                        skippedSiswa = append(skippedSiswa, d.SiswaID)
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">if strconv.Itoa(rLama.SekolahID) != sekolahIDStr </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        response.Error(w, http.StatusForbidden, "Akses ditolak: Terdapat siswa yang bukan dari sekolah Anda", nil)
+                        return
+                }</span>
+
+                // Validasi Auto-Lulus jika TingkatLevel sudah mencapai batas maksimum Jenjang
+                <span class="cov8" title="1">statusAkhirFinal := d.StatusAkhir
+                if statusAkhirFinal == "Naik Kelas" &amp;&amp; rLama.KelasID != nil </span><span class="cov8" title="1">{
+                        // Cari data kelas asal
+                        var kelasAsal models.Kelas
+                        if err := tx.First(&amp;kelasAsal, rLama.KelasID).Error; err == nil </span><span class="cov8" title="1">{
+                                maxLevel := getMaxLevel(sekolah.Jenjang)
+                                if kelasAsal.TingkatLevel &gt;= maxLevel </span><span class="cov0" title="0">{
+                                        statusAkhirFinal = "Lulus"
+                                }</span>
+                        }
+                }
+
+                // 1. Update RiwayatKelas lama
+                <span class="cov8" title="1">if err := tx.Model(&amp;rLama).Update("status_akhir", statusAkhirFinal).Error; err != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        response.Error(w, http.StatusInternalServerError, "Gagal mengupdate riwayat kelas lama", err)
+                        return
+                }</span>
+
+                // 2. Buat RiwayatKelas baru atau Luluskan
+                <span class="cov8" title="1">if statusAkhirFinal == "Lulus" </span><span class="cov0" title="0">{
+                        if err := tx.Model(&amp;models.Siswa{}).Where("id = ?", d.SiswaID).Update("status", "Lulus").Error; err != nil </span><span class="cov0" title="0">{
+                                tx.Rollback()
+                                response.Error(w, http.StatusInternalServerError, "Gagal mereset status kelulusan siswa", err)
+                                return
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        // Naik Kelas atau Tinggal Kelas
+                        // Bangun nama kelas asal untuk referensi di TA berikutnya
+                        kelasAsalNama := ""
+                        if rLama.KelasID != nil </span><span class="cov8" title="1">{
+                                var kAsal models.Kelas
+                                if err := tx.First(&amp;kAsal, rLama.KelasID).Error; err == nil </span><span class="cov8" title="1">{
+                                        kelasAsalNama = kAsal.Tingkat + " " + kAsal.NamaKelas
+                                        if rLama.Rombel != "" </span><span class="cov8" title="1">{
+                                                kelasAsalNama += " (" + rLama.Rombel + ")"
+                                        }</span>
+                                }
+                        }
+
+                        <span class="cov8" title="1">rBaru := models.RiwayatKelas{
+                                SiswaID:       d.SiswaID,
+                                SekolahID:     rLama.SekolahID,
+                                TahunAjaranID: nextTA.ID,
+                                Rombel:        "", // Rombel kosong, akan diisi admin di Fase 3
+                                KelasAsal:     kelasAsalNama,
+                                StatusAkhir:   "Aktif",
+                        }
+
+                        if statusAkhirFinal == "Naik Kelas" </span><span class="cov8" title="1">{
+                                rBaru.KelasID = nil // Masuk kolam Tingkat Berikutnya untuk di-reshuffle
+                        }</span> else<span class="cov8" title="1"> if statusAkhirFinal == "Tinggal Kelas" </span><span class="cov8" title="1">{
+                                rBaru.KelasID = rLama.KelasID // Tetap di kelas (tingkat) yang sama
+                                rBaru.Rombel = rLama.Rombel   // Tetap di rombel yang sama
+                        }</span>
+
+                        // Pastikan tidak duplikat
+                        <span class="cov8" title="1">var count int64
+                        tx.Model(&amp;models.RiwayatKelas{}).Where("siswa_id = ? AND tahun_ajaran_id = ?", d.SiswaID, nextTA.ID).Count(&amp;count)
+                        if count == 0 </span><span class="cov8" title="1">{
+                                if err := tx.Create(&amp;rBaru).Error; err != nil </span><span class="cov0" title="0">{
+                                        tx.Rollback()
+                                        response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat kelas baru", err)
+                                        return
+                                }</span>
+                        }
+                }
+        }
+
+        <span class="cov8" title="1">tx.Commit()
+
+        if len(skippedSiswa) &gt; 0 </span><span class="cov8" title="1">{
+                strIDs := make([]string, len(skippedSiswa))
+                for i, id := range skippedSiswa </span><span class="cov8" title="1">{
+                        strIDs[i] = strconv.Itoa(id)
+                }</span>
+                <span class="cov8" title="1">msg := "Proses selesai, namun " + strconv.Itoa(len(skippedSiswa)) + " siswa dilewati karena riwayat kelas tidak ditemukan (ID: " + strings.Join(strIDs, ", ") + ")"
+                response.JSON(w, http.StatusOK, map[string]interface{}{
+                        "message":         msg,
+                        "partial_success": true,
+                        "skipped_siswa":   skippedSiswa,
+                })
+                return</span>
+        }
+
+        <span class="cov8" title="1">response.Success(w, "Proses Kenaikan Kelas berhasil diproses ke Tahun Ajaran berikutnya")</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package siswa
+
+import (
+        "net/http"
+        "strconv"
+        "strings"
+        "time"
+
+        "github.com/gorilla/mux"
+        "github.com/xuri/excelize/v2"
+        "gorm.io/gorm"
+        "siakad-nawawi-be/internal/database"
+        "siakad-nawawi-be/internal/models"
+        "siakad-nawawi-be/internal/response"
+)
+
+// ImportSiswaExcelHandler menerima upload file Excel (.xlsx) untuk memasukkan banyak siswa sekaligus
+func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        sekolahID, err := strconv.Atoi(vars["sekolah_id"])
+        if err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "ID Sekolah tidak valid", err)
+                return
+        }</span>
+
+        // Membatasi ukuran maksimal request body untuk mencegah Memory Exhaustion (Gosec G120)
+        <span class="cov8" title="1">r.Body = http.MaxBytesReader(w, r.Body, 10&lt;&lt;20) // Maksimal 10 MB total body
+
+        // Parsing multipart form (max 5 MB in memory)
+        // #nosec G120 - R.Body has already been restricted by MaxBytesReader above
+        err = r.ParseMultipartForm(5 &lt;&lt; 20)
+        if err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "Ukuran file terlalu besar atau format salah", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">file, _, err := r.FormFile("excel_file")
+        if err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "File Excel tidak ditemukan dalam request", err)
+                return
+        }</span>
+        <span class="cov8" title="1">defer file.Close()
+
+        // Baca file Excel
+        f, err := excelize.OpenReader(file)
+        if err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "Gagal membaca format Excel. Pastikan file berformat .xlsx", err)
+                return
+        }</span>
+        <span class="cov8" title="1">defer f.Close()
+
+        // Ambil sheet pertama (index 0)
+        firstSheet := f.GetSheetName(f.GetActiveSheetIndex())
+        records, err := f.GetRows(firstSheet)
+        if err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "Gagal membaca baris dari sheet pertama", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">if len(records) &lt; 2 </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusBadRequest, "Excel kosong atau tidak memiliki data baris", nil)
+                return
+        }</span>
+        <span class="cov8" title="1">if len(records) &gt; 501 </span><span class="cov8" title="1">{
+                response.Error(w, http.StatusBadRequest, "Terlalu banyak data. Maksimal 500 baris data per file (DDoS protection).", nil)
+                return
+        }</span>
+
+        // Baca header untuk mendapatkan index masing-masing kolom
+        <span class="cov8" title="1">headers := records[0]
+        headerMap := make(map[string]int)
+        for i, h := range headers </span><span class="cov8" title="1">{
+                // Normalisasi header: hapus spasi berlebih dan ubah ke huruf kecil
+                cleanHeader := strings.ToLower(strings.TrimSpace(h))
+                headerMap[cleanHeader] = i
+        }</span>
+
+        // Pengecekan kolom wajib
+        <span class="cov8" title="1">requiredHeaders := []string{"nisn", "nama lengkap", "jenis kelamin"}
+        for _, reqH := range requiredHeaders </span><span class="cov8" title="1">{
+                if _, exists := headerMap[reqH]; !exists </span><span class="cov8" title="1">{
+                        response.Error(w, http.StatusBadRequest, "Kolom wajib tidak ditemukan di Excel: "+reqH, nil)
+                        return
+                }</span>
+        }
+
+        <span class="cov8" title="1">tx := database.DB.WithContext(r.Context()).Begin()
+        defer func() </span><span class="cov8" title="1">{
+                if r := recover(); r != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                }</span>
+        }()
+
+        // Cari TahunAjaran Aktif sekali saja untuk riwayat kelas
+        <span class="cov8" title="1">var ta models.TahunAjaran
+        if err := tx.Where("status = ?", "Active").First(&amp;ta).Error; err != nil </span><span class="cov8" title="1">{
+                tx.Rollback()
+                response.Error(w, http.StatusBadRequest, "Tahun Ajaran aktif tidak ditemukan. Harap set minimal satu Tahun Ajaran aktif.", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">berhasil := 0
+        dilewati := 0
+        dimutasi := 0
+
+        for i := 1; i &lt; len(records); i++ </span><span class="cov8" title="1">{
+                row := records[i]
+
+                // Helper untuk mengambil data dengan aman
+                getVal := func(colName string) string </span><span class="cov8" title="1">{
+                        if idx, ok := headerMap[strings.ToLower(colName)]; ok &amp;&amp; idx &lt; len(row) </span><span class="cov8" title="1">{
+                                return strings.TrimSpace(row[idx])
+                        }</span>
+                        <span class="cov8" title="1">return ""</span>
+                }
+
+                <span class="cov8" title="1">nisn := getVal("NISN")
+                if nisn == "" </span><span class="cov0" title="0">{
+                        dilewati++
+                        continue</span> // Skip jika NISN kosong
+                }
+
+                // Cek apakah NISN sudah ada
+                <span class="cov8" title="1">var existing models.Siswa
+                if err := tx.Unscoped().Where("nisn = ?", nisn).First(&amp;existing).Error; err == nil </span><span class="cov8" title="1">{
+                        // NISN sudah ada di database. Cek apakah bisa di-mutasi otomatis.
+                        if existing.Status == "Lulus" </span><span class="cov8" title="1">{
+                                // Auto-Mutasi: siswa sudah lulus dari sekolah lama, tarik ke sekolah ini
+                                existing.Status = "Aktif"
+                                existing.SekolahID = sekolahID
+                                if err := tx.Save(&amp;existing).Error; err != nil </span><span class="cov0" title="0">{
+                                        tx.Rollback()
+                                        response.Error(w, http.StatusInternalServerError, "Gagal melakukan mutasi otomatis pada baris "+strconv.Itoa(i+1)+": "+err.Error(), err)
+                                        return
+                                }</span>
+
+                                // Buat RiwayatKelas baru di sekolah tujuan
+                                <span class="cov8" title="1">riwayat := models.RiwayatKelas{
+                                        SiswaID:       existing.ID,
+                                        SekolahID:     sekolahID,
+                                        TahunAjaranID: ta.ID,
+                                        StatusAkhir:   "Aktif",
+                                }
+                                if err := tx.Create(&amp;riwayat).Error; err != nil </span><span class="cov0" title="0">{
+                                        tx.Rollback()
+                                        response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat mutasi pada baris "+strconv.Itoa(i+1), err)
+                                        return
+                                }</span>
+                                <span class="cov8" title="1">dimutasi++</span>
+                        } else<span class="cov8" title="1"> {
+                                // Status masih Aktif atau lainnya, skip saja
+                                dilewati++
+                        }</span>
+                        <span class="cov8" title="1">continue</span>
+                } else<span class="cov8" title="1"> if err != gorm.ErrRecordNotFound </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        response.Error(w, http.StatusInternalServerError, "Gagal memverifikasi database", err)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">jenisKelamin := getVal("Jenis Kelamin")
+                // Normalisasi L/P
+                if strings.HasPrefix(strings.ToUpper(jenisKelamin), "L") </span><span class="cov8" title="1">{
+                        jenisKelamin = "L"
+                }</span> else<span class="cov8" title="1"> if strings.HasPrefix(strings.ToUpper(jenisKelamin), "P") </span><span class="cov8" title="1">{
+                        jenisKelamin = "P"
+                }</span> else<span class="cov0" title="0"> {
+                        jenisKelamin = "L" // Default fallback
+                }</span>
+
+                <span class="cov8" title="1">var tglLahir *string
+                tglVal := getVal("Tanggal Lahir")
+                if tglVal != "" </span><span class="cov8" title="1">{
+                        parsedDate := tglVal
+
+                        // Try parsing if it's Excel raw float
+                        if fVal, err := strconv.ParseFloat(tglVal, 64); err == nil &amp;&amp; !strings.Contains(tglVal, "-") &amp;&amp; !strings.Contains(tglVal, "/") </span><span class="cov0" title="0">{
+                                if t, err := excelize.ExcelDateToTime(fVal, false); err == nil </span><span class="cov0" title="0">{
+                                        parsedDate = t.Format("2006-01-02")
+                                }</span>
+                        } else<span class="cov8" title="1"> {
+                                // Try common string formats
+                                layouts := []string{"2006-01-02", "02/01/2006", "01/02/2006", "02-01-2006", "2006/01/02"}
+                                for _, l := range layouts </span><span class="cov8" title="1">{
+                                        if t, err := time.Parse(l, tglVal); err == nil </span><span class="cov8" title="1">{
+                                                parsedDate = t.Format("2006-01-02")
+                                                break</span>
+                                        }
+                                }
+                        }
+                        <span class="cov8" title="1">tglLahir = &amp;parsedDate</span>
+                }
+
+                <span class="cov8" title="1">siswaBaru := models.Siswa{
+                        NISN:         nisn,
+                        NIS:          getVal("NIS"),
+                        NamaLengkap:  getVal("Nama Lengkap"),
+                        Status:       "Aktif",
+                        TempatLahir:  getVal("Tempat Lahir"),
+                        TanggalLahir: tglLahir,
+                        JenisKelamin: jenisKelamin,
+                        Agama:        getVal("Agama"),
+                        Alamat:       getVal("Alamat"),
+                        NamaAyah:     getVal("Nama Ayah"),
+                        NamaIbu:      getVal("Nama Ibu"),
+                        TeleponOrtu:  getVal("Telepon Ortu"),
+                        SekolahID:    sekolahID,
+                }
+
+                if err := tx.Create(&amp;siswaBaru).Error; err != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        response.Error(w, http.StatusInternalServerError, "Gagal menyimpan data ke database pada baris "+strconv.Itoa(i+1)+": "+err.Error(), err)
+                        return
+                }</span>
+
+                // Buat RiwayatKelas agar siswa langsung aktif di tahun ajaran ini
+                <span class="cov8" title="1">riwayat := models.RiwayatKelas{
+                        SiswaID:       siswaBaru.ID,
+                        SekolahID:     sekolahID,
+                        TahunAjaranID: ta.ID,
+                        StatusAkhir:   "Aktif",
+                }
+                if err := tx.Create(&amp;riwayat).Error; err != nil </span><span class="cov0" title="0">{
+                        tx.Rollback()
+                        response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat kelas pada baris "+strconv.Itoa(i+1), err)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">berhasil++</span>
+        }
+
+        <span class="cov8" title="1">if err := tx.Commit().Error; err != nil </span><span class="cov0" title="0">{
+                response.Error(w, http.StatusInternalServerError, "Gagal menyelesaikan transaksi database", err)
+                return
+        }</span>
+
+        <span class="cov8" title="1">response.JSON(w, http.StatusOK, map[string]interface{}{
+                "data": map[string]interface{}{
+                        "message":  "Import Excel selesai",
+                        "berhasil": berhasil,
+                        "dimutasi": dimutasi,
+                        "dilewati": dilewati,
+                },
+        })</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package siswa
+
+import (
+        "strings"
+
+        "siakad-nawawi-be/internal/models"
+        "siakad-nawawi-be/internal/utils"
+)
+
+// ValidateSiswa memeriksa kelengkapan data siswa sebelum disimpan
+func ValidateSiswa(siswa *models.Siswa) error <span class="cov8" title="1">{
+        siswa.NISN = strings.TrimSpace(siswa.NISN)
+        siswa.NamaLengkap = strings.TrimSpace(siswa.NamaLengkap)
+        siswa.NIS = strings.TrimSpace(siswa.NIS)
+
+        // Handle TanggalLahir kosong
+        if siswa.TanggalLahir != nil &amp;&amp; *siswa.TanggalLahir == "" </span><span class="cov0" title="0">{
+                siswa.TanggalLahir = nil
+        }</span>
+
+        <span class="cov8" title="1">validStatus := map[string]bool{"Aktif": true, "Lulus": true, "Pindah": true, "Keluar": true}
+        if !validStatus[siswa.Status] </span><span class="cov8" title="1">{
+                siswa.Status = "Aktif" // Default
+        }</span>
+
+        <span class="cov8" title="1">if err := utils.ValidateStruct(siswa); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

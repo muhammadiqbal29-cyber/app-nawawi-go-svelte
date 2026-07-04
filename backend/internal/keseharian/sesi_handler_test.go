@@ -131,4 +131,45 @@ func TestSubmitSesiKeseharianHandler(t *testing.T) {
 			t.Errorf("Expected status Bad Request, got %v", rr.Code)
 		}
 	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/api/keseharian/sesi/submit", bytes.NewBufferString("{invalid"))
+		req = setGuruContext(req, int(user.ID))
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(SubmitSesiKeseharianHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Unauthorized Guru", func(t *testing.T) {
+		// Create another guru without access to sekolahID 1
+		user2 := models.User{Email: "guru2@test.com", Role: "guru"}
+		database.DB.Create(&user2)
+		guru2 := models.Guru{UserID: int32(user2.ID), NamaLengkap: "Guru Test 2", AksesSekolah: `{"99":["*"]}`}
+		database.DB.Create(&guru2)
+
+		payload := SesiPayload{
+			SekolahID:   sekolahID,
+			IndikatorID: int(indikator.ID),
+			Tanggal:     time.Now().Format("2006-01-02"),
+			Catatan:     "Catatan test",
+			SiswaList: []SiswaStatus{
+				{SiswaID: int(siswa.ID), Status: true},
+			},
+		}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/keseharian/sesi/submit", bytes.NewBuffer(body))
+		req = setGuruContext(req, int(user2.ID)) // User2 doesn't have access to sekolah 1
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(SubmitSesiKeseharianHandler)
+		handler.ServeHTTP(rr, req)
+
+		// Verification from VerifyGuruAccessJSON returns 403 Forbidden
+		if rr.Code != http.StatusForbidden {
+			t.Errorf("Expected status Forbidden, got %v", rr.Code)
+		}
+	})
 }

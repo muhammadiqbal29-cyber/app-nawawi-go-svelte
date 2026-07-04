@@ -72,6 +72,18 @@ func TestGetHalaqahKuHandler(t *testing.T) {
 	if rr2.Code != http.StatusUnauthorized {
 		t.Errorf("Expected status Unauthorized, got %v", rr2.Code)
 	}
+
+	// Test No Active Period
+	database.DB.Exec("UPDATE tahun_ajarans SET status = 'Inactive'")
+	req3, _ := http.NewRequest("GET", "/api/tahfiz/halaqah-ku", nil)
+	req3 = setGuruContext(req3, "guru@test.com")
+	rr3 := httptest.NewRecorder()
+	handler.ServeHTTP(rr3, req3)
+	if rr3.Code != http.StatusBadRequest {
+		t.Errorf("Expected status Bad Request (No Active Period), got %v", rr3.Code)
+	}
+	// Restore Active Period for other tests
+	database.DB.Exec("UPDATE tahun_ajarans SET status = 'Active'")
 }
 
 func TestCreateHalaqahHandler(t *testing.T) {
@@ -103,6 +115,57 @@ func TestCreateHalaqahHandler(t *testing.T) {
 			t.Errorf("Expected status Unauthorized, got %v", rr.Code)
 		}
 	})
+
+	t.Run("Invalid Sekolah ID", func(t *testing.T) {
+		payload := models.Halaqah{NamaHalaqah: "Halaqah 3"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/tahfiz/halaqah/sekolah/abc", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "abc"})
+		req = setGuruContext(req, "guru@test.com")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(CreateHalaqahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/api/tahfiz/halaqah/sekolah/1", bytes.NewBufferString("{invalid"))
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		req = setGuruContext(req, "guru@test.com")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(CreateHalaqahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("No Active Period", func(t *testing.T) {
+		// Delete active period to force ResolveActivePeriod error
+		database.DB.Exec("UPDATE tahun_ajarans SET status = 'Draft'")
+		defer database.DB.Exec("UPDATE tahun_ajarans SET status = 'Active' WHERE id = 1")
+
+		payload := models.Halaqah{NamaHalaqah: "Halaqah 3"}
+		body, _ := json.Marshal(payload)
+		req, _ := http.NewRequest("POST", "/api/tahfiz/halaqah/sekolah/1", bytes.NewBuffer(body))
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		req = setGuruContext(req, "guru@test.com")
+
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(CreateHalaqahHandler)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
 }
 
 func TestGetAnggotaHalaqahHandler(t *testing.T) {
@@ -134,6 +197,15 @@ func TestGetAnggotaHalaqahHandler(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status OK, got %v", rr.Code)
 	}
+
+	reqInvalid, _ := http.NewRequest("GET", "/api/tahfiz/halaqah/abc/anggota", nil)
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"id": "abc"})
+	reqInvalid = setGuruContext(reqInvalid, "guru@test.com")
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusNotFound {
+		t.Errorf("Expected status Not Found, got %v", rrInvalid.Code)
+	}
 }
 
 func TestUpdateAnggotaHalaqahHandler(t *testing.T) {
@@ -156,6 +228,38 @@ func TestUpdateAnggotaHalaqahHandler(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("Expected status OK, got %v", rr.Code)
+	}
+
+	// Test: invalid ID -> 404 (because Atoi("abc") = 0, and ID 0 is not found)
+	reqInvalid, _ := http.NewRequest("PUT", "/api/tahfiz/halaqah/abc/anggota", bytes.NewBuffer(body))
+	reqInvalid = mux.SetURLVars(reqInvalid, map[string]string{"id": "abc"})
+	reqInvalid = setGuruContext(reqInvalid, "guru@test.com")
+	rrInvalid := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalid, reqInvalid)
+	if rrInvalid.Code != http.StatusNotFound {
+		t.Errorf("Expected status Not Found, got %v", rrInvalid.Code)
+	}
+
+	// Test: invalid JSON -> 400
+	reqInvalidJSON, _ := http.NewRequest("PUT", "/api/tahfiz/halaqah/1/anggota", bytes.NewBufferString("{invalid"))
+	reqInvalidJSON = mux.SetURLVars(reqInvalidJSON, map[string]string{"id": "1"})
+	reqInvalidJSON = setGuruContext(reqInvalidJSON, "guru@test.com")
+	rrInvalidJSON := httptest.NewRecorder()
+	handler.ServeHTTP(rrInvalidJSON, reqInvalidJSON)
+	if rrInvalidJSON.Code != http.StatusBadRequest {
+		t.Errorf("Expected status Bad Request, got %v", rrInvalidJSON.Code)
+	}
+
+	// Test: invalid validation (empty array) -> 400
+	payloadEmpty := UpdateAnggotaPayload{SiswaIDs: []int{}}
+	bodyEmpty, _ := json.Marshal(payloadEmpty)
+	reqEmpty, _ := http.NewRequest("PUT", "/api/tahfiz/halaqah/1/anggota", bytes.NewBuffer(bodyEmpty))
+	reqEmpty = mux.SetURLVars(reqEmpty, map[string]string{"id": "1"})
+	reqEmpty = setGuruContext(reqEmpty, "guru@test.com")
+	rrEmpty := httptest.NewRecorder()
+	handler.ServeHTTP(rrEmpty, reqEmpty)
+	if rrEmpty.Code != http.StatusBadRequest {
+		t.Errorf("Expected status Bad Request, got %v", rrEmpty.Code)
 	}
 }
 
@@ -194,4 +298,26 @@ func TestGetSiswaAvailableTahfizHandler(t *testing.T) {
 	if len(list) != 1 {
 		t.Errorf("Expected 1 available student, got %v", len(list))
 	}
+	t.Run("Invalid Sekolah ID", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/api/tahfiz/siswa-available/abc", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "abc"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetSiswaAvailableTahfizHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
+
+	t.Run("No Active TA", func(t *testing.T) {
+		database.DB.Where("status = ?", "Active").Delete(&models.TahunAjaran{})
+		req, _ := http.NewRequest("GET", "/api/tahfiz/siswa-available/1", nil)
+		req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+		rr := httptest.NewRecorder()
+		handler := http.HandlerFunc(GetSiswaAvailableTahfizHandler)
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("Expected status Bad Request, got %v", rr.Code)
+		}
+	})
 }

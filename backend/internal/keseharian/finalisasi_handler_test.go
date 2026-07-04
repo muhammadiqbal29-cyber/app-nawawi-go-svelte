@@ -45,6 +45,14 @@ func TestGetRekapKeseharianHandler(t *testing.T) {
 	if rr2.Code != http.StatusBadRequest {
 		t.Errorf("Expected status Bad Request, got %v", rr2.Code)
 	}
+
+	req3, _ := http.NewRequest("GET", "/api/keseharian/rekap/999", nil)
+	req3 = mux.SetURLVars(req3, map[string]string{"kelas_id": "999"})
+	rr3 := httptest.NewRecorder()
+	handler.ServeHTTP(rr3, req3)
+	if rr3.Code != http.StatusOK { // Returns empty array
+		t.Errorf("Expected status OK for empty kelas, got %v", rr3.Code)
+	}
 }
 
 func TestUpdatePenyesuaianHandler(t *testing.T) {
