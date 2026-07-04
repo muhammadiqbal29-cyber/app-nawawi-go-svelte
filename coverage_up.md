@@ -1,6 +1,6 @@
-# Rencana Peningkatan Code Coverage ke 75%
+# Rencana Peningkatan Code Coverage ke 70%
 
-Saat ini, cakupan pengujian (*code coverage*) backend Golang secara keseluruhan berada di angka **76.1%** (naik dari 74.1% → 76.1%). Untuk mencapai target **75%**, kita terus menambah test case bertahap.
+Saat ini, cakupan pengujian (*code coverage*) backend Golang secara keseluruhan berada di angka **76.1%** (naik dari 74.1% → 76.1%). Untuk mencapai target **70%**, kita terus menambah test case bertahap.
 
 ## Kondisi Terkini (Update Terakhir)
 
