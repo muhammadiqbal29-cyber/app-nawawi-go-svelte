@@ -85,7 +85,7 @@
             id="email"
             class="form-input"
             bind:value={email}
-            placeholder="Masukkan email Anda (contoh: admin@siakad.com)"
+            placeholder="Masukkan email Anda"
             required
             disabled={isLoading}
           />
