@@ -1,4 +1,5 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
@@ -153,7 +154,7 @@
 
   async function handleAutoDistribute() {
     if (!phase3TargetKelasId) {
-      alert('Pilih kelas tujuan terlebih dahulu!');
+      toastStore.show('Pilih kelas tujuan terlebih dahulu!', 'info');
       return;
     }
     const rombelNames = autoRombelInput
@@ -161,7 +162,7 @@
       .map((r) => r.trim())
       .filter((r) => r !== '');
     if (rombelNames.length === 0) {
-      alert('Masukkan nama rombel (Misal: A, B)');
+      toastStore.show('Masukkan nama rombel (Misal: A, B)', 'info');
       return;
     }
 
@@ -169,7 +170,7 @@
     // The user can manually filter them by `mantan_kelas` in a full implementation, but for now we distribute ALL checked students or ALL available students.
     // Let's just distribute ALL in `belumDirombel` for simplicity.
     if (belumDirombel.length === 0) {
-      alert('Tidak ada siswa yang perlu dirombel.');
+      toastStore.show('Tidak ada siswa yang perlu dirombel.', 'info');
       return;
     }
 
@@ -216,10 +217,10 @@
         }
       }
 
-      alert('Auto Distribute Berhasil!');
+      toastStore.show('Auto Distribute Berhasil!', 'info');
       await fetchUpdatedSiswa();
     } catch (err) {
-      alert('Error: ' + err.message);
+      toastStore.show('Error: ' + err.message, 'info');
     } finally {
       processing = false;
     }

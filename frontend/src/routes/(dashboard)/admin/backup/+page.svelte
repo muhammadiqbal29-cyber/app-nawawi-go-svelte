@@ -1,4 +1,5 @@
 <script>
+  import { modalStore } from '$lib/modal.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -15,9 +16,10 @@
 
   async function handleTriggerBackup() {
     if (
-      !confirm(
-        'Apakah Anda yakin ingin memicu backup sekarang? Proses ini mungkin membutuhkan waktu beberapa detik.'
-      )
+      !(await modalStore.show({
+        message:
+          'Apakah Anda yakin ingin memicu backup sekarang? Proses ini mungkin membutuhkan waktu beberapa detik.'
+      }))
     ) {
       return;
     }
@@ -95,9 +97,10 @@
     }
 
     if (
-      !confirm(
-        'PERINGATAN BAHAYA: Merestore database akan MENIMPA semua data yang ada di sistem saat ini dengan data dari file backup. Pastikan ini adalah tindakan yang benar. Lanjutkan?'
-      )
+      !(await modalStore.show({
+        message:
+          'PERINGATAN BAHAYA: Merestore database akan MENIMPA semua data yang ada di sistem saat ini dengan data dari file backup. Pastikan ini adalah tindakan yang benar. Lanjutkan?'
+      }))
     ) {
       fileInput.value = '';
       return;

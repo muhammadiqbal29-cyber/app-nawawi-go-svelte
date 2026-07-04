@@ -1,4 +1,5 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/ui/Icon.svelte';
 
@@ -138,7 +139,7 @@
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Berhasil menambah data guru');
+        toastStore.show('Berhasil menambah data guru', 'info');
         goto('/admin/guru');
       } else {
         const text = await res.text();

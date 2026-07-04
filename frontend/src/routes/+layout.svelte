@@ -3,6 +3,8 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { auth } from '$lib/auth.svelte.js';
+  import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
+  import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
   import '../app.css';
 
   let { children } = $props();
@@ -74,6 +76,9 @@
 {:else}
   {@render children()}
 {/if}
+
+<ToastContainer />
+<ConfirmModal />
 
 <style>
   .loading-screen {

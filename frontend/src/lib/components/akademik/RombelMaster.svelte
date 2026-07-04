@@ -1,4 +1,5 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
   import { onMount, onDestroy } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -151,11 +152,11 @@
   async function assignKeKelas() {
     if (selectedSiswaKiri.size === 0) return;
     if (!selectedKelasId) {
-      alert('Pilih kelas tujuan terlebih dahulu!');
+      toastStore.show('Pilih kelas tujuan terlebih dahulu!', 'info');
       return;
     }
     if (!selectedRombel.trim()) {
-      alert('Masukkan nama rombel terlebih dahulu (misal: A, B, dsb)');
+      toastStore.show('Masukkan nama rombel terlebih dahulu (misal: A, B, dsb)', 'info');
       return;
     }
 
@@ -177,10 +178,10 @@
         await loadData();
       } else {
         const body = await res.json();
-        alert(body.message || 'Gagal memasukkan siswa');
+        toastStore.show(body.message || 'Gagal memasukkan siswa', 'info');
       }
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'info');
     } finally {
       processing = false;
     }
@@ -209,10 +210,10 @@
         removeSiswaState = { active: false, id: null, nama: '' };
         await loadData();
       } else {
-        alert('Gagal mengeluarkan siswa');
+        toastStore.show('Gagal mengeluarkan siswa', 'info');
       }
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'info');
     } finally {
       processing = false;
     }

@@ -1,4 +1,5 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
@@ -132,10 +133,10 @@
           await new Promise((r) => setTimeout(r, 800));
         }
       }
-      alert('Berhasil menyimpan semua file PDF per siswa!');
+      toastStore.show('Berhasil menyimpan semua file PDF per siswa!', 'info');
     } catch (err) {
       console.error(err);
-      alert('Terjadi kesalahan saat download PDF: ' + err.message);
+      toastStore.show('Terjadi kesalahan saat download PDF: ' + err.message, 'info');
     } finally {
       isDownloading = false;
     }

@@ -1,4 +1,6 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
+  import { modalStore } from '$lib/modal.svelte.js';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
@@ -28,9 +30,10 @@
 
   async function deleteGuru(id) {
     if (
-      !confirm(
-        'Apakah Anda yakin ingin menghapus data guru ini? Semua data terkait mungkin akan ikut terhapus atau bermasalah.'
-      )
+      !(await modalStore.show({
+        message:
+          'Apakah Anda yakin ingin menghapus data guru ini? Semua data terkait mungkin akan ikut terhapus atau bermasalah.'
+      }))
     )
       return;
     try {
@@ -39,14 +42,14 @@
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Berhasil dihapus');
+        toastStore.show('Berhasil dihapus', 'info');
         loadGuru();
       } else {
         const body = await res.json().catch(() => ({}));
-        alert('Gagal: ' + (body.message || res.statusText));
+        toastStore.show('Gagal: ' + (body.message || res.statusText), 'info');
       }
     } catch {
-      alert('Terjadi kesalahan jaringan');
+      toastStore.show('Terjadi kesalahan jaringan', 'info');
     }
   }
 
@@ -62,7 +65,7 @@
     if (!file) return;
 
     if (!file.name.endsWith('.xlsx')) {
-      alert('Hanya mendukung file Excel (.xlsx)');
+      toastStore.show('Hanya mendukung file Excel (.xlsx)', 'info');
       return;
     }
 
@@ -83,7 +86,7 @@
         if (data.data.errors && data.data.errors.length > 0) {
           msg += `\n\nDetail Error:\n${data.data.errors.join('\n')}`;
         }
-        alert(msg);
+        toastStore.show(msg, 'info');
         loadGuru();
       } else {
         error = data.message || 'Gagal melakukan import';

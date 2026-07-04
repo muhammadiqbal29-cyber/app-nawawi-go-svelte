@@ -1,4 +1,6 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
+  import { modalStore } from '$lib/modal.svelte.js';
   import { SvelteMap } from 'svelte/reactivity';
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -293,7 +295,7 @@
       if (!res.ok) {
         throw new Error(data.message || 'Gagal melakukan import');
       }
-      alert(data.message || 'Import berhasil');
+      toastStore.show(data.message || 'Import berhasil', 'info');
       await loadMateri();
     } catch (err) {
       errorMateri = err.message;
@@ -360,7 +362,7 @@
   }
 
   async function hapusMateri(id) {
-    if (!confirm('Yakin ingin menghapus materi ini?')) return;
+    if (!(await modalStore.show({ message: 'Yakin ingin menghapus materi ini?' }))) return;
     deletingId = id;
     try {
       const res = await fetch(`${apiUrl}/api/guru/materi-tahfiz/${id}`, {
@@ -510,7 +512,7 @@
   }
 
   async function hapusDiniyah(id) {
-    if (!confirm('Yakin ingin menghapus mapel ini?')) return;
+    if (!(await modalStore.show({ message: 'Yakin ingin menghapus mapel ini?' }))) return;
     diniyahDeletingId = id;
     try {
       const res = await fetch(`${apiUrl}/api/guru/mapel-diniyah/${id}`, {
@@ -586,11 +588,11 @@
       if (!res.ok) {
         throw new Error(data.message || 'Gagal melakukan import indikator');
       }
-      alert(data.message || 'Import indikator keseharian berhasil');
+      toastStore.show(data.message || 'Import indikator keseharian berhasil', 'info');
       await loadIndikators();
     } catch (err) {
       errorKeseharian = err.message;
-      alert(errorKeseharian);
+      toastStore.show(errorKeseharian, 'info');
     } finally {
       loadingImportKeseharian = false;
       if (fileInputKeseharian) {
@@ -629,7 +631,7 @@
       await loadIndikators();
       cancelKeseharianEdit();
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'info');
     } finally {
       keseharianEditLoading = false;
     }
@@ -646,12 +648,12 @@
       if (!res.ok) throw new Error('Gagal mengubah status');
       await loadIndikators();
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'info');
     }
   }
 
   async function hapusKeseharian(id) {
-    if (!confirm('Hapus indikator ini?')) return;
+    if (!(await modalStore.show({ message: 'Hapus indikator ini?' }))) return;
     keseharianDeletingId = id;
     try {
       const res = await fetch(`${apiUrl}/api/guru/keseharian/indikator/${id}`, {
@@ -661,7 +663,7 @@
       if (!res.ok) throw new Error('Gagal menghapus');
       await loadIndikators();
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'info');
     } finally {
       keseharianDeletingId = null;
     }

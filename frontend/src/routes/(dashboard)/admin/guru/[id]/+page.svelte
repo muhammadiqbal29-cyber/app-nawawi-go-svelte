@@ -1,4 +1,5 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -175,7 +176,7 @@
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Berhasil menyimpan pembaruan guru');
+        toastStore.show('Berhasil menyimpan pembaruan guru', 'info');
         goto('/admin/guru');
       } else {
         const data = await res.json().catch(() => ({}));

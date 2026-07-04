@@ -1,4 +1,6 @@
 <script>
+  import { toastStore } from '$lib/toast.svelte.js';
+  import { modalStore } from '$lib/modal.svelte.js';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/ui/Icon.svelte';
@@ -144,9 +146,9 @@
         const data = await res.json();
         // Magic Pull!
         if (
-          confirm(
-            `Data ditemukan: ${data.nama_lengkap} (Status saat ini: ${data.status}). Apakah Anda ingin menarik data biodatanya?`
-          )
+          await modalStore.show({
+            message: `Data ditemukan: ${data.nama_lengkap} (Status saat ini: ${data.status}). Apakah Anda ingin menarik data biodatanya?`
+          })
         ) {
           form.nis = data.nis;
           form.nama_lengkap = data.nama_lengkap;
@@ -165,7 +167,7 @@
           magicPullMode = true;
         }
       } else if (res.status === 404) {
-        alert('NISN belum terdaftar. Silakan isi biodata baru.');
+        toastStore.show('NISN belum terdaftar. Silakan isi biodata baru.', 'info');
         magicPullMode = true; // Buka sisa form
       }
     } catch (err) {
@@ -201,35 +203,40 @@
 
       if (res.ok) {
         showModalForm = false;
-        alert('Data berhasil disimpan!');
+        toastStore.show('Data berhasil disimpan!', 'info');
         loadData();
       } else {
         const errBody = await res.json();
-        alert(errBody.message || 'Gagal menyimpan');
+        toastStore.show(errBody.message || 'Gagal menyimpan', 'info');
       }
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      toastStore.show(`Error: ${err.message}`, 'info');
     } finally {
       saving = false;
     }
   }
 
   async function deleteSiswa(id, nama) {
-    if (!confirm(`Apakah Anda yakin ingin menghapus siswa "${nama}" secara permanen?`)) return;
+    if (
+      !(await modalStore.show({
+        message: `Apakah Anda yakin ingin menghapus siswa "${nama}" secara permanen?`
+      }))
+    )
+      return;
     try {
       const res = await fetch(`${apiUrl}/api/siswa/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Siswa berhasil dihapus');
+        toastStore.show('Siswa berhasil dihapus', 'info');
         loadData();
       } else {
         const body = await res.json();
-        alert(body.message || 'Gagal menghapus siswa');
+        toastStore.show(body.message || 'Gagal menghapus siswa', 'info');
       }
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      toastStore.show(`Error: ${err.message}`, 'info');
     }
   }
 
@@ -240,7 +247,7 @@
 
   async function handleImport() {
     if (!importFile) {
-      alert('Pilih file Excel terlebih dahulu');
+      toastStore.show('Pilih file Excel terlebih dahulu', 'info');
       return;
     }
     importing = true;
@@ -255,17 +262,18 @@
       });
       const body = await res.json();
       if (res.ok) {
-        alert(
-          `${body.data.message}\nBerhasil masuk: ${body.data.berhasil} anak\nMutasi otomatis: ${body.data.dimutasi} anak\nDilewati (Duplikat): ${body.data.dilewati} anak`
+        toastStore.show(
+          `${body.data.message}\nBerhasil masuk: ${body.data.berhasil} anak\nMutasi otomatis: ${body.data.dimutasi} anak\nDilewati (Duplikat): ${body.data.dilewati} anak`,
+          'info'
         );
         showModalImport = false;
         importFile = null;
         loadData();
       } else {
-        alert(body.message || 'Gagal mengimport Excel');
+        toastStore.show(body.message || 'Gagal mengimport Excel', 'info');
       }
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      toastStore.show(`Error: ${err.message}`, 'info');
     } finally {
       importing = false;
     }
