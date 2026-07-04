@@ -164,7 +164,10 @@
     try {
       const res = await fetch(`${apiUrl}/api/kelas/${selectedKelasId}/assign`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Sekolah-ID': sekolahId.toString()
+        },
         body: JSON.stringify({
           siswa_ids: Array.from(selectedSiswaKiri),
           rombel: selectedRombel.trim(),
@@ -197,7 +200,10 @@
     try {
       const res = await fetch(`${apiUrl}/api/kelas/${selectedKelasId}/keluarkan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Sekolah-ID': sekolahId.toString()
+        },
         body: JSON.stringify({
           siswa_ids: [removeSiswaState.id],
           mode: mode,

@@ -206,7 +206,10 @@
 
         const res = await fetch(`${apiUrl}/api/kelas/${phase3TargetKelasId}/assign`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Sekolah-ID': sekolahId.toString()
+          },
           body: JSON.stringify(payload),
           credentials: 'include'
         });
