@@ -133,9 +133,9 @@ pipeline {
                   Hanya 'release_artifact' yang dikirim, SOURCE CODE TIDAK DIKIRIM!
                 */
                 sh """
-                    rsync -avz -e 'ssh -p 8022' --delete release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
-                    ssh -p 8022 ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
-                    ssh -p 8022 ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
+                    rsync -avz --delete release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                    ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
+                    ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
                 """
                 echo '✅ Deployment ke Termux VPS Selesai!'
             }
