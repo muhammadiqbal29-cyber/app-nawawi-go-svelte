@@ -54,7 +54,7 @@ aturan.md
 devops-cycle.md
 logika_bisnis.md
 kodeperintah.md
-
+failure_jenkins.md
 # Logs umum
 *.log
 npm-debug.log*

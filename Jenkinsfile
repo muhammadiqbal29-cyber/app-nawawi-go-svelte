@@ -118,9 +118,9 @@ pipeline {
                     cp frontend/package.json release_artifact/frontend/
                     cp frontend/package-lock.json release_artifact/frontend/
                     
-                    # 3. Mobile SPA (Hanya folder build)
+                    # 3. Mobile SPA (Hanya folder dist yang di-rename ke build)
                     mkdir -p release_artifact/mobile
-                    cp -r mobile/build release_artifact/mobile/
+                    cp -r mobile/dist release_artifact/mobile/build
                     
                     # 4. PM2 Config
                     cp ecosystem.config.cjs release_artifact/
