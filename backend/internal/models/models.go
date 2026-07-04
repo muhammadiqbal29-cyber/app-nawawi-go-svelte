@@ -197,8 +197,8 @@ type MateriTahfiz struct {
 }
 
 type Guru struct {
-	ID           int32     `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID       int32     `gorm:"uniqueIndex;not null" json:"user_id"`
+	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID       int     `gorm:"uniqueIndex;not null" json:"user_id"`
 	NamaLengkap  string    `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
 	NIK          *string   `gorm:"type:varchar(50);uniqueIndex" json:"nik"`
 	NoHP         *string   `gorm:"type:varchar(20)" json:"no_hp"`
@@ -214,8 +214,8 @@ type Guru struct {
 }
 
 type PresensiGuru struct {
-	ID           int32     `gorm:"primaryKey;autoIncrement" json:"id"`
-	GuruID       int32     `gorm:"not null;uniqueIndex:idx_presensi_guru_tanggal;index" json:"guru_id"`
+	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
+	GuruID       int     `gorm:"not null;uniqueIndex:idx_presensi_guru_tanggal;index" json:"guru_id"`
 	Tanggal      string    `gorm:"type:date;not null;uniqueIndex:idx_presensi_guru_tanggal" json:"tanggal"`
 	WaktuMasuk   *string   `gorm:"type:time" json:"waktu_masuk"`
 	WaktuPulang  *string   `gorm:"type:time" json:"waktu_pulang"`
@@ -250,7 +250,7 @@ type SetoranTahfizHarian struct {
 type Halaqah struct {
 	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SekolahID     int       `gorm:"not null;index" json:"sekolah_id"`
-	GuruID        int32     `gorm:"not null;index" json:"guru_id"`
+	GuruID        int       `gorm:"not null;index" json:"guru_id"`
 	TahunAjaranID int       `gorm:"not null;index" json:"tahun_ajaran_id"`
 	SemesterID    int       `gorm:"not null;index" json:"semester_id"`
 	NamaHalaqah   string    `gorm:"type:varchar(150);not null" json:"nama_halaqah"`
