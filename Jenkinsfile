@@ -111,7 +111,7 @@ pipeline {
                     # 1. Backend Golang (Hanya Binary)
                     mkdir -p release_artifact/backend
                     cp backend/server release_artifact/backend/
-                    
+
                     # 2. Frontend Svelte (Hanya folder build & package.json untuk production)
                     mkdir -p release_artifact/frontend
                     cp -r frontend/build release_artifact/frontend/
@@ -133,7 +133,7 @@ pipeline {
                   Hanya 'release_artifact' yang dikirim, SOURCE CODE TIDAK DIKIRIM!
                 */
                 sh """
-                    rsync -avz --delete release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                    rsync -avz --delete --exclude 'backend/.env' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
                     ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
                     ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
                 """
