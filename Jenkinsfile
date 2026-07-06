@@ -132,11 +132,11 @@ pipeline {
                   Ini adalah perintah sinkronisasi rsync ke VPS target. 
                   Hanya 'release_artifact' yang dikirim, SOURCE CODE TIDAK DIKIRIM!
                 */
-                sshagent(credentials: [env.SSH_CREDENTIAL_ID]) {
+                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIAL_ID, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                        rsync -avz -e "ssh -o StrictHostKeyChecking=no" --delete --exclude 'backend/.env' --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
-                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
-                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
+                        rsync -avz -e "ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no" --delete --exclude 'backend/.env' --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                        ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
+                        ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
                     """
                 }
                 echo '✅ Deployment ke Termux VPS Selesai!'
