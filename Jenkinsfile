@@ -132,11 +132,13 @@ pipeline {
                   Ini adalah perintah sinkronisasi rsync ke VPS target. 
                   Hanya 'release_artifact' yang dikirim, SOURCE CODE TIDAK DIKIRIM!
                 */
-                sh """
-                    rsync -avz --delete --exclude 'backend/.env' --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
-                    ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
-                    ssh ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
-                """
+                sshagent(credentials: [env.SSH_CREDENTIAL_ID]) {
+                    sh """
+                        rsync -avz -e "ssh -o StrictHostKeyChecking=no" --delete --exclude 'backend/.env' --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
+                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
+                    """
+                }
                 echo '✅ Deployment ke Termux VPS Selesai!'
             }
         }
