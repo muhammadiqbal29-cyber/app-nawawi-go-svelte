@@ -226,6 +226,7 @@
     try {
       const res = await fetch(`${apiUrl}/api/siswa/${id}`, {
         method: 'DELETE',
+        headers: { 'X-Sekolah-ID': sekolahId.toString() },
         credentials: 'include'
       });
       if (res.ok) {

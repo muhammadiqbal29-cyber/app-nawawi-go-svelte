@@ -126,7 +126,10 @@
       };
       const res = await fetch(`${apiUrl}/api/kelas/${form.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Sekolah-ID': sekolahId.toString()
+        },
         body: JSON.stringify(payload),
         credentials: 'include'
       });
@@ -149,6 +152,7 @@
     try {
       const res = await fetch(`${apiUrl}/api/kelas/${currentKelas.id}`, {
         method: 'DELETE',
+        headers: { 'X-Sekolah-ID': sekolahId.toString() },
         credentials: 'include'
       });
       if (res.ok) {

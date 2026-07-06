@@ -152,7 +152,10 @@
 
       const res = await fetch(`${apiUrl}/api/siswa/kenaikan-kelas`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Sekolah-ID': selectedSekolahId.toString()
+        },
         body: JSON.stringify({
           tahun_ajaran_id: activeTA.id,
           data_siswa: dataSiswaPayload

@@ -139,11 +139,16 @@ func CreateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Force SekolahID from X-Sekolah-ID header to prevent IDOR
 	sekolahIDStr := r.Header.Get("X-Sekolah-ID")
-	if sekolahIDStr != "" {
-		if sid, err := strconv.Atoi(sekolahIDStr); err == nil {
-			siswa.SekolahID = sid
-		}
+	if sekolahIDStr == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
 	}
+	sid, err := strconv.Atoi(sekolahIDStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID tidak valid", nil)
+		return
+	}
+	siswa.SekolahID = sid
 
 	// Gunakan transaksi
 	tx := database.DB.WithContext(r.Context()).Begin()

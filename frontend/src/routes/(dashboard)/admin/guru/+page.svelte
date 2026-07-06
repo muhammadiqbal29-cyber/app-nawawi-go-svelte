@@ -116,8 +116,8 @@
         <Icon name="download" size={18} /> Template
       </button>
       <button class="btn-secondary" onclick={() => fileInput.click()} disabled={isImporting}>
-        <Icon name="upload" size={18} />
-        {isImporting ? 'Mengimport...' : 'Import'}
+        <Icon name="import" size={18} />
+        {isImporting ? 'Mengimport...' : 'Import Excel'}
       </button>
       <input
         type="file"

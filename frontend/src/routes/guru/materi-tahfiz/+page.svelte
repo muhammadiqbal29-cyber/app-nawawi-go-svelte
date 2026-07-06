@@ -787,7 +787,7 @@
               onclick={() => fileInputTahfiz.click()}
               disabled={loadingImportTahfiz}
             >
-              <Icon name="upload" size={16} />
+              <Icon name="import" size={16} />
               {loadingImportTahfiz ? 'Mengimport...' : 'Import'}
             </button>
             <input
@@ -1310,7 +1310,7 @@
               onclick={() => fileInputKeseharian.click()}
               disabled={loadingImportKeseharian}
             >
-              <Icon name="upload" size={16} />
+              <Icon name="import" size={16} />
               {loadingImportKeseharian ? 'Mengimport...' : 'Import'}
             </button>
             <input

@@ -13,23 +13,18 @@
     let activeTa = $state<any>(null);
     let isLoadingAbsen = $state(false);
 
-    // Leaflet
-    let mapElement: HTMLElement;
-    let mapInitialized = false;
-    let mapInstance: any;
 
     // Koordinat Sekolah (Akan di-fetch dari API)
-    let schoolLat = $state(-2.2136);
-    let schoolLng = $state(113.9213);
+    let schoolLat = $state(0);
+    let schoolLng = $state(0);
     let radiusMeter = $state(50);
 
     // Koordinat User
-    let latitude = $state(-2.2136);
-    let longitude = $state(113.9213);
+    let latitude = $state(0);
+    let longitude = $state(0);
     let isLocationReady = $state(false);
     
-    let userMarker: any = null;
-    let schoolMarker: any = null;
+
 
     function getUserLocation() {
         if (navigator.geolocation) {
@@ -38,85 +33,37 @@
                     latitude = position.coords.latitude;
                     longitude = position.coords.longitude;
                     isLocationReady = true;
-                    updateMapMarkers();
                 },
                 (error) => {
                     console.error("Error getting location:", error);
-                    isLocationReady = true; 
-                    updateMapMarkers();
+                    isLocationReady = true;
                 },
                 { enableHighAccuracy: true }
             );
         } else {
             isLocationReady = true;
-            updateMapMarkers();
         }
     }
 
-    function updateMapMarkers() {
-        if (!mapInstance || !isLocationReady || !(window as any).L) return;
+    // Helper for Haversine distance
+    function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+        const R = 6371e3; // Earth radius in meters
+        const p1 = lat1 * Math.PI/180;
+        const p2 = lat2 * Math.PI/180;
+        const dp = (lat2-lat1) * Math.PI/180;
+        const dl = (lon2-lon1) * Math.PI/180;
 
-        const L = (window as any).L;
+        const a = Math.sin(dp/2) * Math.sin(dp/2) +
+                  Math.cos(p1) * Math.cos(p2) *
+                  Math.sin(dl/2) * Math.sin(dl/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-        if (schoolMarker) schoolMarker.remove();
-        if (userMarker) userMarker.remove();
-
-        // Icon Hijau untuk Sekolah
-        const greenIcon = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-
-        // Marker Sekolah (Warna Hijau)
-        schoolMarker = L.marker([schoolLat, schoolLng], { icon: greenIcon }).addTo(mapInstance);
-        schoolMarker.bindPopup('<strong>Lokasi Sekolah</strong>');
-
-        // Marker User (Biru Default)
-        userMarker = L.marker([latitude, longitude]).addTo(mapInstance);
-        userMarker.bindPopup('<strong>Posisi Anda saat ini</strong>').openPopup();
-
-        // Auto zoom & pan agar kedua marker terlihat (jika jauh)
-        const bounds = L.latLngBounds([
-            [schoolLat, schoolLng],
-            [latitude, longitude]
-        ]);
-        
-        mapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        return R * c;
     }
 
-    function initMap() {
-        if ((window as any).L && mapElement && !mapInitialized) {
-            mapInitialized = true;
-            const L = (window as any).L;
-            mapInstance = L.map(mapElement, {
-                dragging: true,
-                scrollWheelZoom: false,
-                doubleClickZoom: false,
-                touchZoom: true,
-                zoomControl: false,
-            }).setView([schoolLat, schoolLng], 15);
-
-            L.tileLayer(
-                'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-                {
-                    attribution: '&copy; OpenStreetMap contributors',
-                    subdomains: 'abcd',
-                    maxZoom: 20
-                }
-            ).addTo(mapInstance);
-
-            setTimeout(() => {
-                mapInstance.invalidateSize();
-                updateMapMarkers();
-            }, 300);
-        } else if (!(window as any).L) {
-            setTimeout(initMap, 100);
-        }
-    }
+    let currentDistance = $derived(
+        calculateDistance(latitude, longitude, schoolLat, schoolLng)
+    );
 
     function updateClock() {
         const now = new Date();
@@ -134,13 +81,9 @@
                 schoolLat = configRes.latitude;
                 schoolLng = configRes.longitude;
                 radiusMeter = configRes.radius_meter || 50;
-                // Hanya gunakan lokasi sekolah sebagai default jika lokasi asli belum didapatkan
                 if (!isLocationReady) {
                     latitude = configRes.latitude;
                     longitude = configRes.longitude;
-                }
-                if (mapInstance && schoolMarker) {
-                    updateMapMarkers();
                 }
             }
         } catch (error) {
@@ -183,7 +126,6 @@
         fetchData();
         getUserLocation();
         timer = setInterval(updateClock, 1000);
-        setTimeout(initMap, 200);
     });
 
     onDestroy(() => {
@@ -193,8 +135,7 @@
 </script>
 
 <svelte:head>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 </svelte:head>
 
 <div class="mobile-app-wrapper">
@@ -241,20 +182,20 @@
                             <span class="btn-text">{isLoadingAbsen ? 'Memproses...' : 'Absen Pulang'}</span>
                         </button>
                     </div>
-                    <p class="location-text">
-                        <Icon name="location-dot" /> Anda berada di area sekolah
-                    </p>
-                </div>
-
-                <!-- Peta Lokasi Sekolah -->
-                <div class="map-widget-card" style="margin-bottom: 2rem;">
-                    <div class="map-widget-header">
-                        <h3 class="widget-title">
-                            <Icon name="map-location-dot" /> Lokasi Sekolah
-                        </h3>
-                        <span class="map-coord-badge">{latitude.toFixed(4)}, {longitude.toFixed(4)}</span>
-                    </div>
-                    <div bind:this={mapElement} class="map-container"></div>
+                    {#if schoolLat !== 0 && isLocationReady}
+                        <p class="location-text" style="font-size: 0.9rem; padding: 0.5rem; background: #f3f4f6; border-radius: 0.5rem; margin-top: 1.5rem; color: #4b5563;">
+                            <Icon name="map-pin" /> Jarak dari titik absen: 
+                            <strong style="color: {currentDistance <= radiusMeter ? '#10b981' : '#ef4444'}">
+                                {currentDistance.toFixed(0)} meter
+                            </strong>
+                            <br/>
+                            <span style="font-size: 0.75rem; color: #6b7280;">Radius maksimal: {radiusMeter} meter</span>
+                        </p>
+                    {:else if schoolLat === 0}
+                        <p class="location-text" style="color: #ef4444; font-size: 0.85rem; margin-top: 1.5rem;"><Icon name="map-pin" /> Titik absensi sekolah belum dikonfigurasi admin.</p>
+                    {:else}
+                        <p class="location-text" style="color: #f59e0b; font-size: 0.85rem; margin-top: 1.5rem;"><Icon name="spinner" /> Mendapatkan lokasi Anda...</p>
+                    {/if}
                 </div>
 
                 <!-- widgets removed -->

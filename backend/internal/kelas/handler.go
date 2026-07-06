@@ -138,7 +138,11 @@ func UpdateKelasHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sekolahIDStrHeader := r.Header.Get("X-Sekolah-ID")
-	if sekolahIDStrHeader != "" && strconv.Itoa(k.SekolahID) != sekolahIDStrHeader {
+	if sekolahIDStrHeader == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
+	}
+	if strconv.Itoa(k.SekolahID) != sekolahIDStrHeader {
 		response.Error(w, http.StatusForbidden, "Akses ditolak: Kelas bukan dari sekolah Anda", nil)
 		return
 	}

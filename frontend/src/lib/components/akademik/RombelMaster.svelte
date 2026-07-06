@@ -224,6 +224,38 @@
       processing = false;
     }
   }
+
+  async function keluarkanSemua() {
+    if (siswaDalamKelas.length === 0) return;
+    if (!(confirm(`Anda yakin ingin mengeluarkan SEMUA (${siswaDalamKelas.length}) siswa dari rombel ini?`))) return;
+    
+    processing = true;
+    try {
+      const res = await fetch(`${apiUrl}/api/kelas/${selectedKelasId}/keluarkan`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Sekolah-ID': sekolahId.toString()
+        },
+        body: JSON.stringify({
+          siswa_ids: siswaDalamKelas.map((s) => s.id),
+          mode: 'Biasa',
+          tahun_ajaran_id: activeTahunAjaranId
+        }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        toastStore.show('Semua siswa berhasil dikeluarkan.', 'info');
+        await loadData();
+      } else {
+        toastStore.show('Gagal mengeluarkan siswa', 'info');
+      }
+    } catch (err) {
+      toastStore.show(err.message, 'info');
+    } finally {
+      processing = false;
+    }
+  }
 </script>
 
 <div class="page-container">
@@ -347,6 +379,16 @@
           <h2 class="page-title">{kelasName}</h2>
           <p class="page-subtitle">{siswaDalamKelas.length} Siswa</p>
         </div>
+      </div>
+      <div>
+        <button
+          class="btn-danger"
+          onclick={keluarkanSemua}
+          disabled={siswaDalamKelas.length === 0 || processing}
+          style="display: inline-flex; align-items: center; gap: 0.5rem;"
+        >
+          <Icon name="trash" size={16} /> Keluarkan Semua
+        </button>
       </div>
     </div>
 

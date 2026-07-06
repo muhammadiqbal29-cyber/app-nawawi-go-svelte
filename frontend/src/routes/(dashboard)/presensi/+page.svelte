@@ -404,7 +404,7 @@
               onclick={() => fileInputPresensi.click()}
               disabled={loadingImport}
             >
-              <Icon name="upload" size={16} />
+              <Icon name="import" size={16} />
               {loadingImport ? 'Mengimport...' : 'Import Excel'}
             </button>
             <input

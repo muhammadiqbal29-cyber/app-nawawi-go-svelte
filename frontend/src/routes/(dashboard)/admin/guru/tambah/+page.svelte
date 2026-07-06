@@ -175,7 +175,7 @@
     <div class="alert alert-error">{errorMsg}</div>
   {/if}
 
-  <form onsubmit={submitForm} class="form-grid">
+  <form onsubmit={submitForm} class="form-grid" autocomplete="off">
     <div class="card">
       <h2>Informasi Pribadi & Akun</h2>
 
@@ -193,7 +193,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="email">Email Login</label>
-          <input type="email" id="email" class="form-input" bind:value={formData.email} required />
+          <input type="email" id="email" class="form-input" bind:value={formData.email} autocomplete="off" required />
         </div>
         <div class="form-group">
           <label for="password">Password</label>
@@ -202,6 +202,7 @@
             id="password"
             class="form-input"
             bind:value={formData.password}
+            autocomplete="new-password"
             required
           />
         </div>
