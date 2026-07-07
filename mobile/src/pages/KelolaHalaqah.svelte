@@ -2,11 +2,12 @@
     import { onMount } from 'svelte';
     import { navigate, routerState } from '../store/nav.svelte';
     import Icon from '../components/Icon.svelte';
-    import { getSiswaAvailableTahfiz, getAnggotaHalaqah, createHalaqah, updateAnggotaHalaqah } from '../services/endpoints';
+    import { getSiswaAvailableTahfiz, getAnggotaHalaqah, createHalaqah, updateAnggotaHalaqah, updateHalaqah, deleteHalaqah } from '../services/endpoints';
     import { toastStore } from '../store/toast.svelte';
     import { modalStore } from '../store/modal.svelte';
 
     let id_halaqah = $derived(routerState.navParams?.id_halaqah);
+    let nama_halaqah = $state('');
 
     let availableStudents = $state<any[]>([]);
     let currentMembers = $state<any[]>([]);
@@ -24,6 +25,7 @@
     onMount(async () => {
         try {
             isLoading = true;
+            nama_halaqah = routerState.navParams?.nama_halaqah || '';
             
             // Fetch available students
             const availableRes = await getSiswaAvailableTahfiz();
@@ -93,6 +95,11 @@
     }
 
     async function handleSave() {
+        if (!nama_halaqah.trim()) {
+            toastStore.show("Nama Halaqah wajib diisi!", "error");
+            return;
+        }
+
         if (selectedStudentIds.size === 0) {
             const confirmed = await modalStore.confirm("Konfirmasi", "Anda tidak memilih satupun santri. Lanjutkan?");
             if (!confirmed) return;
@@ -104,18 +111,37 @@
 
             // If creating new
             if (!targetHalaqahId) {
-                const res = await createHalaqah({});
+                const res = await createHalaqah({ nama_halaqah: nama_halaqah });
                 targetHalaqahId = res.id;
+            } else {
+                await updateHalaqah(targetHalaqahId, { nama_halaqah: nama_halaqah });
             }
 
             // Update members
             await updateAnggotaHalaqah(targetHalaqahId, Array.from(selectedStudentIds));
             
-            toastStore.show("Berhasil menyimpan anggota halaqah!", "success");
+            toastStore.show("Berhasil menyimpan halaqah!", "success");
             navigate('daftar_santri_tahfiz');
         } catch (e) {
             console.error(e);
             toastStore.show("Gagal menyimpan halaqah.", "error");
+        } finally {
+            isSaving = false;
+        }
+    }
+
+    async function handleDelete() {
+        const confirmed = await modalStore.confirm("Konfirmasi Hapus", "Apakah Anda yakin ingin menghapus Halaqah ini beserta seluruh anggotanya secara permanen?");
+        if (!confirmed) return;
+
+        isSaving = true;
+        try {
+            await deleteHalaqah(id_halaqah);
+            toastStore.show("Halaqah berhasil dihapus.", "success");
+            navigate('daftar_santri_tahfiz');
+        } catch (e) {
+            console.error(e);
+            toastStore.show("Gagal menghapus halaqah.", "error");
         } finally {
             isSaving = false;
         }
@@ -136,6 +162,11 @@
         <div class="scrollable-content">
             <div class="content-padding">
                 
+                <div class="form-group mb-4">
+                    <label for="namaHalaqah" class="form-label">Nama Halaqah <span class="text-red">*</span></label>
+                    <input id="namaHalaqah" type="text" class="form-input" placeholder="Contoh: Halaqah Abu Bakar" bind:value={nama_halaqah} />
+                </div>
+
                 <div class="info-box mb-4">
                     <Icon name="circle-info" class="text-blue" />
                     <p>Centang siswa yang ingin dimasukkan ke halaqah Anda. Siswa yang sudah diklaim guru lain tidak akan muncul di sini.</p>
@@ -186,13 +217,20 @@
         </div>
 
         <div class="bottom-action">
-            <button class="btn-save" onclick={handleSave} disabled={isSaving || isLoading}>
-                {#if isSaving}
-                    Memproses...
-                {:else}
-                    <Icon name="floppy-disk" /> Simpan Halaqah
+            <div class="action-buttons">
+                <button class="btn-save" onclick={handleSave} disabled={isSaving || isLoading}>
+                    {#if isSaving}
+                        Memproses...
+                    {:else}
+                        <Icon name="floppy-disk" /> Simpan
+                    {/if}
+                </button>
+                {#if id_halaqah}
+                <button class="btn-delete" onclick={handleDelete} disabled={isSaving || isLoading}>
+                    <Icon name="trash" /> Hapus
+                </button>
                 {/if}
-            </button>
+            </div>
         </div>
     </div>
 </div>
@@ -257,11 +295,32 @@
         position: absolute; bottom: 0; left: 0; width: 100%; background: white; padding: 1rem 1.5rem;
         border-top: 1px solid #e5e7eb; box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05);
     }
+    .action-buttons {
+        display: flex; gap: 0.75rem;
+    }
     .btn-save {
-        width: 100%; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; border: none; padding: 1rem; border-radius: 0.75rem;
+        flex: 2; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; border: none; padding: 1rem; border-radius: 0.75rem;
         font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem;
         box-shadow: 0 4px 6px -1px rgba(8, 145, 178, 0.3); transition: transform 0.2s;
     }
     .btn-save:active { transform: scale(0.98); }
     .btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .btn-delete {
+        flex: 1; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 1rem; border-radius: 0.75rem;
+        font-size: 1rem; font-weight: 700; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem;
+        transition: transform 0.2s;
+    }
+    .btn-delete:active { transform: scale(0.98); }
+    .btn-delete:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    .form-label { font-size: 0.875rem; font-weight: 600; color: #4b5563; }
+    .text-red { color: #ef4444; }
+    .form-input {
+        width: 100%; padding: 0.875rem 1rem; border-radius: 0.75rem; border: 1px solid #d1d5db;
+        background-color: white; font-size: 1rem; font-family: inherit; color: #1f2937; outline: none;
+        transition: all 0.2s;
+    }
+    .form-input:focus { border-color: #06b6d4; box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1); }
 </style>

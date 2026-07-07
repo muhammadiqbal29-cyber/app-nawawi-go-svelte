@@ -1,6 +1,22 @@
 <script lang="ts">
     import { navigate } from '../store/nav.svelte';
     import Icon from '../components/Icon.svelte';
+    import { onMount } from 'svelte';
+    import { getCurrentGuru } from '../services/endpoints';
+
+    let guruData = $state<any>(null);
+    let aksesFitur = $state<string[]>([]);
+
+    onMount(async () => {
+        try {
+            guruData = await getCurrentGuru();
+            if (guruData && guruData.akses_fitur) {
+                aksesFitur = JSON.parse(guruData.akses_fitur);
+            }
+        } catch(e) {
+            console.error("Gagal load guru profil", e);
+        }
+    });
 </script>
 
 <div class="mobile-app-wrapper">
@@ -23,6 +39,7 @@
                     <!-- Akademik Umum Removed -->
 
                     <!-- Tahsin & Tahfiz -->
+                    {#if aksesFitur.includes('Tahfiz') || aksesFitur.length === 0}
                     <button class="menu-card bg-cyan" onclick={() => navigate('tahfiz')}>
                         <div class="card-bubble"></div>
                         <div class="card-icon">
@@ -33,6 +50,21 @@
                             <p class="card-desc">Progress setoran & hafalan</p>
                         </div>
                     </button>
+                    {/if}
+
+                    <!-- Keseharian -->
+                    {#if aksesFitur.includes('Keseharian') || aksesFitur.includes('Asrama') || aksesFitur.length === 0}
+                    <button class="menu-card bg-purple" onclick={() => navigate('daftar_kelas_keseharian')}>
+                        <div class="card-bubble"></div>
+                        <div class="card-icon">
+                            <Icon name="clipboard-check" />
+                        </div>
+                        <div class="card-content">
+                            <h3 class="card-title">Keseharian</h3>
+                            <p class="card-desc">Log aktivitas & pelanggaran</p>
+                        </div>
+                    </button>
+                    {/if}
 
                 </div>
             </div>

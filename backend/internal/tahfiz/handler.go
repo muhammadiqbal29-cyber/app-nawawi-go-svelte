@@ -92,6 +92,89 @@ func CreateHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusCreated, input)
 }
 
+// UpdateHalaqahHandler memperbarui data halaqah (seperti nama halaqah)
+func UpdateHalaqahHandler(w http.ResponseWriter, r *http.Request) {
+	guruObj, err := guru.GetGuruFromContext(r)
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "Guru tidak ditemukan", err)
+		return
+	}
+
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	halaqahID, err := strconv.Atoi(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "ID tidak valid", err)
+		return
+	}
+
+	var halaqah models.Halaqah
+	if err := database.DB.First(&halaqah, halaqahID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Halaqah tidak ditemukan", err)
+		return
+	}
+
+	if halaqah.GuruID != guruObj.ID {
+		response.Error(w, http.StatusForbidden, "Halaqah bukan milik Anda", nil)
+		return
+	}
+
+	var input struct {
+		NamaHalaqah string `json:"nama_halaqah" validate:"required"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		response.Error(w, http.StatusBadRequest, "Data tidak valid", err)
+		return
+	}
+	if input.NamaHalaqah == "" {
+		response.Error(w, http.StatusBadRequest, "Nama Halaqah wajib diisi", nil)
+		return
+	}
+
+	halaqah.NamaHalaqah = input.NamaHalaqah
+	if err := database.DB.Save(&halaqah).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal memperbarui halaqah", err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, halaqah)
+}
+
+// DeleteHalaqahHandler menghapus halaqah secara permanen
+func DeleteHalaqahHandler(w http.ResponseWriter, r *http.Request) {
+	guruObj, err := guru.GetGuruFromContext(r)
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "Guru tidak ditemukan", err)
+		return
+	}
+
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	halaqahID, err := strconv.Atoi(idStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "ID tidak valid", err)
+		return
+	}
+
+	var halaqah models.Halaqah
+	if err := database.DB.First(&halaqah, halaqahID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Halaqah tidak ditemukan", err)
+		return
+	}
+
+	if halaqah.GuruID != guruObj.ID {
+		response.Error(w, http.StatusForbidden, "Halaqah bukan milik Anda", nil)
+		return
+	}
+
+	if err := database.DB.Delete(&halaqah).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal menghapus halaqah", err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]string{"message": "Halaqah berhasil dihapus"})
+}
+
 // GetAnggotaHalaqahHandler mengambil daftar siswa dalam halaqah
 func GetAnggotaHalaqahHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

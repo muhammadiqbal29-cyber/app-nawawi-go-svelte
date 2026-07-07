@@ -46,7 +46,10 @@
     }
 
     function gotoKelolaHalaqah() {
-        navigate('kelola_halaqah', { id_halaqah: selectedHalaqah ? selectedHalaqah.id : null });
+        navigate('kelola_halaqah', { 
+            id_halaqah: selectedHalaqah ? selectedHalaqah.id : null,
+            nama_halaqah: selectedHalaqah ? selectedHalaqah.nama_halaqah : ''
+        });
     }
 </script>
 

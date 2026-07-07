@@ -1,4 +1,4 @@
-import { get, post, put } from './api';
+import { get, post, put, del } from './api';
 
 // ==========================================
 // GURU & AUTHENTICATION
@@ -44,6 +44,14 @@ export async function getHalaqahKu() {
 
 export async function createHalaqah(payload: { nama_halaqah?: string }) {
     return post<any>('/api/guru/me/halaqah', payload);
+}
+
+export async function updateHalaqah(idHalaqah: number, payload: { nama_halaqah: string }) {
+    return put<any>(`/api/guru/me/halaqah/${idHalaqah}`, payload);
+}
+
+export async function deleteHalaqah(idHalaqah: number) {
+    return del<any>(`/api/guru/me/halaqah/${idHalaqah}`);
 }
 
 export async function getAnggotaHalaqah(idKelompok: number) {

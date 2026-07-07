@@ -92,6 +92,11 @@
     }
 
     async function handleClockIn() {
+        if (schoolLat !== 0 && currentDistance > radiusMeter) {
+            toastStore.show(`Gagal: Anda berada di luar radius sekolah (${currentDistance.toFixed(0)}m > ${radiusMeter}m)`, 'error');
+            return;
+        }
+
         const confirmed = await modalStore.confirm('Konfirmasi Absen', 'Apakah Anda yakin ingin melakukan Absen Masuk sekarang?');
         if (!confirmed) return;
         
@@ -107,6 +112,11 @@
     }
 
     async function handleClockOut() {
+        if (schoolLat !== 0 && currentDistance > radiusMeter) {
+            toastStore.show(`Gagal: Anda berada di luar radius sekolah (${currentDistance.toFixed(0)}m > ${radiusMeter}m)`, 'error');
+            return;
+        }
+
         const confirmed = await modalStore.confirm('Konfirmasi Absen', 'Apakah Anda yakin ingin melakukan Absen Pulang sekarang?');
         if (!confirmed) return;
         

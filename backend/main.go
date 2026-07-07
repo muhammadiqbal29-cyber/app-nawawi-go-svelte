@@ -240,6 +240,8 @@ func main() {
 	// Rute Halaqah Tahfiz Guru
 	guruRouter.HandleFunc("/me/halaqah", tahfiz.GetHalaqahKuHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/halaqah", tahfiz.CreateHalaqahHandler).Methods("POST")
+	guruRouter.HandleFunc("/me/halaqah/{id:[0-9]+}", tahfiz.UpdateHalaqahHandler).Methods("PUT")
+	guruRouter.HandleFunc("/me/halaqah/{id:[0-9]+}", tahfiz.DeleteHalaqahHandler).Methods("DELETE")
 	guruRouter.HandleFunc("/halaqah/{id}/anggota", tahfiz.GetAnggotaHalaqahHandler).Methods("GET")
 	guruRouter.HandleFunc("/halaqah/{id}/anggota", tahfiz.UpdateAnggotaHalaqahHandler).Methods("PUT")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa-available-tahfiz", tahfiz.GetSiswaAvailableTahfizHandler).Methods("GET")
