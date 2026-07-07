@@ -120,6 +120,7 @@ pipeline {
             steps {
                 echo 'Menyiapkan direktori artifact hasil build...'
                 sh '''
+                    rm -rf release_artifact
                     mkdir -p release_artifact
                     
                     # 1. Backend Golang (Binary & ENV)
