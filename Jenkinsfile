@@ -26,7 +26,9 @@ pipeline {
                 withCredentials([file(credentialsId: 'env-production', variable: 'SECRET_ENV_FILE')]) {
                     sh '''
                         # 1. Backend: Menggunakan Secret file dari Jenkins
+                        rm -f backend/.env
                         cp $SECRET_ENV_FILE backend/.env
+                        chmod 644 backend/.env
                         
                         # 2. Frontend & Mobile: Generate VITE_API_URL secara otomatis (bukan rahasia)
                         echo "VITE_API_URL=https://api.islamimamnawawi.sch.id" > frontend/.env.production
