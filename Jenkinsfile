@@ -22,6 +22,18 @@ pipeline {
     stages {
         stage('⚙️ Setup & Dependencies') {
             steps {
+                echo 'Menyiapkan file Environment...'
+                withCredentials([file(credentialsId: 'env-production', variable: 'SECRET_ENV_FILE')]) {
+                    sh '''
+                        # 1. Backend: Menggunakan Secret file dari Jenkins
+                        cp $SECRET_ENV_FILE backend/.env
+                        
+                        # 2. Frontend & Mobile: Generate VITE_API_URL secara otomatis (bukan rahasia)
+                        echo "VITE_API_URL=https://api.islamimamnawawi.sch.id" > frontend/.env.production
+                        echo "VITE_API_URL=https://api.islamimamnawawi.sch.id" > mobile/.env.production
+                    '''
+                }
+                
                 echo 'Mengunduh dependensi Golang...'
                 dir('backend') {
                     sh 'go mod download'
@@ -108,10 +120,11 @@ pipeline {
                 sh '''
                     mkdir -p release_artifact
                     
-                    # 1. Backend Golang (Hanya Binary)
+                    # 1. Backend Golang (Binary & ENV)
                     mkdir -p release_artifact/backend
                     cp backend/server release_artifact/backend/
-
+                    cp backend/.env release_artifact/backend/.env
+                    
                     # 2. Frontend Svelte (Hanya folder build & package.json untuk production)
                     mkdir -p release_artifact/frontend
                     cp -r frontend/build release_artifact/frontend/
@@ -134,7 +147,7 @@ pipeline {
                 */
                 withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDENTIAL_ID, keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                        rsync -avz -e "ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no" --delete --exclude 'backend/.env' --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
+                        rsync -avz -e "ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no" --delete --exclude 'backend/oauth_credentials.json' --exclude 'backend/token.json' release_artifact/ ${VPS_USER}@${VPS_IP}:${DEPLOY_DIR}/
                         ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR}/frontend && npm ci --omit=dev"
                         ssh -p 8022 -i \${SSH_KEY} -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_IP} "cd ${DEPLOY_DIR} && pm2 reload ecosystem.config.cjs"
                     """
