@@ -78,6 +78,7 @@
   let diniyahFormUrutan = $state('');
   let diniyahFormLoading = $state(false);
   let diniyahFormError = $state('');
+  let isTranslatingDiniyahForm = $state(false);
   let diniyahEditingId = $state(null);
   let diniyahEditNama = $state('');
   let diniyahEditNamaArab = $state('');
@@ -420,6 +421,25 @@
       errorDiniyah = err.message;
     } finally {
       loadingDiniyah = false;
+    }
+  }
+
+  async function translateDiniyahForm() {
+    if (!diniyahFormNama.trim()) return;
+    isTranslatingDiniyahForm = true;
+    try {
+      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(diniyahFormNama)}&langpair=id|ar`);
+      const data = await res.json();
+      if (data && data.responseData && data.responseData.translatedText) {
+        diniyahFormNamaArab = data.responseData.translatedText;
+      } else {
+        toastStore.show('Gagal menerjemahkan teks.', 'error');
+      }
+    } catch (err) {
+      console.error('Translation error:', err);
+      toastStore.show('Terjadi kesalahan jaringan saat menerjemahkan.', 'error');
+    } finally {
+      isTranslatingDiniyahForm = false;
     }
   }
 
@@ -1132,7 +1152,12 @@
                 />
               </div>
               <div class="form-group form-group-wide">
-                <label for="diniyah-arab">Nama Mapel (Arab)</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                  <label for="diniyah-arab" style="margin-bottom: 0;">Nama Mapel (Arab)</label>
+                  <button type="button" class="btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick={translateDiniyahForm} disabled={isTranslatingDiniyahForm || !diniyahFormNama.trim()} title="Terjemahkan otomatis dari Latin">
+                    <Icon name="refreshCw" size={12} /> {isTranslatingDiniyahForm ? 'Menerjemahkan...' : 'Translate'}
+                  </button>
+                </div>
                 <input
                   id="diniyah-arab"
                   type="text"
