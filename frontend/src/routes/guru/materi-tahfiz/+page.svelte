@@ -428,10 +428,10 @@
     if (!diniyahFormNama.trim()) return;
     isTranslatingDiniyahForm = true;
     try {
-      const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(diniyahFormNama)}&langpair=id|ar`);
+      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=id&tl=ar&dt=t&q=${encodeURIComponent(diniyahFormNama)}`);
       const data = await res.json();
-      if (data && data.responseData && data.responseData.translatedText) {
-        diniyahFormNamaArab = data.responseData.translatedText;
+      if (data && data[0] && data[0][0] && data[0][0][0]) {
+        diniyahFormNamaArab = data[0][0][0];
       } else {
         toastStore.show('Gagal menerjemahkan teks.', 'error');
       }
