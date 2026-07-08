@@ -353,3 +353,12 @@ type NilaiAkhirKeseharian struct {
 	CreatedAt       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt       time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
+
+type CatatanNgajiSiswa struct {
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SiswaID   int       `gorm:"not null;uniqueIndex:idx_siswa_sekolah" json:"siswa_id"`
+	SekolahID int       `gorm:"not null;uniqueIndex:idx_siswa_sekolah" json:"sekolah_id"`
+	Catatan   string    `gorm:"type:text" json:"catatan"`
+	CreatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}

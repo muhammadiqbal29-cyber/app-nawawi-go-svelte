@@ -33,6 +33,7 @@ import (
 	"siakad-nawawi-be/internal/siswa"
 	"siakad-nawawi-be/internal/tahfiz"
 	"siakad-nawawi-be/internal/tahunajaran"
+	"siakad-nawawi-be/internal/catatanNgaji"
 )
 
 func init() {
@@ -222,6 +223,8 @@ func main() {
 	guruRouter.HandleFunc("/nilai", nilai.CreateNilaiHandler).Methods("POST")
 	guruRouter.HandleFunc("/nilai/{id}", nilai.UpdateNilaiHandler).Methods("PUT")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/siswa", rombel.GetSiswaDalamKelasHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/catatan-ngaji", catatanNgaji.GetCatatanNgajiHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/catatan-ngaji", catatanNgaji.SaveCatatanNgajiHandler).Methods("POST")
 
 	// Rute Mapel Diniyah (Guru)
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/mapel-diniyah", mapelDiniyah.GetMapelDiniyahAktifHandler).Methods("GET")

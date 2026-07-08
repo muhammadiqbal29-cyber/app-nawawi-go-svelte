@@ -15,6 +15,8 @@ import (
 type DashboardTahfizResponse struct {
 	ID          int     `json:"id"`
 	Nama        string  `json:"nama"`
+	Tingkat     string  `json:"tingkat"`
+	Rombel      string  `json:"rombel"`
 	JumlahSurah int     `json:"jumlahSurah"`
 	Hafalan     float64 `json:"hafalan"`
 	Lancar      float64 `json:"lancar"`
@@ -65,10 +67,10 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
 		LEFT JOIN nilai_tahfizs nt ON nt.siswa_id = s.id AND nt.sekolah_id = ?
 		LEFT JOIN nilai_tahfiz_details n ON n.nilai_tahfiz_id = nt.id
-		WHERE s.status = 'Aktif'
+		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 		GROUP BY s.id, s.nama_lengkap, k.tingkat, rk.rombel
 	`
-	if err := database.DB.Raw(query, sekolahID, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard tahfiz", err)
 		return
 	}
