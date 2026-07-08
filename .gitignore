@@ -56,6 +56,8 @@ logika_bisnis.md
 kodeperintah.md
 failure_jenkins.md
 temuan_baru.md
+rencana_fitur_baru_firebase.md
+tambahan_ftur_untuk_backend.md
 # Logs umum
 *.log
 npm-debug.log*

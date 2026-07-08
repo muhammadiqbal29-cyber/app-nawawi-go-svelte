@@ -10,7 +10,7 @@ pipeline {
         // Harus disetel di Jenkins Credentials
         SSH_CREDENTIAL_ID = 'vps-ssh-key'
         VPS_USER = 'u0_a129'
-        VPS_IP = '192.168.18.27'
+        VPS_IP = '100.77.99.42'
         DEPLOY_DIR = '/data/data/com.termux/files/home/siakad-nawawi'
     }
 

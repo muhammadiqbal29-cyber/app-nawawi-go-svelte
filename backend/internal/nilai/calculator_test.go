@@ -53,12 +53,13 @@ func TestCalculateNilaiTahfizHeaderUsesSnapshotPembagi(t *testing.T) {
 }
 
 func completeTahfizDetail(totalPoin int) models.NilaiTahfizDetail {
+	one := 1
 	return models.NilaiTahfizDetail{
-		SkorHafalan:         1,
-		SkorKelancaran:      1,
-		SkorMad:             1,
-		SkorTajwid:          1,
-		SkorMakharijulHuruf: 1,
+		SkorHafalan:         &one,
+		SkorKelancaran:      &one,
+		SkorMad:             &one,
+		SkorTajwid:          &one,
+		SkorMakharijulHuruf: &one,
 		TotalPoin:           totalPoin,
 	}
 }

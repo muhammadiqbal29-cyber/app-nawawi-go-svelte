@@ -174,11 +174,11 @@ type NilaiTahfizDetail struct {
 	NamaMateri          string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_nilai_tahfiz_detail" json:"nama_materi"`
 	Juz                 int       `gorm:"type:int;not null;default:0" json:"juz"`
 	Urutan              int       `gorm:"type:int;not null;default:0" json:"urutan"`
-	SkorHafalan         int       `gorm:"type:int;not null;default:0" json:"skor_hafalan"`
-	SkorKelancaran      int       `gorm:"type:int;not null;default:0" json:"skor_kelancaran"`
-	SkorMad             int       `gorm:"type:int;not null;default:0" json:"skor_mad"`
-	SkorTajwid          int       `gorm:"type:int;not null;default:0" json:"skor_tajwid"`
-	SkorMakharijulHuruf int       `gorm:"type:int;not null;default:0" json:"skor_makharijul_huruf"`
+	SkorHafalan         *int      `gorm:"type:int;default:null" json:"skor_hafalan"`
+	SkorKelancaran      *int      `gorm:"type:int;default:null" json:"skor_kelancaran"`
+	SkorMad             *int      `gorm:"type:int;default:null" json:"skor_mad"`
+	SkorTajwid          *int      `gorm:"type:int;default:null" json:"skor_tajwid"`
+	SkorMakharijulHuruf *int      `gorm:"type:int;default:null" json:"skor_makharijul_huruf"`
 	TotalPoin           int       `gorm:"type:int;not null;default:0" json:"total_poin"`
 	StatusSetor         string    `gorm:"type:varchar(30);not null;default:'draft'" json:"status_setor"`
 	CreatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`

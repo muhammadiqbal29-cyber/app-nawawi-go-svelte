@@ -68,7 +68,7 @@ func predikatNilai(nilaiAkhir int) string {
 }
 
 func validateSkorTahfizDetail(d models.NilaiTahfizDetail) error {
-	scores := []int{
+	scores := []*int{
 		d.SkorHafalan,
 		d.SkorKelancaran,
 		d.SkorMad,
@@ -76,27 +76,29 @@ func validateSkorTahfizDetail(d models.NilaiTahfizDetail) error {
 		d.SkorMakharijulHuruf,
 	}
 	for _, score := range scores {
-		if score < 0 || score > 5 {
-			return errors.New("skor tahfiz harus berada pada rentang 0 sampai 5")
+		if score != nil {
+			if *score < 0 || *score > 5 {
+				return errors.New("skor tahfiz harus berada pada rentang 0 sampai 5")
+			}
 		}
 	}
 	return nil
 }
 
 func isTahfizDetailEmpty(d models.NilaiTahfizDetail) bool {
-	return d.SkorHafalan == 0 &&
-		d.SkorKelancaran == 0 &&
-		d.SkorMad == 0 &&
-		d.SkorTajwid == 0 &&
-		d.SkorMakharijulHuruf == 0
+	return d.SkorHafalan == nil &&
+		d.SkorKelancaran == nil &&
+		d.SkorMad == nil &&
+		d.SkorTajwid == nil &&
+		d.SkorMakharijulHuruf == nil
 }
 
 func isTahfizDetailComplete(d models.NilaiTahfizDetail) bool {
-	return d.SkorHafalan > 0 &&
-		d.SkorKelancaran > 0 &&
-		d.SkorMad > 0 &&
-		d.SkorTajwid > 0 &&
-		d.SkorMakharijulHuruf > 0
+	return d.SkorHafalan != nil &&
+		d.SkorKelancaran != nil &&
+		d.SkorMad != nil &&
+		d.SkorTajwid != nil &&
+		d.SkorMakharijulHuruf != nil
 }
 
 func calculateTahfizDetail(d *models.NilaiTahfizDetail) error {
@@ -108,7 +110,23 @@ func calculateTahfizDetail(d *models.NilaiTahfizDetail) error {
 		return err
 	}
 
-	d.TotalPoin = d.SkorHafalan + d.SkorKelancaran + d.SkorMad + d.SkorTajwid + d.SkorMakharijulHuruf
+	d.TotalPoin = 0
+	if d.SkorHafalan != nil {
+		d.TotalPoin += *d.SkorHafalan
+	}
+	if d.SkorKelancaran != nil {
+		d.TotalPoin += *d.SkorKelancaran
+	}
+	if d.SkorMad != nil {
+		d.TotalPoin += *d.SkorMad
+	}
+	if d.SkorTajwid != nil {
+		d.TotalPoin += *d.SkorTajwid
+	}
+	if d.SkorMakharijulHuruf != nil {
+		d.TotalPoin += *d.SkorMakharijulHuruf
+	}
+
 	if isTahfizDetailComplete(*d) {
 		d.StatusSetor = "selesai"
 	} else if isTahfizDetailEmpty(*d) {

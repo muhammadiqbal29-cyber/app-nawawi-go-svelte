@@ -34,9 +34,10 @@
   onMount(init);
 
   function clampScore(value) {
+    if (value === '' || value === null || value === undefined) return '';
     const numberValue = Number(value);
-    if (!value || Number.isNaN(numberValue)) return '';
-    return Math.min(5, Math.max(1, numberValue));
+    if (Number.isNaN(numberValue)) return '';
+    return Math.min(5, Math.max(0, numberValue));
   }
 
   function total(row) {
@@ -46,12 +47,14 @@
   }
 
   function toInputValue(value) {
-    return Number(value || 0) > 0 ? Number(value) : '';
+    if (value === null || value === undefined) return '';
+    return Number(value);
   }
 
   function scoreNumber(value) {
+    if (value === '' || value === null || value === undefined) return null;
     const numberValue = Number(value);
-    return Number.isFinite(numberValue) ? numberValue : 0;
+    return Number.isFinite(numberValue) ? numberValue : null;
   }
 
   async function init() {
@@ -267,7 +270,7 @@
               <td>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="5"
                   data-cell={`${index}-0`}
                   bind:value={row.hafalan}
@@ -278,7 +281,7 @@
               <td>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="5"
                   data-cell={`${index}-1`}
                   bind:value={row.kelancaran}
@@ -289,7 +292,7 @@
               <td>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="5"
                   data-cell={`${index}-2`}
                   bind:value={row.mad}
@@ -300,7 +303,7 @@
               <td>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="5"
                   data-cell={`${index}-3`}
                   bind:value={row.tajwid}
@@ -311,7 +314,7 @@
               <td>
                 <input
                   type="number"
-                  min="1"
+                  min="0"
                   max="5"
                   data-cell={`${index}-4`}
                   bind:value={row.makharijulHuruf}

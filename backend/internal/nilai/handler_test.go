@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/models"
+	"siakad-nawawi-be/internal/utils"
 )
 
 func setupTestDB() {
@@ -352,11 +353,11 @@ func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
 			MataPelajaran:  "Tahfiz",
 			NamaMateri:     "Al-Fatihah",
 			Juz:            30,
-			SkorHafalan:    5,
-			SkorKelancaran: 4,
-			SkorMad:        4,
-			SkorTajwid:     3,
-			SkorMakharijulHuruf: 4,
+			SkorHafalan:    utils.IntPtr(5),
+			SkorKelancaran: utils.IntPtr(4),
+			SkorMad:        utils.IntPtr(4),
+			SkorTajwid:     utils.IntPtr(3),
+			SkorMakharijulHuruf: utils.IntPtr(4),
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
@@ -382,11 +383,11 @@ func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
 			MataPelajaran:  "Tahfiz",
 			NamaMateri:     "Al-Baqarah",
 			Juz:            1,
-			SkorHafalan:    5,
-			SkorKelancaran: 4,
-			SkorMad:        4,
-			SkorTajwid:     3,
-			SkorMakharijulHuruf: 4,
+			SkorHafalan:    utils.IntPtr(5),
+			SkorKelancaran: utils.IntPtr(4),
+			SkorMad:        utils.IntPtr(4),
+			SkorTajwid:     utils.IntPtr(3),
+			SkorMakharijulHuruf: utils.IntPtr(4),
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
@@ -406,11 +407,11 @@ func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
 			MataPelajaran:  "Tahfiz",
 			NamaMateri:     "Al-Fatihah",
 			Juz:            30,
-			SkorHafalan:    5, // Changed from 10 to 5 since max is 5
-			SkorKelancaran: 5,
-			SkorMad:        5,
-			SkorTajwid:     5,
-			SkorMakharijulHuruf: 5,
+			SkorHafalan:    utils.IntPtr(5), // Changed from 10 to 5 since max is 5
+			SkorKelancaran: utils.IntPtr(5),
+			SkorMad:        utils.IntPtr(5),
+			SkorTajwid:     utils.IntPtr(5),
+			SkorMakharijulHuruf: utils.IntPtr(5),
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))
@@ -430,11 +431,11 @@ func TestAutosaveNilaiTahfizDetailHandler(t *testing.T) {
 			MataPelajaran:  "Tahfiz",
 			NamaMateri:     "Al-Fatihah",
 			Juz:            30,
-			SkorHafalan:    0, // All 0 triggers delete
-			SkorKelancaran: 0,
-			SkorMad:        0,
-			SkorTajwid:     0,
-			SkorMakharijulHuruf: 0,
+			SkorHafalan:    nil, // All nil triggers delete
+			SkorKelancaran: nil,
+			SkorMad:        nil,
+			SkorTajwid:     nil,
+			SkorMakharijulHuruf: nil,
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/nilai/tahfiz/siswa/1", bytes.NewBuffer(body))

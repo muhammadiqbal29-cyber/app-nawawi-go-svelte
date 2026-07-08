@@ -32,11 +32,11 @@ type tahfizDetailPayload struct {
 	NamaMateri          string `json:"nama_materi" validate:"required"`
 	Juz                 int    `json:"juz" validate:"gte=0,lte=30"`
 	Urutan              int    `json:"urutan"`
-	SkorHafalan         int    `json:"skor_hafalan" validate:"gte=0,lte=100"`
-	SkorKelancaran      int    `json:"skor_kelancaran" validate:"gte=0,lte=100"`
-	SkorMad             int    `json:"skor_mad" validate:"gte=0,lte=100"`
-	SkorTajwid          int    `json:"skor_tajwid" validate:"gte=0,lte=100"`
-	SkorMakharijulHuruf int    `json:"skor_makharijul_huruf" validate:"gte=0,lte=100"`
+	SkorHafalan         *int    `json:"skor_hafalan" validate:"omitempty,gte=0,lte=100"`
+	SkorKelancaran      *int    `json:"skor_kelancaran" validate:"omitempty,gte=0,lte=100"`
+	SkorMad             *int    `json:"skor_mad" validate:"omitempty,gte=0,lte=100"`
+	SkorTajwid          *int    `json:"skor_tajwid" validate:"omitempty,gte=0,lte=100"`
+	SkorMakharijulHuruf *int    `json:"skor_makharijul_huruf" validate:"omitempty,gte=0,lte=100"`
 }
 
 func GetNilaiTahfizBySiswaHandler(w http.ResponseWriter, r *http.Request) {
