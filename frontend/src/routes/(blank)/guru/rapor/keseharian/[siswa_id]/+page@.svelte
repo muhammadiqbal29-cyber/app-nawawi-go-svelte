@@ -5,6 +5,7 @@
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   let siswaId = $derived($page.params.siswa_id);
+  let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '');
   /** @type {any} */
   let raporData = $state(null);
   let loading = $state(true);

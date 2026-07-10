@@ -149,7 +149,7 @@ func GetCatatanRaporSiswaHandler(w http.ResponseWriter, r *http.Request) {
 	var catatan models.CatatanRapor
 	if err := database.DB.Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_rapor = ?",
 		siswaID, sekolahID, tahunAjaranID, semesterID, jenisRapor).First(&catatan).Error; err != nil {
-		response.JSON(w, http.StatusOK, nil)
+		response.JSON(w, http.StatusOK, map[string]interface{}{})
 		return
 	}
 
