@@ -3,6 +3,7 @@ package database
 import (
 	"fmt"
 	"log"
+	"sync/atomic"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -10,10 +11,13 @@ import (
 	"siakad-nawawi-be/internal/models"
 )
 
+var dbCounter int64
+
 // SetupTestDB inisialisasi SQLite in-memory database untuk testing
 func SetupTestDB() *gorm.DB {
 	// Koneksi ke memory database agar bersih per eksekusi
-	dbName := fmt.Sprintf("file:memdb%d?mode=memory&cache=shared", time.Now().UnixNano())
+	counter := atomic.AddInt64(&dbCounter, 1)
+	dbName := fmt.Sprintf("file:memdb_%d_%d?mode=memory&cache=shared", time.Now().UnixNano(), counter)
 	db, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Gagal membuka koneksi database test: %v", err)
@@ -45,6 +49,12 @@ func SetupTestDB() *gorm.DB {
 		&models.AnggotaHalaqah{},
 		&models.KonfigurasiPresensi{},
 		&models.PresensiGuru{},
+		&models.CatatanNgajiSiswa{},
+		&models.JenisPelanggaran{},
+		&models.CatatanPelanggaran{},
+		&models.JenisIqob{},
+		&models.CatatanIqob{},
+		&models.CatatanRapor{},
 	)
 	if err != nil {
 		log.Fatalf("Gagal melakukan migrasi tabel test: %v", err)

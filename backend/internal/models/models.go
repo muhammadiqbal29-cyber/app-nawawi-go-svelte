@@ -3,7 +3,7 @@ package models
 import "time"
 
 type User struct {
-	ID        int       `gorm:"type:int(11);primaryKey;autoIncrement" json:"id"`
+	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Email     string    `gorm:"type:varchar(255);unique;not null" json:"email"`
 	Password  string    `gorm:"type:varchar(255);not null" json:"-"`
 	Role      string    `gorm:"type:varchar(50);not null" json:"role"`
@@ -197,7 +197,7 @@ type MateriTahfiz struct {
 }
 
 type Guru struct {
-	ID           int     `gorm:"type:int(11);primaryKey;autoIncrement" json:"id"`
+	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       int   `gorm:"type:int(11);uniqueIndex;not null" json:"user_id"`
 	NamaLengkap  string    `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
 	NIK          *string   `gorm:"type:varchar(50);uniqueIndex" json:"nik"`
@@ -214,7 +214,7 @@ type Guru struct {
 }
 
 type PresensiGuru struct {
-	ID           int     `gorm:"type:int(11);primaryKey;autoIncrement" json:"id"`
+	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
 	GuruID       int     `gorm:"not null;uniqueIndex:idx_presensi_guru_tanggal;index" json:"guru_id"`
 	Tanggal      string    `gorm:"type:date;not null;uniqueIndex:idx_presensi_guru_tanggal" json:"tanggal"`
 	WaktuMasuk   *string   `gorm:"type:varchar(10)" json:"waktu_masuk"`

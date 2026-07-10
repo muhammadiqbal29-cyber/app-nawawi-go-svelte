@@ -37,7 +37,7 @@ func setAdminContext(req *http.Request, email string) *http.Request {
 func seedGuru(email string) models.Guru {
 	user := models.User{Email: email, Role: "guru"}
 	database.DB.Create(&user)
-	guru := models.Guru{UserID: int64(user.ID), NamaLengkap: "Guru Test"}
+	guru := models.Guru{UserID: int(user.ID), NamaLengkap: "Guru Test"}
 	database.DB.Create(&guru)
 	return guru
 }

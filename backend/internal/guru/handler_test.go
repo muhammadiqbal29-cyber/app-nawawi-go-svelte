@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -32,7 +33,7 @@ func seedGuruData() (int, int) {
 	nik := "12345"
 	nohp := "081234"
 	guru := models.Guru{
-		UserID:       int64(user.ID),
+		UserID:       int(user.ID),
 		NamaLengkap:  "Budi",
 		NIK:          &nik,
 		NoHP:         &nohp,
@@ -41,7 +42,10 @@ func seedGuruData() (int, int) {
 		AksesFitur:   "[]",
 		AksesSekolah: `{"1": ["Tahfiz", "Diniyah"]}`,
 	}
-	database.DB.Create(&guru)
+	err := database.DB.Create(&guru).Error
+	if err != nil {
+		panic(fmt.Sprintf("GURU CREATE ERROR: %v", err))
+	}
 
 	return int(user.ID), int(guru.ID)
 }
@@ -71,8 +75,8 @@ func TestGetGuruHandler(t *testing.T) {
 	setupTestDB()
 	_, guruID := seedGuruData()
 
-	req, _ := http.NewRequest("GET", "/api/guru/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	req, _ := http.NewRequest("GET", fmt.Sprintf("/api/guru/%d", guruID), nil)
+	req = mux.SetURLVars(req, map[string]string{"id": fmt.Sprintf("%d", guruID)})
 	rr := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(GetGuruHandler)
@@ -163,8 +167,8 @@ func TestUpdateGuruHandler(t *testing.T) {
 	}
 	bodyBytes, _ := json.Marshal(body)
 
-	req, _ := http.NewRequest("PUT", "/api/guru/1", bytes.NewBuffer(bodyBytes))
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	req, _ := http.NewRequest("PUT", fmt.Sprintf("/api/guru/%d", guruID), bytes.NewBuffer(bodyBytes))
+	req = mux.SetURLVars(req, map[string]string{"id": fmt.Sprintf("%d", guruID)})
 	rr := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(UpdateGuruHandler)
@@ -205,8 +209,8 @@ func TestDeleteGuruHandler(t *testing.T) {
 	setupTestDB()
 	_, guruID := seedGuruData()
 
-	req, _ := http.NewRequest("DELETE", "/api/guru/1", nil)
-	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+	req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/guru/%d", guruID), nil)
+	req = mux.SetURLVars(req, map[string]string{"id": fmt.Sprintf("%d", guruID)})
 	rr := httptest.NewRecorder()
 
 	handler := http.HandlerFunc(DeleteGuruHandler)
@@ -510,11 +514,19 @@ func TestDownloadTemplateGuruHandler(t *testing.T) {
 	// Seed sekolah to test fitur
 	database.DB.Create(&models.Sekolah{
 		NamaSekolah: "SMP Test",
-		Fitur: `["fitur1", "fitur2"]`,
+		NPSN:        "12345678",
+		Jenjang:     "SMP",
+		Status:      "Negeri",
+		Alamat:      "Test",
+		Fitur:       `["fitur1", "fitur2"]`,
 	})
 	database.DB.Create(&models.Sekolah{
 		NamaSekolah: "SMA Test",
-		Fitur: "",
+		NPSN:        "87654321",
+		Jenjang:     "SMA",
+		Status:      "Negeri",
+		Alamat:      "Test",
+		Fitur:       "",
 	})
 
 	req, _ := http.NewRequest("GET", "/api/guru/template", nil)
