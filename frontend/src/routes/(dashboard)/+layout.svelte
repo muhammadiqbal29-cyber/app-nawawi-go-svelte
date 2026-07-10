@@ -26,7 +26,7 @@
     // Ambil tahun ajaran aktif
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
     fetch(`${apiUrl}/api/tahun-ajaran`, { credentials: 'include' })
-      .then((res) => res.json())
+      .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
       .then((data) => {
         if (data && data.length > 0) {
           const aktif = data.find((t) => t.status === 'Active');
@@ -51,7 +51,7 @@
   }
 
   function onLogout() {
-    fetch(`${import.meta.env.VITE_API_URL}/api/logout`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/logout`, {
       method: 'POST',
       credentials: 'include'
     }).finally(() => {

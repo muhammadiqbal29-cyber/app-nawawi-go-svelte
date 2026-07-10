@@ -27,6 +27,8 @@ import (
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/nilai"
 	"siakad-nawawi-be/internal/nilaiDiniyah"
+	"siakad-nawawi-be/internal/pelanggaran"
+	"siakad-nawawi-be/internal/iqob"
 	"siakad-nawawi-be/internal/presensi"
 	"siakad-nawawi-be/internal/rombel"
 	"siakad-nawawi-be/internal/sekolah"
@@ -34,6 +36,7 @@ import (
 	"siakad-nawawi-be/internal/tahfiz"
 	"siakad-nawawi-be/internal/tahunajaran"
 	"siakad-nawawi-be/internal/catatanNgaji"
+	"siakad-nawawi-be/internal/catatanRapor"
 )
 
 func init() {
@@ -222,9 +225,15 @@ func main() {
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.PostSetoranTahfizHarianHandler).Methods("POST")
 	guruRouter.HandleFunc("/nilai", nilai.CreateNilaiHandler).Methods("POST")
 	guruRouter.HandleFunc("/nilai/{id}", nilai.UpdateNilaiHandler).Methods("PUT")
+	guruRouter.HandleFunc("/nilai-catatan", nilai.SaveNilaiCatatanHandler).Methods("POST")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/siswa", rombel.GetSiswaDalamKelasHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/catatan-ngaji", catatanNgaji.GetCatatanNgajiHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/catatan-ngaji", catatanNgaji.SaveCatatanNgajiHandler).Methods("POST")
+	
+	// Rute Catatan Rapor (Guru)
+	guruRouter.HandleFunc("/kelas/{kelas_id}/catatan-rapor", catatanRapor.GetCatatanRaporKelasHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/catatan-rapor", catatanRapor.GetCatatanRaporSiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/catatan-rapor", catatanRapor.UpsertCatatanRaporHandler).Methods("POST")
 
 	// Rute Mapel Diniyah (Guru)
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/mapel-diniyah", mapelDiniyah.GetMapelDiniyahAktifHandler).Methods("GET")
@@ -262,6 +271,7 @@ func main() {
 	guruRouter.HandleFunc("/keseharian/rapor/{siswa_id}", keseharian.GetRaporSiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/keseharian-masal", keseharian.GetRaporKeseharianMasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/keseharian/penyesuaian/{id:[0-9]+}", keseharian.UpdatePenyesuaianHandler).Methods("PUT")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/keseharian/poin", keseharian.UpdatePoinKeseharianHandler).Methods("POST")
 
 	// Rute Rapor Keseharian (Guru) - Konfigurasi Indikator
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/keseharian/indikator", keseharian.GetIndikatorBySekolahHandler).Methods("GET")
@@ -270,6 +280,28 @@ func main() {
 	guruRouter.HandleFunc("/keseharian/indikator/{id:[0-9]+}", keseharian.DeleteIndikatorHandler).Methods("DELETE")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/keseharian/indikator/template", keseharian.DownloadTemplateIndikatorHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/keseharian/indikator/import", keseharian.ImportIndikatorHandler).Methods("POST")
+
+	// Rute Pelanggaran (Guru) - Konfigurasi Jenis Pelanggaran
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/pelanggaran/jenis", pelanggaran.GetJenisPelanggaranBySekolahHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/pelanggaran/jenis", pelanggaran.CreateJenisPelanggaranHandler).Methods("POST")
+	guruRouter.HandleFunc("/pelanggaran/jenis/{id:[0-9]+}", pelanggaran.UpdateJenisPelanggaranHandler).Methods("PUT")
+	guruRouter.HandleFunc("/pelanggaran/jenis/{id:[0-9]+}", pelanggaran.DeleteJenisPelanggaranHandler).Methods("DELETE")
+
+	// Rute Pelanggaran (Guru) - Catatan Pelanggaran per Siswa
+	guruRouter.HandleFunc("/pelanggaran/catatan", pelanggaran.CreateCatatanPelanggaranHandler).Methods("POST")
+	guruRouter.HandleFunc("/pelanggaran/catatan/{id:[0-9]+}", pelanggaran.DeleteCatatanPelanggaranHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/pelanggaran", pelanggaran.GetCatatanPelanggaranSiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/pelanggaran", pelanggaran.GetCatatanPelanggaranKelasHandler).Methods("GET")
+
+	// Iqob Routes
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis", iqob.GetJenisIqobBySekolahHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis", iqob.CreateJenisIqobHandler).Methods("POST")
+	guruRouter.HandleFunc("/iqob/jenis/{id:[0-9]+}", iqob.UpdateJenisIqobHandler).Methods("PUT")
+	guruRouter.HandleFunc("/iqob/jenis/{id:[0-9]+}", iqob.DeleteJenisIqobHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/iqob/catatan", iqob.CreateCatatanIqobHandler).Methods("POST")
+	guruRouter.HandleFunc("/iqob/catatan/{id:[0-9]+}", iqob.DeleteCatatanIqobHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/iqob", iqob.GetCatatanIqobSiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/iqob", iqob.GetCatatanIqobKelasHandler).Methods("GET")
 
 	// Rute Dashboard
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/dashboard/tahfiz", guru.GetDashboardTahfizHandler).Methods("GET")

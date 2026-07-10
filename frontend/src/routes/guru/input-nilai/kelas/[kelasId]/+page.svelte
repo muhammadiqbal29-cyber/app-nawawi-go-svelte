@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { toastStore } from '$lib/toast.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -16,6 +17,10 @@
   let loading = $state(false);
   let error = $state('');
   let searchQuery = $state('');
+  let nilaiMap = $state({});
+  let savingCatatan = $state({});
+  
+  let currentMapel = 'Ujian Tahfiz';
 
   let filteredSiswa = $derived(
     searchQuery
@@ -42,6 +47,7 @@
         throw new Error(body.message || 'Gagal memuat data siswa.');
       }
       const body = await res.json();
+      nilaiMap = body.nilai_map || {};
       siswaList = (body.siswa || []).map((s) => ({
         id: s.siswa_id,
         nama: s.nama_lengkap || '-',
@@ -51,6 +57,33 @@
       error = err.message || 'Gagal memuat data siswa.';
     } finally {
       loading = false;
+    }
+  }
+
+  async function saveCatatan(siswaId, newCatatan) {
+    savingCatatan = { ...savingCatatan, [siswaId]: true };
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/nilai-catatan`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siswa_id: siswaId,
+          mata_pelajaran: currentMapel,
+          jenis_penilaian: jenisPenilaian,
+          catatan: newCatatan
+        })
+      });
+      if (!res.ok) throw new Error('Gagal menyimpan catatan');
+      toastStore.show('Catatan berhasil disimpan', 'success');
+      
+      const key = `${siswaId}_${currentMapel}`;
+      if (!nilaiMap[key]) nilaiMap[key] = {};
+      nilaiMap[key].catatan = newCatatan;
+    } catch (err) {
+      toastStore.show(err.message, 'info');
+    } finally {
+      savingCatatan = { ...savingCatatan, [siswaId]: false };
     }
   }
 </script>
@@ -81,6 +114,7 @@
   {:else}
     <div class="student-list">
       {#each filteredSiswa as siswa (siswa.id)}
+        {@const key = `${siswa.id}_${currentMapel}`}
         <div class="student-row">
           <div class="student-info-group">
             <div class="avatar-circle">{siswa.nama.charAt(0)}</div>
@@ -89,6 +123,22 @@
               <p>{kelasLabel} · {rombelText} · NISN {siswa.nisn}</p>
             </div>
           </div>
+          
+          <div class="catatan-group" style="flex: 1; margin: 0 1rem; max-width: 400px; min-width: 250px;">
+            <textarea 
+              class="form-input" 
+              style="width: 100%; resize: vertical;" 
+              rows="2" 
+              placeholder="Catatan rapor ujian..."
+              value={nilaiMap[key]?.catatan || ''}
+              onchange={(e) => saveCatatan(siswa.id, e.target.value)}
+              disabled={savingCatatan[siswa.id]}
+            ></textarea>
+            {#if savingCatatan[siswa.id]}
+               <span style="font-size: 0.75rem; color: #64748b; font-weight: 600;">Menyimpan...</span>
+            {/if}
+          </div>
+
           <a
             class="btn-action-primary"
             href={`/guru/input-nilai/${siswa.id}?kelas=${encodeURIComponent(`${kelasLabel} - ${rombelText}`)}&nama=${encodeURIComponent(siswa.nama)}&sekolah_id=${sekolahId}&kelas_id=${kelasId}&rombel=${encodeURIComponent(rombel)}&kelas_label=${encodeURIComponent(kelasLabel)}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}`}

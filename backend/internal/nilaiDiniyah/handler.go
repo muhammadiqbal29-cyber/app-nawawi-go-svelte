@@ -208,7 +208,7 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusCreated, toResponse(nilai))
 }
 
-// GetRaporDiniyahHandler mengambil semua nilai diniyah siswa untuk rapot
+// GetRaporDiniyahHandler mengambil semua nilai diniyah siswa untuk rapor
 func GetRaporDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	siswaID, err := strconv.Atoi(vars["siswa_id"])
@@ -270,7 +270,7 @@ func GetRaporDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 
 	data, err := buildRaporDiniyahData(siswa, riwayat, sekolah, kelas, semester, mapelList, taID, semID)
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, "Gagal memproses rapot", err)
+		response.Error(w, http.StatusInternalServerError, "Gagal memproses rapor", err)
 		return
 	}
 
@@ -355,7 +355,7 @@ func GetRaporDiniyahMasalHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, results)
 }
 
-// buildRaporDiniyahData adalah fungsi helper untuk merakit data satu rapot diniyah
+// buildRaporDiniyahData adalah fungsi helper untuk merakit data satu rapor diniyah
 func buildRaporDiniyahData(
 	siswa models.Siswa,
 	riwayat models.RiwayatKelas,

@@ -366,6 +366,12 @@
     </div>
 
     <div class="toolbar-right">
+      <button 
+        class="btn-sm btn-secondary"
+        onclick={() => goto(`/guru/input-diniyah/kelas/${kelasId}/catatan-masal?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombelParam)}&sekolah_id=${sekolahId}`)}
+      >
+        <Icon name="fileText" size={14} /> Catatan Masal
+      </button>
       <button class="btn-sm btn-primary" onclick={downloadTemplate}>
         <Icon name="download" size={14} /> Template Excel
       </button>

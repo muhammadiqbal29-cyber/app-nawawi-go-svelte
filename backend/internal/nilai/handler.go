@@ -63,36 +63,47 @@ func GetNilaiByKelasHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ambil nilai yang sudah ada untuk siswa-siswa ini
-	var nilaiList []models.Nilai
-	query := database.DB.Where("tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?", taID, semID, jenisPenilaian)
-	if mapel != "" {
-		query = query.Where("mata_pelajaran = ?", mapel)
-	}
-
-	// Filter hanya siswa di kelas ini
 	var siswaIDs []int
 	for _, s := range siswaList {
 		siswaIDs = append(siswaIDs, s.SiswaID)
 	}
-	if len(siswaIDs) > 0 {
-		query = query.Where("siswa_id IN ?", siswaIDs)
-	}
-	if err := query.Find(&nilaiList).Error; err != nil {
-		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data nilai", err)
-		return
-	}
-
+	
 	// Buat map untuk lookup cepat
-	nilaiMap := make(map[string]models.Nilai)
-	for _, n := range nilaiList {
-		key := strconv.Itoa(n.SiswaID) + "_" + n.MataPelajaran
-		nilaiMap[key] = n
+	nilaiMap := make(map[string]interface{})
+	
+	if mapel == "Ujian Tahfiz" || mapel == "Tahfiz" {
+		var tahfizList []models.NilaiTahfiz
+		tahfizQuery := database.DB.Where("tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?", taID, semID, jenisPenilaian)
+		if len(siswaIDs) > 0 {
+			tahfizQuery = tahfizQuery.Where("siswa_id IN ?", siswaIDs)
+		}
+		if err := tahfizQuery.Find(&tahfizList).Error; err == nil {
+			for _, n := range tahfizList {
+				key := strconv.Itoa(n.SiswaID) + "_" + n.MataPelajaran
+				nilaiMap[key] = n
+			}
+		}
+	} else {
+		var nilaiList []models.Nilai
+		query := database.DB.Where("tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?", taID, semID, jenisPenilaian)
+		if mapel != "" {
+			query = query.Where("mata_pelajaran = ?", mapel)
+		}
+		if len(siswaIDs) > 0 {
+			query = query.Where("siswa_id IN ?", siswaIDs)
+		}
+		if err := query.Find(&nilaiList).Error; err != nil {
+			response.Error(w, http.StatusInternalServerError, "Gagal mengambil data nilai", err)
+			return
+		}
+		for _, n := range nilaiList {
+			key := strconv.Itoa(n.SiswaID) + "_" + n.MataPelajaran
+			nilaiMap[key] = n
+		}
 	}
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"siswa":           siswaList,
-		"nilai":           nilaiList,
 		"nilai_map":       nilaiMap,
 		"tahun_ajaran_id": taID,
 		"semester_id":     semID,
@@ -360,3 +371,120 @@ func decodeTingkatLevelKelulusan(raw string) []int {
 	}
 	return levels
 }
+
+// SaveNilaiCatatanHandler updates the Catatan field for a student's exam score
+func SaveNilaiCatatanHandler(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		SiswaID        int    `json:"siswa_id"`
+		MataPelajaran  string `json:"mata_pelajaran"`
+		JenisPenilaian string `json:"jenis_penilaian"`
+		Catatan        string `json:"catatan"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		response.Error(w, http.StatusBadRequest, "Data tidak valid", err)
+		return
+	}
+
+	if input.SiswaID == 0 || input.MataPelajaran == "" {
+		response.Error(w, http.StatusBadRequest, "siswa_id dan mata_pelajaran wajib diisi", nil)
+		return
+	}
+
+	var riwayat models.RiwayatKelas
+	if err := database.DB.Where("siswa_id = ?", input.SiswaID).Order("created_at DESC").First(&riwayat).Error; err != nil {
+		response.Error(w, http.StatusBadRequest, "Siswa tidak memiliki riwayat kelas", err)
+		return
+	}
+	sekolahID := riwayat.SekolahID
+
+	if !middleware.VerifyGuruAccessJSON(w, r, sekolahID) {
+		return
+	}
+
+	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+
+	jenisPenilaian := normalizeJenisPenilaian(input.JenisPenilaian)
+	if err := validateJenisPenilaian(jenisPenilaian); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+
+	tx := database.DB.Begin()
+
+	// Special handling for Ujian Tahfiz since it goes to NilaiTahfiz table
+	if input.MataPelajaran == "Ujian Tahfiz" || input.MataPelajaran == "Tahfiz" {
+		var header models.NilaiTahfiz
+		err = tx.Where(
+			"siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ? AND (mata_pelajaran = 'Tahfiz' OR mata_pelajaran = 'Ujian Tahfiz')",
+			input.SiswaID, sekolahID, taID, semID, jenisPenilaian,
+		).First(&header).Error
+
+		if err != nil {
+			// Create header if not exists
+			header = models.NilaiTahfiz{
+				SiswaID:        input.SiswaID,
+				SekolahID:      sekolahID,
+				TahunAjaranID:  taID,
+				SemesterID:     semID,
+				JenisPenilaian: jenisPenilaian,
+				MataPelajaran:  input.MataPelajaran,
+				Catatan:        input.Catatan,
+			}
+			if err := tx.Create(&header).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal membuat nilai tahfiz", err)
+				return
+			}
+		} else {
+			header.Catatan = input.Catatan
+			if err := tx.Save(&header).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal mengupdate catatan tahfiz", err)
+				return
+			}
+		}
+	} else {
+		// Normal Nilai table for Tasmi / Kelulusan (other than Tahfiz)
+		var existing models.Nilai
+		err = tx.Where(
+			"siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ? AND mata_pelajaran = ?",
+			input.SiswaID, sekolahID, taID, semID, jenisPenilaian, input.MataPelajaran,
+		).First(&existing).Error
+
+		if err != nil {
+			// Create new Nilai if not exists
+			existing = models.Nilai{
+				SiswaID:        input.SiswaID,
+				SekolahID:      sekolahID,
+				TahunAjaranID:  taID,
+				SemesterID:     semID,
+				JenisPenilaian: jenisPenilaian,
+				MataPelajaran:  input.MataPelajaran,
+				Catatan:        input.Catatan,
+			}
+			if err := tx.Create(&existing).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal membuat nilai", err)
+				return
+			}
+		} else {
+			existing.Catatan = input.Catatan
+			if err := tx.Save(&existing).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal mengupdate catatan", err)
+				return
+			}
+		}
+	}
+
+	tx.Commit()
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Catatan berhasil disimpan",
+	})
+}
+

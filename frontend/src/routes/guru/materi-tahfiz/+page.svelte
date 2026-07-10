@@ -117,6 +117,10 @@
       loadKonfigurasiNilaiTahfiz();
       loadDiniyah();
       loadIndikators();
+      if (hasKeseharian) {
+        loadPelanggaran();
+        loadIqob();
+      }
     }
   });
 
@@ -726,6 +730,288 @@
       keseharianFormLoading = false;
     }
   }
+  // ==== PELANGGARAN CRUD ====
+  let pelanggaranList = $state([]);
+  let loadingPelanggaran = $state(false);
+  let errorPelanggaran = $state('');
+  let showPelanggaranForm = $state(false);
+
+  let iqobList = $state([]);
+  let iqobFormNama = $state('');
+  let iqobFormPoin = $state(0);
+  let iqobFormKeterangan = $state('');
+  let iqobFormLoading = $state(false);
+  let iqobFormError = $state('');
+  let iqobEditingId = $state(null);
+  let iqobEditNama = $state('');
+  let iqobEditPoin = $state(0);
+  let iqobEditKeterangan = $state('');
+  let iqobEditLoading = $state(false);
+  let iqobDeletingId = $state(null);
+  let loadingIqob = $state(false);
+  let errorIqob = $state('');
+  let showIqobForm = $state(false);
+  let pelanggaranFormNama = $state('');
+  let pelanggaranFormPoin = $state(0);
+  let pelanggaranFormLoading = $state(false);
+  let pelanggaranFormError = $state('');
+  let pelanggaranEditingId = $state(null);
+  let pelanggaranEditNama = $state('');
+  let pelanggaranEditPoin = $state(0);
+  let pelanggaranEditLoading = $state(false);
+  let pelanggaranDeletingId = $state(null);
+
+
+
+  async function loadPelanggaran() {
+    if (!selectedSekolah) return;
+    loadingPelanggaran = true;
+    errorPelanggaran = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/pelanggaran/jenis`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Gagal memuat jenis pelanggaran.');
+      const body = await res.json();
+      pelanggaranList = body.data || [];
+    } catch (err) {
+      errorPelanggaran = err.message;
+    } finally {
+      loadingPelanggaran = false;
+    }
+  }
+
+  async function tambahPelanggaran() {
+    if (!pelanggaranFormNama.trim()) {
+      pelanggaranFormError = 'Nama pelanggaran harus diisi';
+      return;
+    }
+    pelanggaranFormLoading = true;
+    pelanggaranFormError = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/pelanggaran/jenis`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nama: pelanggaranFormNama.trim(),
+            poin: Number(pelanggaranFormPoin) || 0,
+            aktif: true
+          })
+        }
+      );
+      if (!res.ok) throw new Error('Gagal menyimpan jenis pelanggaran');
+      await loadPelanggaran();
+      pelanggaranFormNama = '';
+      pelanggaranFormPoin = 0;
+      showPelanggaranForm = false;
+    } catch (err) {
+      pelanggaranFormError = err.message;
+    } finally {
+      pelanggaranFormLoading = false;
+    }
+  }
+
+  function startPelanggaranEdit(p) {
+    pelanggaranEditingId = p.id;
+    pelanggaranEditNama = p.nama;
+    pelanggaranEditPoin = p.poin || 0;
+  }
+  function cancelPelanggaranEdit() {
+    pelanggaranEditingId = null;
+  }
+
+  async function simpanPelanggaranEdit(p) {
+    if (!pelanggaranEditNama.trim()) return;
+    pelanggaranEditLoading = true;
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/pelanggaran/jenis/${p.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: pelanggaranEditNama.trim(),
+          poin: Number(pelanggaranEditPoin) || 0,
+          aktif: p.aktif
+        })
+      });
+      if (!res.ok) throw new Error('Gagal menyimpan perubahan');
+      await loadPelanggaran();
+      cancelPelanggaranEdit();
+    } catch (err) {
+      toastStore.show(err.message, 'info');
+    } finally {
+      pelanggaranEditLoading = false;
+    }
+  }
+
+  async function togglePelanggaranAktif(p) {
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/pelanggaran/jenis/${p.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama: p.nama, poin: p.poin, aktif: !p.aktif })
+      });
+      if (!res.ok) throw new Error('Gagal mengubah status');
+      await loadPelanggaran();
+    } catch (err) {
+      toastStore.show(err.message, 'info');
+    }
+  }
+
+
+  async function loadIqob() {
+    if (!selectedSekolah) return;
+    loadingIqob = true;
+    errorIqob = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error('Gagal memuat jenis iqob.');
+      const body = await res.json();
+      iqobList = body.data || [];
+    } catch (err) {
+      errorIqob = err.message;
+    } finally {
+      loadingIqob = false;
+    }
+  }
+
+  async function tambahIqob() {
+    if (!iqobFormNama.trim()) {
+      iqobFormError = 'Nama iqob harus diisi';
+      return;
+    }
+    iqobFormLoading = true;
+    iqobFormError = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nama: iqobFormNama.trim(),
+            poin: Number(iqobFormPoin) || 0,
+            keterangan: iqobFormKeterangan.trim(),
+            aktif: true
+          })
+        }
+      );
+      if (!res.ok) throw new Error('Gagal menyimpan jenis iqob');
+      await loadIqob();
+      
+      iqobFormNama = '';
+      iqobFormPoin = 0;
+      iqobFormKeterangan = '';
+      showIqobForm = false;
+      toastStore.show('Jenis Iqob berhasil ditambahkan', 'success');
+    } catch (err) {
+      iqobFormError = err.message;
+    } finally {
+      iqobFormLoading = false;
+    }
+  }
+
+  function startIqobEdit(p) {
+    iqobEditingId = p.id;
+    iqobEditNama = p.nama;
+    iqobEditPoin = p.poin;
+    iqobEditKeterangan = p.keterangan || '';
+  }
+
+  function cancelIqobEdit() {
+    iqobEditingId = null;
+    iqobEditLoading = false;
+  }
+
+  async function simpanIqobEdit(p) {
+    iqobEditLoading = true;
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/iqob/jenis/${p.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: iqobEditNama.trim(),
+          poin: Number(iqobEditPoin) || 0,
+          keterangan: iqobEditKeterangan.trim(),
+          aktif: p.aktif
+        })
+      });
+      if (!res.ok) throw new Error('Gagal mengupdate iqob');
+      await loadIqob();
+      cancelIqobEdit();
+      toastStore.show('Jenis Iqob berhasil diupdate', 'success');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      iqobEditLoading = false;
+    }
+  }
+
+  async function toggleIqobAktif(p) {
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/iqob/jenis/${p.id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: p.nama,
+          poin: p.poin,
+          keterangan: p.keterangan,
+          aktif: !p.aktif
+        })
+      });
+      if (!res.ok) throw new Error('Gagal mengubah status');
+      await loadIqob();
+      toastStore.show('Status iqob berhasil diubah', 'info');
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function hapusIqob(id) {
+    if (!confirm('Yakin ingin menghapus iqob ini?')) return;
+    iqobDeletingId = id;
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/iqob/jenis/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Gagal menghapus iqob');
+      await loadIqob();
+      toastStore.show('Iqob berhasil dihapus', 'info');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      iqobDeletingId = null;
+    }
+  }
+
+  async function hapusPelanggaran(id) {
+    if (!(await modalStore.show({ message: 'Hapus jenis pelanggaran ini?' }))) return;
+    pelanggaranDeletingId = id;
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/pelanggaran/jenis/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Gagal menghapus');
+      await loadPelanggaran();
+    } catch (err) {
+      toastStore.show(err.message, 'info');
+    } finally {
+      pelanggaranDeletingId = null;
+    }
+  }
 </script>
 
 <svelte:head>
@@ -774,7 +1060,21 @@
           class:active={activeTab === 'keseharian'}
           onclick={() => (activeTab = 'keseharian')}
         >
-          Rapor Keseharian
+          Indikator Keseharian
+        </button>
+        <button
+          class="tab-btn"
+          class:active={activeTab === 'pelanggaran'}
+          onclick={() => (activeTab = 'pelanggaran')}
+        >
+          Pelanggaran
+        </button>
+        <button
+          class="tab-btn"
+          class:active={activeTab === 'iqob'}
+          onclick={() => (activeTab = 'iqob')}
+        >
+          Iqob
         </button>
       {/if}
     </div>
@@ -1364,17 +1664,6 @@
                   class="input"
                 />
               </div>
-              <div class="form-group">
-                <label for="kes-minus">Poin Pengurang (Pelanggaran)</label>
-                <input
-                  id="kes-minus"
-                  type="number"
-                  min="0"
-                  step="1"
-                  bind:value={keseharianFormNilaiPengurang}
-                  class="input"
-                />
-              </div>
             </div>
             <div class="form-actions">
               <button
@@ -1422,7 +1711,6 @@
                 <tr>
                   <th style="width: 50px;">No</th>
                   <th class="col-nama">Nama Indikator</th>
-                  <th>Poin Minus</th>
                   <th class="col-status">Status</th>
                   <th class="col-aksi">Aksi</th>
                 </tr>
@@ -1440,14 +1728,6 @@
                           placeholder="Nama indikator"
                         />
                       </td>
-                      <td>
-                        <input
-                          type="number"
-                          bind:value={keseharianEditNilaiPengurang}
-                          class="input-inline"
-                          style="width: 70px"
-                        />
-                      </td>
                       <td>—</td>
                       <td class="aksi-cell">
                         <button
@@ -1463,9 +1743,6 @@
                       <td class="text-center text-muted">{i + 1}</td>
                       <td class="nama-cell">
                         <span class:text-muted={!ind.aktif}>{ind.nama}</span>
-                      </td>
-                      <td class="text-center">
-                        <span class:text-muted={!ind.aktif}>-{ind.nilai_pengurang || 1}</span>
                       </td>
                       <td class="text-center">
                         <button
@@ -1503,6 +1780,308 @@
           </div>
         {/if}
         <!-- ======= END TAB KESEHARIAN ======= -->
+
+      {:else if activeTab === 'pelanggaran' && hasKeseharian}
+        <!-- ======= TAB PELANGGARAN ======= -->
+        <div class="toolbar">
+          <span class="materi-count">
+            {pelanggaranList.length} jenis pelanggaran ({pelanggaranList.filter((p) => p.aktif).length} aktif)
+          </span>
+          <div class="toolbar-actions" style="display: flex; gap: 8px;">
+            <button class="btn-primary" onclick={() => (showPelanggaranForm = !showPelanggaranForm)}>
+              <Icon name="plus" size={16} /> Tambah Pelanggaran
+            </button>
+          </div>
+        </div>
+
+        {#if showPelanggaranForm}
+          <div class="materi-form">
+            <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+              <div class="form-group">
+                <label for="plg-nama">Nama Pelanggaran</label>
+                <input
+                  id="plg-nama"
+                  type="text"
+                  placeholder="Contoh: Telat disiplin subuh"
+                  bind:value={pelanggaranFormNama}
+                  class="input"
+                />
+              </div>
+              <div class="form-group">
+                <label for="plg-poin">Poin Pelanggaran</label>
+                <input
+                  id="plg-poin"
+                  type="number"
+                  min="0"
+                  step="1"
+                  bind:value={pelanggaranFormPoin}
+                  class="input"
+                />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button
+                class="btn-secondary"
+                onclick={() => { showPelanggaranForm = false; pelanggaranFormNama = ''; pelanggaranFormPoin = 0; pelanggaranFormError = ''; }}
+                disabled={pelanggaranFormLoading}>Batal</button
+              >
+              <button
+                class="btn-primary"
+                onclick={tambahPelanggaran}
+                disabled={pelanggaranFormLoading || !pelanggaranFormNama.trim()}
+              >
+                {pelanggaranFormLoading ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
+          </div>
+        {/if}
+
+        {#if pelanggaranFormError}
+          <div class="alert-error">{pelanggaranFormError}</div>
+        {/if}
+        {#if errorPelanggaran}
+          <div class="alert-error">{errorPelanggaran}</div>
+        {/if}
+
+        {#if loadingPelanggaran}
+          <div class="card-loading">Memuat daftar pelanggaran...</div>
+        {:else if pelanggaranList.length === 0}
+          <div class="empty-state">
+            <Icon name="alertCircle" size={48} />
+            <h3>Belum ada jenis pelanggaran</h3>
+            <p>Tambahkan jenis pelanggaran dan poinnya untuk bisa digunakan dalam pencatatan.</p>
+            <button class="btn-primary" onclick={() => (showPelanggaranForm = true)}>
+              <Icon name="plus" size={16} /> Tambah Pelanggaran Pertama
+            </button>
+          </div>
+        {:else}
+          <div class="table-wrapper">
+            <table class="materi-table">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">No</th>
+                  <th class="col-nama">Nama Pelanggaran</th>
+                  <th>Poin</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-aksi">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each pelanggaranList as plg, i (plg.id)}
+                  <tr class:row-nonaktif={!plg.aktif}>
+                    {#if pelanggaranEditingId === plg.id}
+                      <td class="text-center">{i + 1}</td>
+                      <td>
+                        <input
+                          type="text"
+                          bind:value={pelanggaranEditNama}
+                          class="input-inline input-wide"
+                          placeholder="Nama pelanggaran"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          bind:value={pelanggaranEditPoin}
+                          class="input-inline"
+                          style="width: 70px"
+                        />
+                      </td>
+                      <td>—</td>
+                      <td class="aksi-cell">
+                        <button
+                          class="btn-save"
+                          onclick={() => simpanPelanggaranEdit(plg)}
+                          disabled={pelanggaranEditLoading}
+                        >
+                          {pelanggaranEditLoading ? '...' : 'Simpan'}
+                        </button>
+                        <button class="btn-cancel" onclick={cancelPelanggaranEdit}>Batal</button>
+                      </td>
+                    {:else}
+                      <td class="text-center text-muted">{i + 1}</td>
+                      <td class="nama-cell">
+                        <span class:text-muted={!plg.aktif}>{plg.nama}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class:text-muted={!plg.aktif}>{plg.poin}</span>
+                      </td>
+                      <td class="text-center">
+                        <button
+                          class="toggle-btn"
+                          class:aktif={plg.aktif}
+                          class:nonaktif={!plg.aktif}
+                          onclick={() => togglePelanggaranAktif(plg)}
+                          title={plg.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                        >
+                          {plg.aktif ? 'Aktif' : 'Nonaktif'}
+                        </button>
+                      </td>
+                      <td class="aksi-cell">
+                        <button
+                          class="btn-icon"
+                          title="Edit"
+                          onclick={() => startPelanggaranEdit(plg)}
+                        >
+                          <Icon name="edit2" size={15} />
+                        </button>
+                        <button
+                          class="btn-icon btn-icon-danger"
+                          title="Hapus"
+                          onclick={() => hapusPelanggaran(plg.id)}
+                          disabled={pelanggaranDeletingId === plg.id}
+                        >
+                          <Icon name="trash" size={15} />
+                        </button>
+                      </td>
+                    {/if}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+        <!-- ======= END TAB PELANGGARAN ======= -->
+
+      {:else if activeTab === 'iqob' && hasKeseharian}
+        <!-- ======= TAB IQOB ======= -->
+        <div class="toolbar">
+          <span class="materi-count">
+            {iqobList.length} jenis iqob ({iqobList.filter((p) => p.aktif).length} aktif)
+          </span>
+          <div class="toolbar-actions" style="display: flex; gap: 8px;">
+            <button class="btn-primary" onclick={() => (showIqobForm = !showIqobForm)}>
+              <Icon name="plus" size={16} /> Tambah Iqob
+            </button>
+          </div>
+        </div>
+
+        {#if showIqobForm}
+          <div class="materi-form">
+            <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+              <div class="form-group">
+                <label for="iqob-nama">Nama Iqob</label>
+                <input
+                  id="iqob-nama"
+                  type="text"
+                  placeholder="Contoh: Membersihkan Masjid"
+                  bind:value={iqobFormNama}
+                  class="input"
+                />
+              </div>
+              <div class="form-group">
+                <label for="iqob-poin">Poin (Pengurangan)</label>
+                <input
+                  id="iqob-poin"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  bind:value={iqobFormPoin}
+                  class="input"
+                />
+              </div>
+            </div>
+            <div class="form-group" style="margin-top: 16px;">
+              <label for="iqob-ket">Keterangan (Opsional)</label>
+              <input
+                id="iqob-ket"
+                type="text"
+                placeholder="Penjelasan..."
+                bind:value={iqobFormKeterangan}
+                class="input"
+              />
+            </div>
+            <div class="form-actions" style="margin-top: 16px;">
+              <button
+                class="btn-cancel"
+                onclick={() => { showIqobForm = false; iqobFormError = ''; }}
+              >Batal</button>
+              <button
+                class="btn-save"
+                onclick={tambahIqob}
+                disabled={iqobFormLoading}
+              >
+                {iqobFormLoading ? 'Menyimpan...' : 'Simpan Iqob'}
+              </button>
+            </div>
+            {#if iqobFormError}
+              <div class="alert-error mt-2">{iqobFormError}</div>
+            {/if}
+          </div>
+        {/if}
+
+        {#if errorIqob}
+          <div class="alert-error">{errorIqob}</div>
+        {/if}
+        {#if loadingIqob}
+          <div class="loading-state">Memuat data iqob...</div>
+        {:else if iqobList.length === 0 && !errorIqob}
+          <div class="empty-state">
+            <Icon name="folderOpen" size={48} color="#cbd5e1" />
+            <p>Belum ada konfigurasi jenis iqob.</p>
+            <button class="btn-primary" onclick={() => (showIqobForm = true)}>
+              <Icon name="plus" size={16} /> Tambah Jenis Iqob
+            </button>
+          </div>
+        {:else if iqobList.length > 0}
+          <div class="table-container">
+            <table class="table-modern">
+              <thead>
+                <tr>
+                  <th class="col-nama">Nama Iqob</th>
+                  <th class="col-poin">Poin Pengurang</th>
+                  <th>Keterangan</th>
+                  <th class="col-status">Status</th>
+                  <th class="col-action">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each iqobList as p}
+                  <tr>
+                    {#if iqobEditingId === p.id}
+                      <td><input type="text" class="input" bind:value={iqobEditNama} /></td>
+                      <td><input type="number" step="0.1" class="input" bind:value={iqobEditPoin} /></td>
+                      <td><input type="text" class="input" bind:value={iqobEditKeterangan} /></td>
+                      <td></td>
+                      <td>
+                        <div class="action-buttons">
+                          <button class="btn-save" onclick={() => simpanIqobEdit(p)} disabled={iqobEditLoading}>
+                            <Icon name="check" size={16} />
+                          </button>
+                          <button class="btn-cancel" onclick={cancelIqobEdit}>Batal</button>
+                        </div>
+                      </td>
+                    {:else}
+                      <td>{p.nama}</td>
+                      <td><span class="badge badge-success">-{p.poin}</span></td>
+                      <td>{p.keterangan || '-'}</td>
+                      <td>
+                        <button
+                          class="badge {p.aktif ? 'badge-success' : 'badge-danger'}"
+                          style="cursor:pointer; border:none;"
+                          onclick={() => toggleIqobAktif(p)}
+                          title="Klik untuk mengubah status"
+                        >
+                          {p.aktif ? 'Aktif' : 'Nonaktif'}
+                        </button>
+                      </td>
+                      <td>
+                        <div class="action-buttons">
+                          <button class="btn-icon text-blue" onclick={() => startIqobEdit(p)} title="Edit Iqob">
+                            <Icon name="edit" size={18} />
+                          </button>
+                          <button class="btn-icon text-red" onclick={() => hapusIqob(p.id)} disabled={iqobDeletingId === p.id} title="Hapus Iqob">
+                            <Icon name="trash" size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    {/if}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
       {/if}
     {/if}
     <!-- Akhir else (!hasTahfiz && !hasDiniyah) -->

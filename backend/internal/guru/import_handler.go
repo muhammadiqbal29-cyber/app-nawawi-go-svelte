@@ -296,7 +296,7 @@ func ImportGuruExcelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		newGuru := models.Guru{
-			UserID:       int64(newUser.ID), /* #nosec G115 */
+			UserID:       newUser.ID,
 			NamaLengkap:  getVal("nama lengkap"),
 			NIK:          nikPtr,
 			NoHP:         noHpPtr,

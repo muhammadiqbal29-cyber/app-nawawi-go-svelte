@@ -66,10 +66,10 @@
       {/if}
 
       {#if hasRapor}
-        <li class:active={currentPath.startsWith('/guru/rapot')}>
-          <button class="nav-link" onclick={() => goto('/guru/rapot')}>
+        <li class:active={currentPath.startsWith('/guru/rapor')}>
+          <button class="nav-link" onclick={() => goto('/guru/rapor')}>
             <Icon name="fileText" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Rapot</span>
+            <span class="label" class:hidden={!isOpen}>Rapor</span>
           </button>
         </li>
       {/if}

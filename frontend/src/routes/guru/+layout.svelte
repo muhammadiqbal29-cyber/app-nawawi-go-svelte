@@ -25,7 +25,7 @@
 
       // Fetch all schools for admin
       fetch(`${apiUrl}/api/sekolah`, { credentials: 'include' })
-        .then((res) => res.json())
+        .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
         .then((data) => {
           if (data && data.data) {
             guruState.sekolahList = data.data;
@@ -91,7 +91,17 @@
               const map = {};
               guruState.sekolahList.forEach((s) => {
                 // Get features assigned to the guru for this school
-                let f = guruSchoolAkses[s.id] || [];
+                let guruFeatures = guruSchoolAkses[s.id] || [];
+                
+                // Get features enabled for the school itself
+                let schoolFeatures = [];
+                try {
+                  if (s.fitur) schoolFeatures = JSON.parse(s.fitur);
+                } catch {}
+
+                // Intersect guru features with school features (school features act as a master toggle)
+                let f = guruFeatures.filter(feat => schoolFeatures.includes(feat));
+
                 // Ensure cetak_rapor is always available
                 if (!f.includes('cetak_rapor')) f.push('cetak_rapor');
                 map[s.id] = f;
@@ -132,7 +142,7 @@
 
     // Fetch Tahun Ajaran
     fetch(`${apiUrl}/api/tahun-ajaran`, { credentials: 'include' })
-      .then((res) => res.json())
+      .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
       .then((data) => {
         if (data && data.length > 0) {
           const aktif = data.find((t) => t.status === 'Active');
@@ -153,7 +163,7 @@
   }
 
   function onLogout() {
-    fetch(`${import.meta.env.VITE_API_URL}/api/logout`, {
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/logout`, {
       method: 'POST',
       credentials: 'include'
     }).finally(() => {
@@ -168,8 +178,8 @@
       ? 'Nilai Diniyah'
       : currentPath.startsWith('/guru/input-nilai')
         ? 'Input Nilai'
-        : currentPath.startsWith('/guru/rapot')
-          ? 'Rapot'
+        : currentPath.startsWith('/guru/rapor')
+          ? 'Rapor'
           : currentPath.startsWith('/guru/materi-tahfiz')
             ? 'Konfigurasi Materi'
             : 'Beranda Guru'

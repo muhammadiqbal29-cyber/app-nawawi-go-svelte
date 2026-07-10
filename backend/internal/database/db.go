@@ -79,6 +79,11 @@ func migrateAndSeed() {
 		&models.SesiKeseharianDetail{},
 		&models.NilaiAkhirKeseharian{},
 		&models.CatatanNgajiSiswa{},
+		&models.JenisPelanggaran{},
+		&models.CatatanPelanggaran{},
+		&models.JenisIqob{},
+		&models.CatatanIqob{},
+		&models.CatatanRapor{},
 	)
 	if err != nil {
 		slog.Error("Gagal melakukan migrasi tabel", "error", err)

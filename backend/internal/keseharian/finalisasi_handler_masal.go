@@ -38,14 +38,15 @@ func GetRaporKeseharianMasalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var results []map[string]interface{}
-
-	type Pelanggaran struct {
+	type PelanggaranView struct {
 		Tanggal     string  `json:"tanggal"`
 		Pelanggaran string  `json:"pelanggaran"`
 		Poin        float64 `json:"poin"`
 		Iqob        string  `json:"iqob"`
+		Pemutihan   float64 `json:"pemutihan"`
 	}
+
+	var results []map[string]interface{}
 
 	for _, riwayat := range riwayatList {
 		var siswa models.Siswa
@@ -54,18 +55,19 @@ func GetRaporKeseharianMasalHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var indikators []models.IndikatorKeseharian
-		database.DB.Where("sekolah_id = ?", riwayat.SekolahID).Order("id ASC").Find(&indikators)
+		database.DB.Where("sekolah_id = ? AND aktif = ?", riwayat.SekolahID, true).Order("id ASC").Find(&indikators)
 
 		var rekaps []models.NilaiAkhirKeseharian
 		database.DB.Where("siswa_id = ? AND tahun_ajaran_id = ? AND semester_id = ?", siswa.ID, taID, semID).Find(&rekaps)
 
-		var riwayatPelanggaran []Pelanggaran
+		// Ambil pelanggaran dari tabel baru
+		var riwayatPelanggaran []PelanggaranView
 		queryPelanggaran := `
-			SELECT s.tanggal, i.nama as pelanggaran, i.nilai_pengurang as poin, s.catatan as iqob
-			FROM sesi_keseharians s
-			JOIN indikator_keseharians i ON s.indikator_id = i.id
-			WHERE s.siswa_id = ? AND s.tahun_ajaran_id = ? AND s.semester_id = ?
-			ORDER BY s.tanggal DESC
+			SELECT cp.tanggal, jp.nama as pelanggaran, cp.poin, cp.iqob, cp.pemutihan
+			FROM catatan_pelanggarans cp
+			JOIN jenis_pelanggarans jp ON cp.jenis_pelanggaran_id = jp.id
+			WHERE cp.siswa_id = ? AND cp.tahun_ajaran_id = ? AND cp.semester_id = ?
+			ORDER BY cp.tanggal ASC
 		`
 		database.DB.Raw(queryPelanggaran, siswa.ID, taID, semID).Scan(&riwayatPelanggaran)
 
@@ -78,12 +80,30 @@ func GetRaporKeseharianMasalHandler(w http.ResponseWriter, r *http.Request) {
 		var semester models.Semester
 		database.DB.First(&semester, semID)
 
+		// Ambil iqob dari tabel baru
+		type IqobView struct {
+			Tanggal    string  `json:"tanggal"`
+			NamaIqob   string  `json:"nama_iqob"`
+			Poin       float64 `json:"poin"`
+			Keterangan string  `json:"keterangan"`
+		}
+		var riwayatIqob []IqobView
+		queryIqob := `
+			SELECT ci.tanggal, ji.nama as nama_iqob, ci.poin, ci.keterangan
+			FROM catatan_iqobs ci
+			JOIN jenis_iqobs ji ON ci.jenis_iqob_id = ji.id
+			WHERE ci.siswa_id = ? AND ci.tahun_ajaran_id = ? AND ci.semester_id = ?
+			ORDER BY ci.tanggal ASC
+		`
+		database.DB.Raw(queryIqob, siswa.ID, taID, semID).Scan(&riwayatIqob)
+
 		results = append(results, map[string]interface{}{
 			"siswa":       siswa,
 			"riwayat":     riwayat,
 			"indikators":  indikators,
 			"rekaps":      rekaps,
 			"pelanggaran": riwayatPelanggaran,
+			"iqob":        riwayatIqob,
 			"sekolah":     sekolah,
 			"kelas":       kelas,
 			"semester":    semester,

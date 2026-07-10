@@ -103,7 +103,7 @@ func CreateGuruHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		guru := models.Guru{
-			UserID:       int64(user.ID), /* #nosec G115 */
+			UserID:       user.ID,
 			NamaLengkap:  req.NamaLengkap,
 			NIK:          nikPtr,
 			NoHP:         noHpPtr,
