@@ -12,7 +12,28 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
+	"strings"
 )
+
+func resolveFilePath(filename string) string {
+	// Prioritas 1: Cek di current working directory (untuk dev / go run)
+	if _, err := os.Stat(filename); err == nil {
+		return filename
+	}
+
+	// Prioritas 2: Fallback ke direktori tempat binary/executable berjalan (production / systemd)
+	exePath, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exePath)
+		absPath := filepath.Join(exeDir, filename)
+		if _, err := os.Stat(absPath); err == nil {
+			return absPath
+		}
+	}
+
+	// Default fallback
+	return filename
+}
 
 // UploadToGDrive mengunggah file terenkripsi ke Google Drive menggunakan OAuth2.
 func UploadToGDrive(filePath string) error {
@@ -26,9 +47,10 @@ func UploadToGDrive(filePath string) error {
 	ctx := context.Background()
 
 	// 1. Baca credentials
-	b, err := os.ReadFile("oauth_credentials.json")
+	credPath := resolveFilePath("oauth_credentials.json")
+	b, err := os.ReadFile(credPath)
 	if err != nil {
-		return fmt.Errorf("gagal membaca oauth_credentials.json: %v", err)
+		return fmt.Errorf("gagal membaca %s: %v", credPath, err)
 	}
 	config, err := google.ConfigFromJSON(b, drive.DriveScope)
 	if err != nil {
@@ -36,9 +58,10 @@ func UploadToGDrive(filePath string) error {
 	}
 
 	// 2. Baca token.json
-	tokFile, err := os.Open("token.json")
+	tokenPath := resolveFilePath("token.json")
+	tokFile, err := os.Open(tokenPath)
 	if err != nil {
-		return fmt.Errorf("gagal membuka token.json (Jalankan scripts/generate_token.go dulu): %v", err)
+		return fmt.Errorf("gagal membuka %s (Jalankan scripts/generate_token.go dulu): %v", tokenPath, err)
 	}
 	defer tokFile.Close()
 	tok := &oauth2.Token{}

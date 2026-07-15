@@ -83,14 +83,14 @@
 </script>
 
 <svelte:head>
-  <title>Rapor Ujian Tahfiz - SIAKAD</title>
+  <title>Rapor Ujian Tahfiz (Versi 1) - SIAKAD</title>
 </svelte:head>
 
 <div class="page-container">
   <div class="page-header">
     <div>
       <p class="eyebrow">Rapor</p>
-      <h1>Rapor Ujian Tahfiz</h1>
+      <h1>Rapor Ujian Tahfiz (Versi 1)</h1>
       <p class="subtitle">Pilih kelas lalu pilih siswa untuk melihat rapor ujian tahfiz.</p>
     </div>
   </div>

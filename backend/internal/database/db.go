@@ -42,7 +42,7 @@ func InitDB() {
 	// Atur Connection Pool agar database tidak hang jika di-bombardir test Playwright
 	sqlDB, err := DB.DB()
 	if err == nil {
-		sqlDB.SetMaxIdleConns(10)
+		sqlDB.SetMaxIdleConns(100)
 		sqlDB.SetMaxOpenConns(100)
 		sqlDB.SetConnMaxLifetime(time.Hour)
 	}
@@ -52,6 +52,10 @@ func InitDB() {
 }
 
 func migrateAndSeed() {
+	// Fix: Drop incompatible foreign key constraints before AutoMigrate
+	// MySQL Error 3780 occurs when column types don't match between FK pairs
+	fixForeignKeyMismatch()
+
 	// AutoMigrate
 	err := DB.AutoMigrate(
 		&models.User{},
@@ -66,6 +70,8 @@ func migrateAndSeed() {
 		&models.Nilai{},
 		&models.NilaiTahfiz{},
 		&models.NilaiTahfizDetail{},
+		&models.NilaiTahfizV2{},
+		&models.NilaiTahfizDetailV2{},
 		&models.MateriTahfiz{},
 		&models.Guru{},
 		&models.PresensiGuru{},
@@ -157,3 +163,81 @@ func seedKonfigurasiPresensi() {
 		}
 	}
 }
+
+// fixForeignKeyMismatch drops incompatible FK constraints and alters columns
+// from int(11) to bigint so they match GORM's default mapping for Go int.
+// This is idempotent and safe to run on every startup.
+func fixForeignKeyMismatch() {
+	// Tables whose primary key (id) may need upgrading from int to bigint
+	pkTables := []string{"users", "gurus"}
+
+	for _, table := range pkTables {
+		// Check if the PK column is already bigint
+		var colType string
+		DB.Raw("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = 'id'", table).Scan(&colType)
+		if colType == "" || colType == "bigint" {
+			continue // already correct or table doesn't exist yet
+		}
+
+		slog.Info("Fixing int->bigint mismatch", "table", table, "current_type", colType)
+
+		// Find ALL foreign keys that reference this table's id column
+		type fkInfo struct {
+			TableName      string
+			ConstraintName string
+			ColumnName     string
+		}
+		var referencingFKs []fkInfo
+		DB.Raw(`SELECT TABLE_NAME, CONSTRAINT_NAME, COLUMN_NAME
+			FROM information_schema.KEY_COLUMN_USAGE
+			WHERE TABLE_SCHEMA = DATABASE()
+			AND REFERENCED_TABLE_NAME = ?
+			AND REFERENCED_COLUMN_NAME = 'id'`, table).Scan(&referencingFKs)
+
+		// Also find FKs ON this table (e.g., gurus -> users)
+		var ownFKs []fkInfo
+		DB.Raw(`SELECT TABLE_NAME, CONSTRAINT_NAME, COLUMN_NAME
+			FROM information_schema.KEY_COLUMN_USAGE
+			WHERE TABLE_SCHEMA = DATABASE()
+			AND TABLE_NAME = ?
+			AND REFERENCED_TABLE_NAME IS NOT NULL`, table).Scan(&ownFKs)
+
+		// Drop all referencing FKs
+		for _, fk := range referencingFKs {
+			slog.Info("Dropping referencing FK", "table", fk.TableName, "constraint", fk.ConstraintName)
+			DB.Exec(fmt.Sprintf("ALTER TABLE `%s` DROP FOREIGN KEY `%s`", fk.TableName, fk.ConstraintName))
+		}
+
+		// Drop own FKs
+		for _, fk := range ownFKs {
+			slog.Info("Dropping own FK", "table", fk.TableName, "constraint", fk.ConstraintName)
+			DB.Exec(fmt.Sprintf("ALTER TABLE `%s` DROP FOREIGN KEY `%s`", fk.TableName, fk.ConstraintName))
+		}
+
+		// Alter PK column to bigint
+		slog.Info("Altering PK to bigint", "table", table)
+		if err := DB.Exec(fmt.Sprintf("ALTER TABLE `%s` MODIFY COLUMN `id` bigint NOT NULL AUTO_INCREMENT", table)).Error; err != nil {
+			slog.Warn("Failed to alter PK", "table", table, "error", err)
+			continue
+		}
+
+		// Alter all referencing FK columns to bigint too
+		for _, fk := range referencingFKs {
+			var fkColType string
+			DB.Raw("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?", fk.TableName, fk.ColumnName).Scan(&fkColType)
+			if fkColType != "" && fkColType != "bigint" {
+				slog.Info("Altering FK column to bigint", "table", fk.TableName, "column", fk.ColumnName)
+				// Check if column is nullable
+				var isNullable string
+				DB.Raw("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?", fk.TableName, fk.ColumnName).Scan(&isNullable)
+				nullStr := "NOT NULL"
+				if isNullable == "YES" {
+					nullStr = "NULL"
+				}
+				DB.Exec(fmt.Sprintf("ALTER TABLE `%s` MODIFY COLUMN `%s` bigint %s", fk.TableName, fk.ColumnName, nullStr))
+			}
+		}
+		// AutoMigrate will re-create the FK constraints
+	}
+}
+

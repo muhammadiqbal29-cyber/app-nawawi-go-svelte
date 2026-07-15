@@ -142,14 +142,16 @@
   }
 
   function getFiturLabel(id) {
-    if (id === 'input_tahfiz') return 'Input Nilai Tahfiz';
+    if (id === 'input_tahfiz') return 'Input Nilai Tahfiz (Versi 1)';
+    if (id === 'input_tahfiz_v2') return 'Input Nilai Tahfiz (Versi 2)';
     if (id === 'input_diniyah') return 'Input Nilai Diniyah';
     if (id === 'konfigurasi_materi') return 'Konfigurasi Materi';
     return id;
   }
 
   function getFiturDesc(id) {
-    if (id === 'input_tahfiz') return 'Bisa menginput dan mengubah nilai hafalan/ziyadah siswa.';
+    if (id === 'input_tahfiz') return 'Bisa menginput dan mengubah nilai tahfiz siswa (Versi 1).';
+    if (id === 'input_tahfiz_v2') return 'Bisa menginput dan mengubah nilai tahfiz siswa (Versi 2).';
     if (id === 'input_diniyah')
       return 'Bisa menginput dan mengubah nilai mata pelajaran diniyah siswa.';
     if (id === 'konfigurasi_materi')

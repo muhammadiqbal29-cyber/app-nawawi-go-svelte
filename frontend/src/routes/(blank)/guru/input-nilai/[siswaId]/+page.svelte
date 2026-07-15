@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import Icon from '$lib/components/ui/Icon.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const mataPelajaran = 'Tahfiz';
@@ -219,7 +220,11 @@
 </svelte:head>
 
 <main class="sheet-page">
-  <button type="button" class="back-button" onclick={() => goto(backUrl)}>Kembali</button>
+  <div class="back-button-wrapper">
+    <button type="button" class="back-button" onclick={() => goto(backUrl)}>
+      <Icon name="arrowLeft" size={16} /> Kembali
+    </button>
+  </div>
 
   <section class="sheet-header">
     <div>
@@ -411,17 +416,34 @@
     margin: 0 auto 12px;
   }
 
-  .back-button {
-    display: block;
+  .back-button-wrapper {
     max-width: 1320px;
-    margin: 0 auto 10px;
-    border: 1px solid #9ca3af;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     background: #fff;
-    color: #111827;
-    padding: 6px 12px;
-    font: inherit;
-    font-size: 12px;
+    color: #475569;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 13px;
     cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+  }
+
+  .back-button:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
   }
 
   .sheet-header h1 {
@@ -437,14 +459,17 @@
   }
 
   .meta-box {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 2px;
-    min-width: 140px;
-    border: 1px solid #9ca3af;
+    min-width: 160px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
     background: #fff;
-    padding: 8px 10px;
+    padding: 12px 16px;
     text-align: right;
     font-size: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   .meta-box span {
@@ -473,7 +498,9 @@
     margin: 0 auto;
     overflow: auto;
     background: #fff;
-    border: 1px solid #9ca3af;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
 
   .excel-table {
@@ -481,13 +508,13 @@
     min-width: 1100px;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .excel-table th,
   .excel-table td {
-    border: 1px solid #9ca3af;
-    height: 32px;
+    border: 1px solid #cbd5e1;
+    height: 36px;
     padding: 0;
   }
 

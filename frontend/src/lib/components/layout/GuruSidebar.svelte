@@ -6,6 +6,7 @@
 
   // Fitur dari sekolah yang sedang aktif (fiturGuru di-passing dari layout)
   let hasInput = $derived(fiturGuru.includes('input_tahfiz'));
+  let hasInputV2 = $derived(fiturGuru.includes('input_tahfiz_v2'));
   let hasRapor = $derived(fiturGuru.includes('cetak_rapor'));
   let hasDiniyah = $derived(fiturGuru.includes('input_diniyah'));
   let hasKonfigurasiMateri = $derived(fiturGuru.includes('konfigurasi_materi'));
@@ -30,10 +31,19 @@
       </li>
 
       {#if hasInput}
-        <li class:active={currentPath.startsWith('/guru/input-nilai')}>
+        <li class:active={currentPath.startsWith('/guru/input-nilai') && !currentPath.startsWith('/guru/input-nilai-v2')}>
           <button class="nav-link" onclick={() => goto('/guru/input-nilai')}>
             <Icon name="edit" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Nilai Tahfiz</span>
+            <span class="label" class:hidden={!isOpen}>Input Nilai Tahfiz (Versi 1)</span>
+          </button>
+        </li>
+      {/if}
+
+      {#if hasInputV2}
+        <li class:active={currentPath.startsWith('/guru/input-nilai-v2')}>
+          <button class="nav-link" onclick={() => goto('/guru/input-nilai-v2')}>
+            <Icon name="checkCircle" size={20} class="icon" />
+            <span class="label" class:hidden={!isOpen}>Input Nilai Tahfiz (Versi 2)</span>
           </button>
         </li>
       {/if}

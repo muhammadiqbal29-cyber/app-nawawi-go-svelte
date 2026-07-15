@@ -17,7 +17,7 @@
 
   const allReportCards = [
     {
-      title: 'Rapor Ujian Tahfiz',
+      title: 'Rapor Ujian Tahfiz (Versi 1)',
       description: 'Lihat rapor hasil ujian tahfiz siswa dan unduh cetakannya.',
       href: '/guru/rapor/ujian-tahfiz',
       icon: 'award',

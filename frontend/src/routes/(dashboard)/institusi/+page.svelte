@@ -667,7 +667,11 @@
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
               <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
                 <input type="checkbox" bind:group={sekolahForm.fitur} value="input_tahfiz" />
-                Input Nilai Tahfiz
+                Input Nilai Tahfiz (Versi 1)
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                <input type="checkbox" bind:group={sekolahForm.fitur} value="input_tahfiz_v2" />
+                Input Nilai Tahfiz (Versi 2)
               </label>
               <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
                 <input type="checkbox" bind:group={sekolahForm.fitur} value="input_diniyah" />

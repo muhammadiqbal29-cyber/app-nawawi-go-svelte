@@ -221,6 +221,10 @@ func main() {
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz", nilai.GetNilaiTahfizBySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tahfiz-masal", nilai.GetNilaiTahfizMasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz/detail", nilai.AutosaveNilaiTahfizDetailHandler).Methods("POST")
+	
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2", nilai.GetNilaiTahfizV2BySiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2/detail", nilai.AutosaveNilaiTahfizDetailV2Handler).Methods("POST")
+
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.GetRiwayatTahfizHarianHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.PostSetoranTahfizHarianHandler).Methods("POST")
 	guruRouter.HandleFunc("/nilai", nilai.CreateNilaiHandler).Methods("POST")

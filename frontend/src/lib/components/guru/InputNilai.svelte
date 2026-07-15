@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
 
-  let { sekolahId = 1 } = $props();
+  let { sekolahId = 1, isV2 = false } = $props();
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -100,16 +100,16 @@
       kelas: kelasLabel(kelas),
       rombel: kelas.rombel || '__kosong__',
       sekolah_id: String(sekolahId),
-      jenis_penilaian: selectedJenisPenilaian()
     });
-    return `/guru/input-nilai/kelas/${kelas.id}?${params.toString()}`;
+    const basePath = isV2 ? '/guru/input-nilai-v2' : '/guru/input-nilai';
+    return `${basePath}/kelas/${kelas.id}?${params.toString()}`;
   }
 </script>
 
 <div class="page-container">
   <div class="page-header-actions">
     <div>
-      <h1 class="page-title">Input Nilai</h1>
+      <h1 class="page-title">{isV2 ? 'Input Nilai Tahfiz (Versi 2)' : 'Input Nilai (Versi 1)'}</h1>
       <p class="page-subtitle">Pilih kelas terlebih dahulu, lalu pilih siswa yang akan dinilai.</p>
     </div>
   </div>

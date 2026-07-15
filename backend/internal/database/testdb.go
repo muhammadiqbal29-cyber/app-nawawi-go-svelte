@@ -36,6 +36,8 @@ func SetupTestDB() *gorm.DB {
 		&models.Nilai{},
 		&models.NilaiTahfiz{},
 		&models.NilaiTahfizDetail{},
+		&models.NilaiTahfizV2{},
+		&models.NilaiTahfizDetailV2{},
 		&models.SetoranTahfizHarian{},
 		&models.MapelDiniyah{},
 		&models.NilaiDiniyah{},

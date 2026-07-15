@@ -185,6 +185,41 @@ type NilaiTahfizDetail struct {
 	UpdatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
+type NilaiTahfizV2 struct {
+	ID                    int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SiswaID               int       `gorm:"not null;index;uniqueIndex:idx_nilai_tahfiz_v2_scope" json:"siswa_id"`
+	SekolahID             int       `gorm:"not null;index;uniqueIndex:idx_nilai_tahfiz_v2_scope" json:"sekolah_id"`
+	TahunAjaranID         int       `gorm:"not null;index;uniqueIndex:idx_nilai_tahfiz_v2_scope" json:"tahun_ajaran_id"`
+	SemesterID            int       `gorm:"not null;index;uniqueIndex:idx_nilai_tahfiz_v2_scope" json:"semester_id"`
+	JenisPenilaian        string    `gorm:"type:varchar(50);not null;default:'semester';uniqueIndex:idx_nilai_tahfiz_v2_scope" json:"jenis_penilaian"`
+	MataPelajaran         string    `gorm:"type:varchar(100);not null;default:'Tahfiz';uniqueIndex:idx_nilai_tahfiz_v2_scope" json:"mata_pelajaran"`
+	JumlahMateri          int       `gorm:"type:int;not null;default:0" json:"jumlah_materi"`
+	TotalPoin             int       `gorm:"type:int;not null;default:0" json:"total_poin"`
+	NilaiAkhir            float64   `gorm:"type:decimal(5,2);not null;default:0" json:"nilai_akhir"`
+	Predikat              string    `gorm:"type:varchar(20)" json:"predikat"`
+	Catatan               string    `gorm:"type:text" json:"catatan"`
+	PembaginYangDigunakan int       `gorm:"type:int;not null;default:0" json:"pembagi_yang_digunakan"`
+	CreatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+	Details []NilaiTahfizDetailV2 `gorm:"foreignKey:NilaiTahfizV2ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"details,omitempty"`
+}
+
+type NilaiTahfizDetailV2 struct {
+	ID                  int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	NilaiTahfizV2ID     int       `gorm:"not null;index;uniqueIndex:idx_nilai_tahfiz_detail_v2" json:"nilai_tahfiz_v2_id"`
+	NamaMateri          string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_nilai_tahfiz_detail_v2" json:"nama_materi"`
+	Juz                 int       `gorm:"type:int;not null;default:0" json:"juz"`
+	Urutan              int       `gorm:"type:int;not null;default:0" json:"urutan"`
+	SkorKelancaran      *int      `gorm:"type:int;default:null" json:"skor_kelancaran"`
+	SkorTajwid          *int      `gorm:"type:int;default:null" json:"skor_tajwid"`
+	SkorMakharijulHuruf *int      `gorm:"type:int;default:null" json:"skor_makharijul_huruf"`
+	TotalPoin           int       `gorm:"type:int;not null;default:0" json:"total_poin"`
+	StatusSetor         string    `gorm:"type:varchar(30);not null;default:'draft'" json:"status_setor"`
+	CreatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
 type MateriTahfiz struct {
 	ID         int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SekolahID  int       `gorm:"not null;index;uniqueIndex:idx_materi_tahfiz_scope" json:"sekolah_id"`
@@ -198,7 +233,7 @@ type MateriTahfiz struct {
 
 type Guru struct {
 	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
-	UserID       int   `gorm:"type:int(11);uniqueIndex;not null" json:"user_id"`
+	UserID       int   `gorm:"uniqueIndex;not null" json:"user_id"`
 	NamaLengkap  string    `gorm:"type:varchar(100);not null" json:"nama_lengkap"`
 	NIK          *string   `gorm:"type:varchar(50);uniqueIndex" json:"nik"`
 	NoHP         *string   `gorm:"type:varchar(20)" json:"no_hp"`
@@ -250,7 +285,7 @@ type SetoranTahfizHarian struct {
 type Halaqah struct {
 	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SekolahID     int       `gorm:"not null;index" json:"sekolah_id"`
-	GuruID        int       `gorm:"type:int(11);not null;index" json:"guru_id"`
+	GuruID        int       `gorm:"not null;index" json:"guru_id"`
 	TahunAjaranID int       `gorm:"not null;index" json:"tahun_ajaran_id"`
 	SemesterID    int       `gorm:"not null;index" json:"semester_id"`
 	NamaHalaqah   string    `gorm:"type:varchar(150);not null" json:"nama_halaqah"`
