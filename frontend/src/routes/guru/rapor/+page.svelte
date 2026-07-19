@@ -5,6 +5,7 @@
   onMount(() => {
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('rapor_ujian_tahfiz_kelas');
+      sessionStorage.removeItem('rapor_ujian_tahfiz_v2_kelas');
       sessionStorage.removeItem('rapor_diniyah_kelas');
       sessionStorage.removeItem('rapor_keseharian_kelas');
     }
@@ -22,6 +23,13 @@
       href: '/guru/rapor/ujian-tahfiz',
       icon: 'award',
       feature: 'input_tahfiz'
+    },
+    {
+      title: 'Rapor Ujian Tahfiz (Versi 2)',
+      description: 'Lihat rapor tahfiz V2 dengan 3 kategori penilaian (Kelancaran, Tajwid, Makharij).',
+      href: '/guru/rapor/ujian-tahfiz-v2',
+      icon: 'award',
+      feature: 'input_tahfiz_v2'
     },
     {
       title: "Rapor Ujian Tasmi'",

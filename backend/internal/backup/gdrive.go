@@ -35,6 +35,7 @@ func resolveFilePath(filename string) string {
 }
 
 // UploadToGDrive mengunggah file terenkripsi ke Google Drive menggunakan OAuth2.
+// Token akan di-refresh secara otomatis dan disimpan kembali ke token.json.
 func UploadToGDrive(filePath string) error {
 	folderID := os.Getenv("GDRIVE_FOLDER_ID")
 
@@ -62,14 +63,17 @@ func UploadToGDrive(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("gagal membuka %s (Jalankan scripts/generate_token.go dulu): %v", tokenPath, err)
 	}
-	defer tokFile.Close()
 	tok := &oauth2.Token{}
 	if err = json.NewDecoder(tokFile).Decode(tok); err != nil {
+		tokFile.Close()
 		return fmt.Errorf("gagal parse token.json: %v", err)
 	}
+	tokFile.Close()
 
-	// 3. Buat service drive
-	client := config.Client(ctx, tok)
+	// 3. Buat token source yang auto-refresh & simpan token baru ke disk
+	tokenSource := config.TokenSource(ctx, tok)
+	client := oauth2.NewClient(ctx, tokenSource)
+
 	srv, err := drive.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return fmt.Errorf("gagal inisialisasi google drive service: %v", err)
@@ -96,10 +100,31 @@ func UploadToGDrive(filePath string) error {
 
 	slog.Info("Backup berhasil diunggah ke Google Drive", "filename", baseName)
 
-	// 4. Proses Auto-Cleanup (Batasi maksimal file)
+	// 4. Simpan token terbaru ke disk (access_token baru setelah auto-refresh)
+	newToken, err := tokenSource.Token()
+	if err == nil && newToken.AccessToken != tok.AccessToken {
+		if saveErr := saveTokenToFile(tokenPath, newToken); saveErr != nil {
+			slog.Warn("Gagal menyimpan token yang sudah di-refresh", "error", saveErr)
+		} else {
+			slog.Info("Token OAuth2 berhasil di-refresh dan disimpan otomatis")
+		}
+	}
+
+	// 5. Proses Auto-Cleanup (Batasi maksimal file)
 	cleanupGDriveBackups(srv, folderID)
 
 	return nil
+}
+
+// saveTokenToFile menyimpan token OAuth2 ke file JSON.
+func saveTokenToFile(path string, token *oauth2.Token) error {
+	/* #nosec G304 */
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("gagal membuat file token: %v", err)
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(token)
 }
 
 func cleanupGDriveBackups(srv *drive.Service, folderID string) {
