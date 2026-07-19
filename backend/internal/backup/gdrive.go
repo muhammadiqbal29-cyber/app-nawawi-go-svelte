@@ -12,7 +12,6 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
-	"strings"
 )
 
 func resolveFilePath(filename string) string {
