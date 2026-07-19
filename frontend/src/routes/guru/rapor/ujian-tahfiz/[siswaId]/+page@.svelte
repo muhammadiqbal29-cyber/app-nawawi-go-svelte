@@ -20,6 +20,7 @@
       year: 'numeric'
     })
   );
+  let customKota = $state('Jakarta');
   let customGuruPembimbing = $state('Ust. Muhammad Rasyid, S.Pd.I');
   let customSubJudul = $state("Evaluasi Pembelajaran Juz 30 (Juz 'Amma)");
 
@@ -139,6 +140,12 @@
   <div
     style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"
   >
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Kota:
+      <input type="text" class="form-input" bind:value={customKota} />
+    </label>
     <label
       style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
     >
@@ -303,7 +310,7 @@
             <div class="signature-line">( ____________________ )</div>
           </div>
           <div>
-            <p id="print-date">Jakarta, {customTanggalRapor}</p>
+            <p id="print-date">{customKota}, {customTanggalRapor}</p>
             <p class="signature-title">Guru Pembimbing Tahfiz</p>
             <div class="signature-line">( {customGuruPembimbing} )</div>
           </div>

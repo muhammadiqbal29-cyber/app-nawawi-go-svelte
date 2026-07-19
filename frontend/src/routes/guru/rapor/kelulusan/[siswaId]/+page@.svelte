@@ -13,11 +13,15 @@
   let nisn = $derived($page.url.searchParams.get('nisn') || '-');
   let kelas = $derived($page.url.searchParams.get('kelas') || '-');
   let selectedKelasId = $derived($page.url.searchParams.get('selectedKelasId') || '');
-  let tanggalCetak = new Date().toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  let customKota = $state('Jakarta');
+  let customTanggalCetak = $state(
+    new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  );
+  let customGuruPembimbing = $state('Ust. Muhammad Rasyid, S.Pd.I');
 
   let sekolah = $state(null);
   let nilaiHeader = $state(null);
@@ -169,6 +173,35 @@
   </button>
 </div>
 
+<div
+  class="settings-box no-print"
+  style="max-width: 210mm; margin: 0 auto 1.5rem; background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;"
+>
+  <h4 style="margin-top: 0;">Pengaturan Cetak (Tidak ikut terprint)</h4>
+  <div
+    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"
+  >
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Kota:
+      <input type="text" class="form-input" bind:value={customKota} />
+    </label>
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Tanggal Cetak:
+      <input type="text" class="form-input" bind:value={customTanggalCetak} />
+    </label>
+    <label
+      style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+    >
+      Guru Pembimbing Tahfiz:
+      <input type="text" class="form-input" bind:value={customGuruPembimbing} />
+    </label>
+  </div>
+</div>
+
 <div class="page">
   <div>
     <div class="report-header">
@@ -312,9 +345,9 @@
             <div class="signature-line">( ____________________ )</div>
           </div>
           <div>
-            <p id="print-date">Jakarta, {tanggalCetak}</p>
+            <p id="print-date">{customKota}, {customTanggalCetak}</p>
             <p class="signature-title">Guru Pembimbing Tahfiz</p>
-            <div class="signature-line">( Ust. Muhammad Rasyid, S.Pd.I )</div>
+            <div class="signature-line">( {customGuruPembimbing} )</div>
           </div>
         </div>
       </div>
@@ -324,6 +357,13 @@
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa&family=Cinzel:wght@600&family=Inter:wght@400;600;700&display=swap');
+
+  .form-input {
+    padding: 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+  }
 
   @page {
     size: A4;
