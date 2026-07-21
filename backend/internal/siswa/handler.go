@@ -106,18 +106,18 @@ func GetSiswaBySekolahHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, res)
 }
 
-// CheckNISNHandler untuk flow Magic Pull
-func CheckNISNHandler(w http.ResponseWriter, r *http.Request) {
+// CheckNISHandler untuk flow Magic Pull berdasarkan NIS
+func CheckNISHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	nisn := vars["nisn"]
+	nis := vars["nis"]
 
 	var siswa models.Siswa
-	if err := database.DB.WithContext(r.Context()).Where("nisn = ?", nisn).First(&siswa).Error; err != nil {
+	if err := database.DB.WithContext(r.Context()).Where("nis = ?", nis).First(&siswa).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			response.Error(w, http.StatusNotFound, "Data siswa tidak ditemukan", err)
 			return
 		}
-		response.Error(w, http.StatusInternalServerError, "Gagal mengecek NISN", err)
+		response.Error(w, http.StatusInternalServerError, "Gagal mengecek NIS", err)
 		return
 	}
 
@@ -156,7 +156,7 @@ func CreateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Create(&siswa).Error; err != nil {
 		tx.Rollback()
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			response.Error(w, http.StatusConflict, "NISN atau NIS sudah terdaftar", err)
+			response.Error(w, http.StatusConflict, "NIS sudah terdaftar di sekolah ini", err)
 			return
 		}
 		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan data master siswa", err)
@@ -247,7 +247,7 @@ func UpdateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := database.DB.WithContext(r.Context()).Save(&siswa).Error; err != nil {
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			response.Error(w, http.StatusConflict, "NISN atau NIS sudah terdaftar", err)
+			response.Error(w, http.StatusConflict, "NIS sudah terdaftar di sekolah ini", err)
 			return
 		}
 		response.Error(w, http.StatusInternalServerError, "Gagal mengupdate data siswa", err)
@@ -307,8 +307,8 @@ func MutasiSiswaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if input.NISN == "" {
-		response.Error(w, http.StatusBadRequest, "NISN diperlukan untuk mutasi", nil)
+	if input.NIS == "" {
+		response.Error(w, http.StatusBadRequest, "NIS diperlukan untuk mutasi", nil)
 		return
 	}
 
@@ -316,7 +316,7 @@ func MutasiSiswaHandler(w http.ResponseWriter, r *http.Request) {
 	tx := database.DB.WithContext(r.Context()).Begin()
 
 	var siswa models.Siswa
-	if err := tx.Where("nisn = ?", input.NISN).First(&siswa).Error; err != nil {
+	if err := tx.Where("nis = ?", input.NIS).First(&siswa).Error; err != nil {
 		tx.Rollback()
 		if err == gorm.ErrRecordNotFound {
 			response.Error(w, http.StatusNotFound, "Data siswa tidak ditemukan", err)

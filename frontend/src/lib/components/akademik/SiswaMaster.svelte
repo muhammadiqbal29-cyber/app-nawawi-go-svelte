@@ -138,10 +138,10 @@
     magicPullMode = false;
   }
 
-  async function checkNISN() {
-    if (!form.nisn || form.nisn.length < 5) return;
+  async function checkNIS() {
+    if (!form.nis || form.nis.length < 2) return;
     try {
-      const res = await fetch(`${apiUrl}/api/siswa/check/${form.nisn}`, { credentials: 'include' });
+      const res = await fetch(`${apiUrl}/api/siswa/check/${form.nis}`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         // Magic Pull!
@@ -150,7 +150,7 @@
             message: `Data ditemukan: ${data.nama_lengkap} (Status saat ini: ${data.status}). Apakah Anda ingin menarik data biodatanya?`
           })
         ) {
-          form.nis = data.nis;
+          form.nisn = data.nisn || '';
           form.nama_lengkap = data.nama_lengkap;
           form.jenis_kelamin = data.jenis_kelamin;
           form.tempat_lahir = data.tempat_lahir;
@@ -167,7 +167,7 @@
           magicPullMode = true;
         }
       } else if (res.status === 404) {
-        toastStore.show('NISN belum terdaftar. Silakan isi biodata baru.', 'info');
+        toastStore.show('NIS belum terdaftar. Silakan isi biodata baru.', 'info');
         magicPullMode = true; // Buka sisa form
       }
     } catch (err) {
@@ -448,18 +448,17 @@
       <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
         <div class="form-group" style="display: flex; gap: 1rem; align-items: flex-end;">
           <div style="flex: 1;">
-            <label>NISN *</label>
+            <label>NIS (Sekolah) *</label>
             <input
               type="text"
               class="form-input"
-              bind:value={form.nisn}
+              bind:value={form.nis}
               required
-              maxlength="10"
               disabled={form.id > 0}
             />
           </div>
           {#if form.id === 0 && !magicPullMode}
-            <button class="btn-primary" onclick={checkNISN} type="button">Cek Data</button>
+            <button class="btn-primary" onclick={checkNIS} type="button">Cek Data</button>
           {/if}
         </div>
 
@@ -471,8 +470,8 @@
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
             <div class="form-group">
-              <label>NIS (Sekolah)</label>
-              <input type="text" class="form-input" bind:value={form.nis} />
+              <label>NISN</label>
+              <input type="text" class="form-input" bind:value={form.nisn} maxlength="10" />
             </div>
             <div class="form-group">
               <label>Jenis Kelamin</label>
@@ -610,7 +609,7 @@
       <div class="modal-body">
         <p style="margin-top: 0; color: #64748b; font-size: 0.9rem;">
           Unggah file Excel (.xlsx) yang berisi data siswa. Sistem otomatis akan melewati (skip)
-          siswa jika NISN-nya sudah terdaftar.
+          siswa jika NIS-nya sudah terdaftar.
         </p>
 
         <div style="margin-bottom: 1.5rem;">

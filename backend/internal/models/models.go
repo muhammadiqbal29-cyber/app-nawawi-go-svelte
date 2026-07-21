@@ -85,8 +85,8 @@ type Kelas struct {
 
 type Siswa struct {
 	ID           int        `gorm:"primaryKey;autoIncrement" json:"id"`
-	NISN         string     `gorm:"type:varchar(10);uniqueIndex;not null" json:"nisn" validate:"required,numeric,max=10"`
-	NIS          string     `gorm:"type:varchar(20);index" json:"nis"`
+	NISN         string     `gorm:"type:varchar(10);index" json:"nisn" validate:"omitempty,numeric,max=10"`
+	NIS          string     `gorm:"type:varchar(20);uniqueIndex:idx_siswa_sekolah_nis;not null" json:"nis" validate:"required,max=20"`
 	NamaLengkap  string     `gorm:"type:varchar(100);not null" json:"nama_lengkap" validate:"required"`
 	Status       string     `gorm:"type:varchar(50);not null;default:'Aktif'" json:"status"`
 	TempatLahir  string     `gorm:"type:varchar(50)" json:"tempat_lahir"`
@@ -102,7 +102,7 @@ type Siswa struct {
 	DeletedAt    *time.Time `gorm:"index" json:"deleted_at,omitempty"`
 
 	// Virtual Fields for Frontend
-	SekolahID   int    `json:"sekolah_id"`
+	SekolahID   int    `gorm:"uniqueIndex:idx_siswa_sekolah_nis" json:"sekolah_id"`
 	KelasID     *int   `gorm:"->" json:"kelas_id"`
 	Rombel      string `gorm:"->" json:"rombel"`
 	KelasAsal   string `gorm:"->" json:"kelas_asal"`

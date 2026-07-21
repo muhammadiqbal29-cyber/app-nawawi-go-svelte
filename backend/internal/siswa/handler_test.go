@@ -43,7 +43,7 @@ func seedSiswaData() int {
 	database.DB.Create(&semester)
 	
 	siswa := models.Siswa{
-		NISN:         "1234567890",
+		NISN: "1234567890", NIS: "1234567890",
 		NamaLengkap:  "Siswa Test",
 		JenisKelamin: "L",
 		SekolahID:    int(sekolah.ID),
@@ -84,15 +84,17 @@ func TestGetSiswaBySekolahHandler(t *testing.T) {
 	}
 }
 
-func TestCheckNISNHandler(t *testing.T) {
+func TestCheckNISHandler(t *testing.T) {
 	setupTestDB()
 	seedSiswaData()
 
-	req, _ := http.NewRequest("GET", "/api/siswa/check/1234567890", nil)
-	req = mux.SetURLVars(req, map[string]string{"nisn": "1234567890"})
+	req, err := http.NewRequest("GET", "/siswa/check/1234567890", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req = mux.SetURLVars(req, map[string]string{"nis": "1234567890"})
 	rr := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(CheckNISNHandler)
+	handler := http.HandlerFunc(CheckNISHandler)
 	handler.ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
@@ -101,7 +103,7 @@ func TestCheckNISNHandler(t *testing.T) {
 
 	// Test Not Found
 	reqNotFound, _ := http.NewRequest("GET", "/api/siswa/check/999999", nil)
-	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"nisn": "999999"})
+	reqNotFound = mux.SetURLVars(reqNotFound, map[string]string{"nis": "999999"})
 	rrNotFound := httptest.NewRecorder()
 	handler.ServeHTTP(rrNotFound, reqNotFound)
 	if rrNotFound.Code != http.StatusNotFound {
@@ -114,7 +116,7 @@ func TestCreateSiswaHandler(t *testing.T) {
 	seedSiswaData()
 
 	payload := models.Siswa{
-		NISN:         "0987654321",
+		NIS: "0987654321",
 		NamaLengkap:  "Siswa Baru",
 		JenisKelamin: "P",
 		SekolahID:    1,
@@ -151,7 +153,7 @@ func TestCreateSiswaHandler(t *testing.T) {
 	
 	// Validation Error
 	payloadInvalid := models.Siswa{
-		NISN:         "09876543210987654321", // Too long
+		NIS: "098765432109876543210", // Too long
 		NamaLengkap:  "Siswa Baru",
 		JenisKelamin: "P",
 	}
@@ -166,7 +168,7 @@ func TestCreateSiswaHandler(t *testing.T) {
 	// TA not found
 	database.DB.Where("status = ?", "Active").Delete(&models.TahunAjaran{})
 	payload2 := models.Siswa{
-		NISN:         "1122334455",
+		NIS: "1122334455",
 		NamaLengkap:  "Siswa Baru 2",
 		JenisKelamin: "P",
 		SekolahID:    1,
@@ -185,7 +187,7 @@ func TestUpdateSiswaHandler(t *testing.T) {
 	siswaID := seedSiswaData()
 
 	payload := models.Siswa{
-		NISN:         "1234567890",
+		NISN: "1234567890", NIS: "1234567890",
 		NamaLengkap:  "Siswa Updated",
 		JenisKelamin: "L",
 		SekolahID:    1,
@@ -247,7 +249,7 @@ func TestMutasiSiswaHandler(t *testing.T) {
 	})
 
 	payload := map[string]interface{}{
-		"nisn":       "1234567890",
+		"nis": "1234567890",
 		"sekolah_id": 2,
 	}
 	body, _ := json.Marshal(payload)
@@ -281,7 +283,7 @@ func TestMutasiSiswaHandler(t *testing.T) {
 	
 	// Test Not Found
 	payloadNotFound := map[string]interface{}{
-		"nisn":       "99999999999",
+		"nis": "99999999999",
 		"sekolah_id": 2,
 	}
 	bodyNotFound, _ := json.Marshal(payloadNotFound)
@@ -303,7 +305,7 @@ func TestValidateSiswa(t *testing.T) {
 		{
 			name: "Sukses - Semua field valid",
 			siswa: models.Siswa{
-				NISN:         "1234567890",
+				NISN: "1234567890", NIS: "1234567890",
 				NamaLengkap:  "Budi Santoso",
 				JenisKelamin: "L",
 				SekolahID:    1,
@@ -313,7 +315,7 @@ func TestValidateSiswa(t *testing.T) {
 		{
 			name: "Error - NISN lebih dari 10",
 			siswa: models.Siswa{
-				NISN:         "12345678901",
+				NIS: "123456789012345678901",
 				NamaLengkap:  "Budi",
 				JenisKelamin: "L",
 				SekolahID:    1,
@@ -323,7 +325,7 @@ func TestValidateSiswa(t *testing.T) {
 		{
 			name: "Error - Jenis Kelamin invalid",
 			siswa: models.Siswa{
-				NISN:         "12345",
+				NIS: "12345",
 				NamaLengkap:  "Budi",
 				JenisKelamin: "X",
 				SekolahID:    1,
@@ -402,7 +404,7 @@ func TestUpdateSiswaHandler_Negative(t *testing.T) {
 	}
 
 	// Test: siswa not found -> 404
-	req2, _ := http.NewRequest("PUT", "/api/siswa/999", bytes.NewBufferString(`{"nama_lengkap":"Test","jenis_kelamin":"L","nisn":"123"}`))
+	req2, _ := http.NewRequest("PUT", "/api/siswa/999", bytes.NewBufferString(`{"nama_lengkap":"Test","jenis_kelamin":"L","nis":"123"}`))
 	req2 = mux.SetURLVars(req2, map[string]string{"id": "999"})
 	req2.Header.Set("X-Sekolah-ID", "1")
 	rr2 := httptest.NewRecorder()
@@ -427,7 +429,7 @@ func TestMutasiSiswaHandler_Negative(t *testing.T) {
 	seedSiswaData()
 
 	// Test: no X-Sekolah-ID -> 400
-	req, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"1234567890"}`))
+	req, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nis":"1234567890"}`))
 	rr := httptest.NewRecorder()
 	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr, req)
 	if rr.Code != http.StatusBadRequest {
@@ -444,7 +446,7 @@ func TestMutasiSiswaHandler_Negative(t *testing.T) {
 	}
 
 	// Test: siswa not found -> 404
-	req3, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"9999999999"}`))
+	req3, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nis":"9999999999"}`))
 	req3.Header.Set("X-Sekolah-ID", "1")
 	rr3 := httptest.NewRecorder()
 	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr3, req3)
@@ -453,7 +455,7 @@ func TestMutasiSiswaHandler_Negative(t *testing.T) {
 	}
 
 	// Test: siswa masih Aktif -> 403
-	req4, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"1234567890"}`))
+	req4, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nis":"1234567890"}`))
 	req4.Header.Set("X-Sekolah-ID", "1")
 	rr4 := httptest.NewRecorder()
 	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr4, req4)
@@ -462,7 +464,7 @@ func TestMutasiSiswaHandler_Negative(t *testing.T) {
 	}
 
 	// Test: invalid X-Sekolah-ID -> 400
-	req5, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nisn":"1234567890"}`))
+	req5, _ := http.NewRequest("POST", "/api/siswa/mutasi", bytes.NewBufferString(`{"nis":"1234567890"}`))
 	req5.Header.Set("X-Sekolah-ID", "abc")
 	rr5 := httptest.NewRecorder()
 	http.HandlerFunc(MutasiSiswaHandler).ServeHTTP(rr5, req5)

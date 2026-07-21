@@ -60,10 +60,10 @@ func TestImportSiswaExcelHandler_Negative(t *testing.T) {
 	}
 
 	// 2. DDoS > 501 rows
-	headers := []string{"NISN", "Nama Lengkap", "Jenis Kelamin"}
+	headers := []string{"NISN", "NIS", "Nama Lengkap", "Jenis Kelamin"}
 	var tooManyRows [][]interface{}
 	for i := 0; i < 502; i++ {
-		tooManyRows = append(tooManyRows, []interface{}{"123", "Siswa", "L"})
+		tooManyRows = append(tooManyRows, []interface{}{"123", "N123", "Siswa", "L"})
 	}
 	bufTooMany := genFile("Sheet1", headers, tooManyRows)
 	rrTooMany := sendReq(bufTooMany)
@@ -73,7 +73,7 @@ func TestImportSiswaExcelHandler_Negative(t *testing.T) {
 
 	// 3. No Active TA
 	database.DB.Where("status = ?", "Active").Delete(&models.TahunAjaran{})
-	bufNoTA := genFile("Sheet1", headers, [][]interface{}{{"123", "Siswa", "L"}})
+	bufNoTA := genFile("Sheet1", headers, [][]interface{}{{"123", "N123", "Siswa", "L"}})
 	rrNoTA := sendReq(bufNoTA)
 	if rrNoTA.Code != http.StatusBadRequest {
 		t.Errorf("no active TA expected %d, got %d", http.StatusBadRequest, rrNoTA.Code)
@@ -85,19 +85,21 @@ func TestImportSiswaExcelHandler_Negative(t *testing.T) {
 	// Create existing student
 	database.DB.Create(&models.Siswa{
 		NISN: "ALREADY_ACTIVE",
+		NIS: "111",
 		Status: "Aktif",
 		SekolahID: 2,
 	})
 	database.DB.Create(&models.Siswa{
 		NISN: "ALREADY_LULUS",
+		NIS: "222",
 		Status: "Lulus",
 		SekolahID: 2,
 	})
 
 	bufDup := genFile("Sheet1", headers, [][]interface{}{
-		{"ALREADY_ACTIVE", "Siswa A", "L"}, // skipped
-		{"ALREADY_LULUS", "Siswa B", "L"},  // dimutasi
-		{"NEW_SISWA", "Siswa C", "P"},      // berhasil
+		{"ALREADY_ACTIVE", "111", "Siswa A", "L"}, // skipped
+		{"ALREADY_LULUS", "222", "Siswa B", "L"},  // dimutasi
+		{"NEW_SISWA", "333", "Siswa C", "P"},      // berhasil
 	})
 	rrDup := sendReq(bufDup)
 	if rrDup.Code != http.StatusOK {

@@ -66,22 +66,42 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Baca header untuk mendapatkan index masing-masing kolom
-	headers := records[0]
+	// Cari baris header dinamis (bisa di baris 0, 1, atau 2)
+	headerRowIdx := -1
 	headerMap := make(map[string]int)
-	for i, h := range headers {
-		// Normalisasi header: hapus spasi berlebih dan ubah ke huruf kecil
-		cleanHeader := strings.ToLower(strings.TrimSpace(h))
-		headerMap[cleanHeader] = i
+
+	for i := 0; i < len(records) && i < 5; i++ {
+		tempMap := make(map[string]int)
+		hasNama := false
+		for j, col := range records[i] {
+			clean := strings.ToLower(strings.TrimSpace(col))
+			if clean != "" {
+				tempMap[clean] = j
+			}
+			if clean == "nama" || clean == "nama lengkap" {
+				hasNama = true
+			}
+		}
+
+		if hasNama {
+			headerRowIdx = i
+			headerMap = tempMap
+			// Cek sub-header di baris berikutnya (misal: "Ayah", "Ibu")
+			if i+1 < len(records) {
+				for j, col := range records[i+1] {
+					clean := strings.ToLower(strings.TrimSpace(col))
+					if clean != "" && tempMap[clean] == 0 {
+						headerMap[clean] = j
+					}
+				}
+			}
+			break
+		}
 	}
 
-	// Pengecekan kolom wajib
-	requiredHeaders := []string{"nisn", "nama lengkap", "jenis kelamin"}
-	for _, reqH := range requiredHeaders {
-		if _, exists := headerMap[reqH]; !exists {
-			response.Error(w, http.StatusBadRequest, "Kolom wajib tidak ditemukan di Excel: "+reqH, nil)
-			return
-		}
+	if headerRowIdx == -1 {
+		response.Error(w, http.StatusBadRequest, "Format Excel tidak valid: tidak dapat menemukan kolom 'NAMA' atau 'Nama Lengkap'", nil)
+		return
 	}
 
 	tx := database.DB.WithContext(r.Context()).Begin()
@@ -103,62 +123,91 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 	dilewati := 0
 	dimutasi := 0
 
-	for i := 1; i < len(records); i++ {
+	for i := headerRowIdx + 1; i < len(records); i++ {
 		row := records[i]
 
-		// Helper untuk mengambil data dengan aman
-		getVal := func(colName string) string {
-			if idx, ok := headerMap[strings.ToLower(colName)]; ok && idx < len(row) {
-				return strings.TrimSpace(row[idx])
+		// Helper untuk mengambil data dengan aman dari beberapa kemungkinan nama kolom
+		getVal := func(keys ...string) string {
+			for _, k := range keys {
+				if idx, ok := headerMap[strings.ToLower(k)]; ok && idx < len(row) {
+					val := strings.TrimSpace(row[idx])
+					if val != "" {
+						return val
+					}
+				}
 			}
 			return ""
 		}
 
-		nisn := getVal("NISN")
-		if nisn == "" {
+		namaVal := getVal("Nama Lengkap", "NAMA")
+		if namaVal == "" {
 			dilewati++
-			continue // Skip jika NISN kosong
+			continue // Skip baris kosong atau sub-header
 		}
 
-		// Cek apakah NISN sudah ada
-		var existing models.Siswa
-		if err := tx.Unscoped().Where("nisn = ?", nisn).First(&existing).Error; err == nil {
-			// NISN sudah ada di database. Cek apakah bisa di-mutasi otomatis.
-			if existing.Status == "Lulus" {
-				// Auto-Mutasi: siswa sudah lulus dari sekolah lama, tarik ke sekolah ini
-				existing.Status = "Aktif"
-				existing.SekolahID = sekolahID
-				if err := tx.Save(&existing).Error; err != nil {
-					tx.Rollback()
-					response.Error(w, http.StatusInternalServerError, "Gagal melakukan mutasi otomatis pada baris "+strconv.Itoa(i+1)+": "+err.Error(), err)
-					return
-				}
+		nis := getVal("NIS")
+		if nis == "" {
+			dilewati++
+			continue // Skip jika NIS kosong
+		}
 
-				// Buat RiwayatKelas baru di sekolah tujuan
-				riwayat := models.RiwayatKelas{
-					SiswaID:       existing.ID,
-					SekolahID:     sekolahID,
-					TahunAjaranID: ta.ID,
-					StatusAkhir:   "Aktif",
-				}
-				if err := tx.Create(&riwayat).Error; err != nil {
-					tx.Rollback()
-					response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat mutasi pada baris "+strconv.Itoa(i+1), err)
-					return
-				}
-				dimutasi++
-			} else {
-				// Status masih Aktif atau lainnya, skip saja
-				dilewati++
-			}
+		nisn := getVal("NISN")
+
+		// 1. Cek duplikat lokal berdasarkan NIS di sekolah ini
+		var existing models.Siswa
+		errLocal := tx.Unscoped().Where("nis = ? AND sekolah_id = ?", nis, sekolahID).First(&existing).Error
+		if errLocal == nil {
+			// Sudah ada di sekolah ini, skip
+			dilewati++
 			continue
-		} else if err != gorm.ErrRecordNotFound {
+		} else if errLocal != gorm.ErrRecordNotFound {
 			tx.Rollback()
-			response.Error(w, http.StatusInternalServerError, "Gagal memverifikasi database", err)
+			response.Error(w, http.StatusInternalServerError, "Gagal memverifikasi database lokal", errLocal)
 			return
 		}
 
-		jenisKelamin := getVal("Jenis Kelamin")
+		// 2. Jika NISN terisi, cek apakah siswa ada di sekolah lain untuk auto-mutasi
+		if nisn != "" {
+			if err := tx.Unscoped().Where("nisn = ?", nisn).First(&existing).Error; err == nil {
+				// NISN sudah ada di database. Cek apakah bisa di-mutasi otomatis.
+				if existing.Status == "Lulus" && existing.SekolahID != sekolahID {
+					// Auto-Mutasi: siswa sudah lulus dari sekolah lama, tarik ke sekolah ini
+					existing.Status = "Aktif"
+					existing.SekolahID = sekolahID
+					existing.NIS = nis // Update NIS dengan NIS sekolah baru
+					
+					if err := tx.Save(&existing).Error; err != nil {
+						tx.Rollback()
+						response.Error(w, http.StatusInternalServerError, "Gagal melakukan mutasi otomatis pada baris "+strconv.Itoa(i+1)+": "+err.Error(), err)
+						return
+					}
+
+					// Buat RiwayatKelas baru di sekolah tujuan
+					riwayat := models.RiwayatKelas{
+						SiswaID:       existing.ID,
+						SekolahID:     sekolahID,
+						TahunAjaranID: ta.ID,
+						StatusAkhir:   "Aktif",
+					}
+					if err := tx.Create(&riwayat).Error; err != nil {
+						tx.Rollback()
+						response.Error(w, http.StatusInternalServerError, "Gagal membuat riwayat mutasi pada baris "+strconv.Itoa(i+1), err)
+						return
+					}
+					dimutasi++
+					continue // Lanjut ke baris Excel berikutnya
+				}
+				// Jika status belum lulus atau di sekolah yang sama dengan NIS beda, skip
+				dilewati++
+				continue
+			} else if err != gorm.ErrRecordNotFound {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal memverifikasi database global", err)
+				return
+			}
+		}
+
+		jenisKelamin := getVal("Jenis Kelamin", "L/P")
 		// Normalisasi L/P
 		if strings.HasPrefix(strings.ToUpper(jenisKelamin), "L") {
 			jenisKelamin = "L"
@@ -168,19 +217,45 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 			jenisKelamin = "L" // Default fallback
 		}
 
-		var tglLahir *string
+		tempatLahir := getVal("Tempat Lahir")
 		tglVal := getVal("Tanggal Lahir")
+		comboTempatTanggal := getVal("Tempat Lahir & Tanggal Lahir")
+
+		if comboTempatTanggal != "" && tempatLahir == "" && tglVal == "" {
+			parts := strings.SplitN(comboTempatTanggal, ",", 2)
+			if len(parts) > 0 {
+				tempatLahir = strings.TrimSpace(parts[0])
+			}
+			if len(parts) > 1 {
+				tglVal = strings.TrimSpace(parts[1])
+			}
+		}
+
+		var tglLahir *string
 		if tglVal != "" {
+			// Translasi bulan indonesia ke inggris untuk parsing
+			tglLower := strings.ToLower(tglVal)
+			months := map[string]string{
+				"januari": "January", "februari": "February", "maret": "March",
+				"april": "April", "mei": "May", "juni": "June",
+				"juli": "July", "agustus": "August", "september": "September",
+				"oktober": "October", "november": "November", "desember": "December",
+			}
+			for id, en := range months {
+				tglLower = strings.ReplaceAll(tglLower, id, en)
+			}
+			tglVal = tglLower
+
 			parsedDate := tglVal
 
 			// Try parsing if it's Excel raw float
-			if fVal, err := strconv.ParseFloat(tglVal, 64); err == nil && !strings.Contains(tglVal, "-") && !strings.Contains(tglVal, "/") {
+			if fVal, err := strconv.ParseFloat(tglVal, 64); err == nil && !strings.Contains(tglVal, "-") && !strings.Contains(tglVal, "/") && !strings.Contains(tglVal, " ") {
 				if t, err := excelize.ExcelDateToTime(fVal, false); err == nil {
 					parsedDate = t.Format("2006-01-02")
 				}
 			} else {
 				// Try common string formats
-				layouts := []string{"2006-01-02", "02/01/2006", "01/02/2006", "02-01-2006", "2006/01/02", "2/1/2006", "1/2/2006", "2-1-2006"}
+				layouts := []string{"2006-01-02", "02/01/2006", "01/02/2006", "02-01-2006", "2006/01/02", "2/1/2006", "1/2/2006", "2-1-2006", "02 January 2006", "2 January 2006"}
 				for _, l := range layouts {
 					if t, err := time.Parse(l, tglVal); err == nil {
 						parsedDate = t.Format("2006-01-02")
@@ -193,16 +268,16 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 
 		siswaBaru := models.Siswa{
 			NISN:         nisn,
-			NIS:          getVal("NIS"),
-			NamaLengkap:  getVal("Nama Lengkap"),
+			NIS:          nis,
+			NamaLengkap:  namaVal,
 			Status:       "Aktif",
-			TempatLahir:  getVal("Tempat Lahir"),
+			TempatLahir:  tempatLahir,
 			TanggalLahir: tglLahir,
 			JenisKelamin: jenisKelamin,
 			Agama:        getVal("Agama"),
 			Alamat:       getVal("Alamat"),
-			NamaAyah:     getVal("Nama Ayah"),
-			NamaIbu:      getVal("Nama Ibu"),
+			NamaAyah:     getVal("Nama Ayah", "ayah"),
+			NamaIbu:      getVal("Nama Ibu", "ibu"),
 			TeleponOrtu:  getVal("Telepon Ortu"),
 			SekolahID:    sekolahID,
 		}

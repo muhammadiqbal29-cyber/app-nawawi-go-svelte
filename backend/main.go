@@ -162,7 +162,7 @@ func main() {
 	adminRouter.HandleFunc("/sekolah/{sekolah_id}/siswa", middleware.RequireRole("admin")(siswa.GetSiswaBySekolahHandler)).Methods("GET")
 	adminRouter.HandleFunc("/sekolah/{sekolah_id}/siswa", middleware.RequireRole("admin")(siswa.CreateSiswaHandler)).Methods("POST")
 	adminRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/import", middleware.RequireRole("admin")(siswa.ImportSiswaExcelHandler)).Methods("POST")
-	adminRouter.HandleFunc("/siswa/check/{nisn}", middleware.RequireRole("admin")(siswa.CheckNISNHandler)).Methods("GET")
+	adminRouter.HandleFunc("/siswa/check/{nis}", middleware.RequireRole("admin")(siswa.CheckNISHandler)).Methods("GET")
 	adminRouter.HandleFunc("/siswa/mutasi", middleware.RequireRole("admin")(siswa.MutasiSiswaHandler)).Methods("POST")
 	adminRouter.HandleFunc("/siswa/kenaikan-kelas", middleware.RequireRole("admin")(siswa.KenaikanKelasHandler)).Methods("POST")
 	adminRouter.HandleFunc("/siswa", middleware.RequireRole("admin")(siswa.CreateSiswaHandler)).Methods("POST")
