@@ -58,26 +58,52 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 
 	var results []DashboardTahfizResponse
 	query := `
+		WITH TahfizDetails AS (
+			SELECT 
+				nt.siswa_id,
+				n.id as detail_id,
+				n.skor_hafalan as hafalan,
+				n.skor_kelancaran as lancar,
+				n.skor_mad as mad,
+				n.skor_tajwid as tajwid,
+				n.skor_makharijul_huruf as makhraj
+			FROM nilai_tahfizs nt
+			JOIN nilai_tahfiz_details n ON n.nilai_tahfiz_id = nt.id
+			WHERE nt.sekolah_id = ? AND nt.tahun_ajaran_id = ?
+			
+			UNION ALL
+			
+			SELECT 
+				nt2.siswa_id,
+				n2.id as detail_id,
+				0 as hafalan,
+				n2.skor_kelancaran as lancar,
+				0 as mad,
+				n2.skor_tajwid as tajwid,
+				n2.skor_makharijul_huruf as makhraj
+			FROM nilai_tahfiz_v2 nt2
+			JOIN nilai_tahfiz_detail_v2 n2 ON n2.nilai_tahfiz_v2_id = nt2.id
+			WHERE nt2.sekolah_id = ? AND nt2.tahun_ajaran_id = ?
+		)
 		SELECT 
 			s.id, 
 			s.nama_lengkap as nama,
 			COALESCE(k.tingkat, '-') as tingkat,
 			COALESCE(rk.rombel, '-') as rombel,
-			COUNT(n.id) as jumlah_surah,
-			COALESCE(AVG(n.skor_hafalan), 0) as hafalan,
-			COALESCE(AVG(n.skor_kelancaran), 0) as lancar,
-			COALESCE(AVG(n.skor_mad), 0) as mad,
-			COALESCE(AVG(n.skor_tajwid), 0) as tajwid,
-			COALESCE(AVG(n.skor_makharijul_huruf), 0) as makhraj
+			COUNT(td.detail_id) as jumlah_surah,
+			COALESCE(AVG(td.hafalan), 0) as hafalan,
+			COALESCE(AVG(td.lancar), 0) as lancar,
+			COALESCE(AVG(td.mad), 0) as mad,
+			COALESCE(AVG(td.tajwid), 0) as tajwid,
+			COALESCE(AVG(td.makhraj), 0) as makhraj
 		FROM siswas s
 		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
-		LEFT JOIN nilai_tahfizs nt ON nt.siswa_id = s.id AND nt.sekolah_id = ? AND nt.tahun_ajaran_id = ?
-		LEFT JOIN nilai_tahfiz_details n ON n.nilai_tahfiz_id = nt.id
+		LEFT JOIN TahfizDetails td ON td.siswa_id = s.id
 		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 		GROUP BY s.id, s.nama_lengkap, k.tingkat, rk.rombel
 	`
-	if err := database.DB.Raw(query, sekolahID, taID, sekolahID, taID, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, taID, sekolahID, taID, sekolahID, taID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard tahfiz", err)
 		return
 	}
