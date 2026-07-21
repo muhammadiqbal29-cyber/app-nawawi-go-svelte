@@ -37,6 +37,7 @@
 
   // Kelas Asal Filter
   let filterKelasAsal = $state('Semua');
+  let filterGender = $state('Semua');
   let daftarKelasAsal = $derived(() => {
     const arr = [];
     siswaTanpaKelas.forEach((s) => {
@@ -45,9 +46,11 @@
     return arr.sort();
   });
   let filteredSiswaTanpaKelas = $derived(
-    filterKelasAsal === 'Semua'
-      ? siswaTanpaKelas
-      : siswaTanpaKelas.filter((s) => (s.kelas_asal || '') === filterKelasAsal)
+    siswaTanpaKelas.filter((s) => {
+      const matchKelas = filterKelasAsal === 'Semua' || (s.kelas_asal || '') === filterKelasAsal;
+      const matchGender = filterGender === 'Semua' || s.jenis_kelamin === filterGender;
+      return matchKelas && matchGender;
+    })
   );
 
   // Build card list from ACTUAL student placement data per TA (not from master kelas)
@@ -449,7 +452,7 @@
       </div>
       <div class="modal-body">
         <div
-          style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;"
+          style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem;"
         >
           <div class="form-group">
             <label style="font-size: 0.85rem; font-weight: bold;">Pilih Kelas Tujuan</label>
@@ -485,6 +488,14 @@
               {/if}
             </select>
           </div>
+          <div class="form-group">
+            <label style="font-size: 0.85rem; font-weight: bold;">Filter L/P</label>
+            <select bind:value={filterGender} class="form-input">
+              <option value="Semua">Semua</option>
+              <option value="L">Laki-laki (L)</option>
+              <option value="P">Perempuan (P)</option>
+            </select>
+          </div>
         </div>
 
         <div
@@ -506,6 +517,7 @@
                 </th>
                 <th>NISN</th>
                 <th>Nama Siswa ({filteredSiswaTanpaKelas.length})</th>
+                <th style="text-align: center;">L/P</th>
                 <th>Kelas Asal</th>
               </tr>
             </thead>
@@ -521,6 +533,11 @@
                   </td>
                   <td><strong>{s.nisn}</strong></td>
                   <td>{s.nama_lengkap}</td>
+                  <td style="text-align: center;"
+                    ><span class="badge bg-gray" style="font-size: 0.8rem;"
+                      >{s.jenis_kelamin || '-'}</span
+                    ></td
+                  >
                   <td
                     ><span class="badge bg-gray" style="font-size: 0.8rem;"
                       >{s.kelas_asal || '-'}</span
@@ -529,7 +546,7 @@
                 </tr>
               {:else}
                 <tr
-                  ><td colspan="4" style="text-align: center; color: #64748b; padding: 2rem;"
+                  ><td colspan="5" style="text-align: center; color: #64748b; padding: 2rem;"
                     >Semua siswa sudah masuk rombel.</td
                   ></tr
                 >
