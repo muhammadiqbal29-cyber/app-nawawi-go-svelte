@@ -10,6 +10,7 @@ import (
 
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/response"
+	"siakad-nawawi-be/internal/tahunajaran"
 )
 
 type DashboardTahfizResponse struct {
@@ -49,6 +50,12 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	taID, _, err := tahunajaran.ResolveActivePeriod(r)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "Gagal mendapatkan tahun ajaran aktif", err)
+		return
+	}
+
 	var results []DashboardTahfizResponse
 	query := `
 		SELECT 
@@ -63,14 +70,14 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(AVG(n.skor_tajwid), 0) as tajwid,
 			COALESCE(AVG(n.skor_makharijul_huruf), 0) as makhraj
 		FROM siswas s
-		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ?
+		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
-		LEFT JOIN nilai_tahfizs nt ON nt.siswa_id = s.id AND nt.sekolah_id = ?
+		LEFT JOIN nilai_tahfizs nt ON nt.siswa_id = s.id AND nt.sekolah_id = ? AND nt.tahun_ajaran_id = ?
 		LEFT JOIN nilai_tahfiz_details n ON n.nilai_tahfiz_id = nt.id
 		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 		GROUP BY s.id, s.nama_lengkap, k.tingkat, rk.rombel
 	`
-	if err := database.DB.Raw(query, sekolahID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, taID, sekolahID, taID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard tahfiz", err)
 		return
 	}
@@ -96,6 +103,12 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	taID, _, err := tahunajaran.ResolveActivePeriod(r)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "Gagal mendapatkan tahun ajaran aktif", err)
+		return
+	}
+
 	var results []DashboardDiniyahStudentScore
 	query := `
 		SELECT 
@@ -106,13 +119,13 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(m.nama_mapel, 'Tanpa Mapel') as mapel,
 			COALESCE(nd.nilai_rapor, 0) as nilai
 		FROM siswas s
-		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ?
+		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
-		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id
+		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id AND nd.tahun_ajaran_id = ?
 		INNER JOIN mapel_diniyahs m ON m.id = nd.mapel_diniyah_id AND m.sekolah_id = ?
 		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 	`
-	if err := database.DB.Raw(query, sekolahID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, taID, taID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard diniyah", err)
 		return
 	}

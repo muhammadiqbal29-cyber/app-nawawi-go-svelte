@@ -455,6 +455,14 @@ func TestGetDashboardTahfizHandler(t *testing.T) {
 	database.DB.Create(&models.Sekolah{
 		NamaSekolah: "Sekolah Test",
 	})
+	database.DB.Create(&models.TahunAjaran{
+		ID: 1,
+		Status: "Active",
+	})
+	database.DB.Create(&models.Semester{
+		TahunAjaranID: 1,
+		StatusAktif:   true,
+	})
 	
 	req, _ := http.NewRequest("GET", "/api/guru/me/dashboard/tahfiz/1", nil)
 	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
@@ -484,6 +492,14 @@ func TestGetDashboardDiniyahHandler(t *testing.T) {
 
 	database.DB.Create(&models.Sekolah{
 		NamaSekolah: "Sekolah Test",
+	})
+	database.DB.Create(&models.TahunAjaran{
+		ID: 1,
+		Status: "Active",
+	})
+	database.DB.Create(&models.Semester{
+		TahunAjaranID: 1,
+		StatusAktif:   true,
 	})
 	
 	req, _ := http.NewRequest("GET", "/api/guru/me/dashboard/diniyah/1", nil)
