@@ -23,7 +23,7 @@
       }
     })()
   );
-  let hasTahfiz = $derived(selectedFeatures.includes('input_tahfiz'));
+  let hasTahfiz = $derived(selectedFeatures.includes('input_tahfiz') || selectedFeatures.includes('input_tahfiz_v2'));
   let hasDiniyah = $derived(selectedFeatures.includes('input_diniyah'));
   let hasKeseharian = $derived(selectedFeatures.includes('rapor_keseharian'));
 
