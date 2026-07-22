@@ -23,6 +23,17 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000
       }
+    },
+    {
+      name: 'siakad-mobile',
+      script: 'npx',
+      args: 'serve -s build -l 4173',
+      cwd: './mobile',
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
+        NODE_ENV: 'production'
+      }
     }
   ]
 };
