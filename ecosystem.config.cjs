@@ -27,7 +27,7 @@ module.exports = {
     {
       name: 'siakad-mobile',
       script: 'npx',
-      args: 'serve -s build -l 4173',
+      args: '--yes serve -s build -l 4173',
       cwd: './mobile',
       instances: 1,
       exec_mode: 'fork',
