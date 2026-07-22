@@ -291,6 +291,8 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/pelanggaran/jenis", pelanggaran.CreateJenisPelanggaranHandler).Methods("POST")
 	guruRouter.HandleFunc("/pelanggaran/jenis/{id:[0-9]+}", pelanggaran.UpdateJenisPelanggaranHandler).Methods("PUT")
 	guruRouter.HandleFunc("/pelanggaran/jenis/{id:[0-9]+}", pelanggaran.DeleteJenisPelanggaranHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/pelanggaran/jenis/template", pelanggaran.DownloadTemplateJenisPelanggaranHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/pelanggaran/jenis/import", pelanggaran.ImportJenisPelanggaranHandler).Methods("POST")
 
 	// Rute Pelanggaran (Guru) - Catatan Pelanggaran per Siswa
 	guruRouter.HandleFunc("/pelanggaran/catatan", pelanggaran.CreateCatatanPelanggaranHandler).Methods("POST")
@@ -303,6 +305,8 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis", iqob.CreateJenisIqobHandler).Methods("POST")
 	guruRouter.HandleFunc("/iqob/jenis/{id:[0-9]+}", iqob.UpdateJenisIqobHandler).Methods("PUT")
 	guruRouter.HandleFunc("/iqob/jenis/{id:[0-9]+}", iqob.DeleteJenisIqobHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis/template", iqob.DownloadTemplateJenisIqobHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis/import", iqob.ImportJenisIqobHandler).Methods("POST")
 	guruRouter.HandleFunc("/iqob/catatan", iqob.CreateCatatanIqobHandler).Methods("POST")
 	guruRouter.HandleFunc("/iqob/catatan/{id:[0-9]+}", iqob.DeleteCatatanIqobHandler).Methods("DELETE")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/iqob", iqob.GetCatatanIqobSiswaHandler).Methods("GET")

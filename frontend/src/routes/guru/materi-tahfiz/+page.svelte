@@ -761,8 +761,13 @@
   let pelanggaranEditLoading = $state(false);
   let pelanggaranDeletingId = $state(null);
 
+  // Import Pelanggaran
+  let fileInputPelanggaran = $state(null);
+  let loadingImportPelanggaran = $state(false);
 
-
+  // Import Iqob
+  let fileInputIqob = $state(null);
+  let loadingImportIqob = $state(false);
   async function loadPelanggaran() {
     if (!selectedSekolah) return;
     loadingPelanggaran = true;
@@ -812,6 +817,46 @@
       pelanggaranFormError = err.message;
     } finally {
       pelanggaranFormLoading = false;
+    }
+  }
+
+  function handleDownloadTemplatePelanggaran() {
+    if (!selectedSekolah) return;
+    window.location.href = `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/pelanggaran/jenis/template`;
+  }
+
+  async function handleImportPelanggaran(event) {
+    if (!selectedSekolah) return;
+    const file = event.target.files[0];
+    if (!file) return;
+
+    loadingImportPelanggaran = true;
+    errorPelanggaran = '';
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/pelanggaran/jenis/import`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Gagal melakukan import');
+      }
+      toastStore.show(data.message || 'Import berhasil', 'info');
+      await loadPelanggaran();
+    } catch (err) {
+      errorPelanggaran = err.message;
+    } finally {
+      loadingImportPelanggaran = false;
+      if (fileInputPelanggaran) {
+        fileInputPelanggaran.value = '';
+      }
     }
   }
 
@@ -917,6 +962,46 @@
       iqobFormError = err.message;
     } finally {
       iqobFormLoading = false;
+    }
+  }
+
+  function handleDownloadTemplateIqob() {
+    if (!selectedSekolah) return;
+    window.location.href = `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis/template`;
+  }
+
+  async function handleImportIqob(event) {
+    if (!selectedSekolah) return;
+    const file = event.target.files[0];
+    if (!file) return;
+
+    loadingImportIqob = true;
+    errorIqob = '';
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis/import`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          body: formData
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Gagal melakukan import');
+      }
+      toastStore.show(data.message || 'Import berhasil', 'info');
+      await loadIqob();
+    } catch (err) {
+      errorIqob = err.message;
+    } finally {
+      loadingImportIqob = false;
+      if (fileInputIqob) {
+        fileInputIqob.value = '';
+      }
     }
   }
 
@@ -1788,6 +1873,25 @@
             {pelanggaranList.length} jenis pelanggaran ({pelanggaranList.filter((p) => p.aktif).length} aktif)
           </span>
           <div class="toolbar-actions" style="display: flex; gap: 8px;">
+            <button class="btn-secondary" onclick={handleDownloadTemplatePelanggaran}>
+              <Icon name="download" size={16} />
+              Template
+            </button>
+            <button
+              class="btn-secondary"
+              onclick={() => fileInputPelanggaran.click()}
+              disabled={loadingImportPelanggaran}
+            >
+              <Icon name="import" size={16} />
+              {loadingImportPelanggaran ? 'Mengimport...' : 'Import'}
+            </button>
+            <input
+              type="file"
+              accept=".xlsx"
+              bind:this={fileInputPelanggaran}
+              onchange={handleImportPelanggaran}
+              style="display: none;"
+            />
             <button class="btn-primary" onclick={() => (showPelanggaranForm = !showPelanggaranForm)}>
               <Icon name="plus" size={16} /> Tambah Pelanggaran
             </button>
@@ -1950,6 +2054,25 @@
             {iqobList.length} jenis iqob ({iqobList.filter((p) => p.aktif).length} aktif)
           </span>
           <div class="toolbar-actions" style="display: flex; gap: 8px;">
+            <button class="btn-secondary" onclick={handleDownloadTemplateIqob}>
+              <Icon name="download" size={16} />
+              Template
+            </button>
+            <button
+              class="btn-secondary"
+              onclick={() => fileInputIqob.click()}
+              disabled={loadingImportIqob}
+            >
+              <Icon name="import" size={16} />
+              {loadingImportIqob ? 'Mengimport...' : 'Import'}
+            </button>
+            <input
+              type="file"
+              accept=".xlsx"
+              bind:this={fileInputIqob}
+              onchange={handleImportIqob}
+              style="display: none;"
+            />
             <button class="btn-primary" onclick={() => (showIqobForm = !showIqobForm)}>
               <Icon name="plus" size={16} /> Tambah Iqob
             </button>
