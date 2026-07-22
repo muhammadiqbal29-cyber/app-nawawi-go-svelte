@@ -7,6 +7,10 @@
   let kelasList = $state([]);
   let selectedKelas = $state(null);
   let siswaList = $state([]);
+  let searchQuery = $state('');
+  let filteredSiswa = $derived(
+    siswaList.filter((s) => (s.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   let loadingKelas = $state(false);
   let loadingSiswa = $state(false);
   let error = $state('');
@@ -142,12 +146,27 @@
           <span class="badge">{rombelLabel(selectedKelas.rombel)}</span>
         </div>
       </div>
-      <a
-        href={`/guru/rapor/diniyah/kelas/${selectedKelas.id}/masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}`}
-        class="btn-print-masal"
-      >
-        <Icon name="printer" size={16} /> Cetak Rapor Masal
-      </a>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <a
+          href={`/guru/rapor/diniyah/kelas/${selectedKelas.id}/catatan-masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&kelas=${encodeURIComponent(kelasLabel(selectedKelas))}`}
+          class="btn-catatan-masal"
+        >
+          <Icon name="edit" size={16} /> Isi Catatan Masal
+        </a>
+        <a
+          href={`/guru/rapor/diniyah/kelas/${selectedKelas.id}/masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}`}
+          class="btn-print-masal"
+        >
+          <Icon name="printer" size={16} /> Cetak Rapor Masal
+        </a>
+      </div>
+    </div>
+    
+    <div class="search-container" style="margin-bottom: 1.5rem;">
+      <div class="search-bar">
+        <Icon name="search" size={16} class="search-icon" />
+        <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />
+      </div>
     </div>
 
     {#if loadingSiswa}
@@ -159,7 +178,7 @@
       </div>
     {:else}
       <div class="siswa-grid">
-        {#each siswaList as siswa (siswa.id)}
+        {#each filteredSiswa as siswa (siswa.id)}
           <a
             class="siswa-card"
             href="/guru/rapor/diniyah/{siswa.id}?sekolah_id={guruState.activeSekolahId}"
@@ -258,8 +277,34 @@
     font-size: 0.85rem;
   }
   .kelas-count {
+    font-size: 0.8rem;
     color: #64748b;
-    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .search-bar {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .search-icon {
+    color: #94a3b8;
+  }
+  .search-input {
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #1e293b;
+    width: 100%;
+    outline: none;
   }
 
   .selected-header {
@@ -305,6 +350,24 @@
     background: #0284c7;
     transform: translateY(-1px);
     box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+  }
+  .btn-catatan-masal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #10b981;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-catatan-masal:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
   }
   .selected-kelas {
     display: flex;

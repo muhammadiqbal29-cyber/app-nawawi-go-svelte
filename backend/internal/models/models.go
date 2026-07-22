@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"time"
+	"gorm.io/gorm"
+)
 
 type User struct {
 	ID        int       `gorm:"primaryKey;autoIncrement" json:"id"`
@@ -22,10 +25,26 @@ type Sekolah struct {
 	Website       string    `gorm:"type:varchar(255)" json:"website"`
 	KepalaSekolah string    `gorm:"type:varchar(255)" json:"kepala_sekolah"`
 	Fitur         string    `gorm:"type:json" json:"fitur"`
+	LogoBase64    string    `gorm:"type:longtext" json:"logo_base64"`
+	LogoX         int       `gorm:"type:int;default:600" json:"logo_x"`
+	LogoY         int       `gorm:"type:int;default:20" json:"logo_y"`
+	LogoSize      int       `gorm:"type:int;default:80" json:"logo_size"`
+	KopSurat           string    `gorm:"type:json" json:"kop_surat"`
+	DividerThickness   int       `gorm:"type:int;default:3" json:"divider_thickness"`
 	CreatedAt     time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 	Kelas         []Kelas   `gorm:"foreignKey:SekolahID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"-"`
 	Siswa         []Siswa   `gorm:"foreignKey:SekolahID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"-"`
+}
+
+func (s *Sekolah) BeforeSave(tx *gorm.DB) (err error) {
+	if s.KopSurat == "" {
+		s.KopSurat = "[]"
+	}
+	if s.Fitur == "" {
+		s.Fitur = "[]"
+	}
+	return
 }
 
 type KonfigurasiPresensi struct {

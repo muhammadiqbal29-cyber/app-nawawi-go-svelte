@@ -156,3 +156,50 @@ func DeleteSekolahHandler(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, "Berhasil dihapus")
 }
+
+func UpdateRaporLogoHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sekolahID, err := strconv.Atoi(vars["sekolah_id"])
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "ID Sekolah tidak valid", err)
+		return
+	}
+
+	var payload struct {
+		LogoBase64       string `json:"logo_base64"`
+		LogoX            int    `json:"logo_x"`
+		LogoY            int    `json:"logo_y"`
+		LogoSize         int    `json:"logo_size"`
+		KopSurat         string `json:"kop_surat"`
+		DividerThickness int    `json:"divider_thickness"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		response.Error(w, http.StatusBadRequest, "Input tidak valid", err)
+		return
+	}
+
+	var sekolah models.Sekolah
+	if err := database.DB.WithContext(r.Context()).First(&sekolah, sekolahID).Error; err != nil {
+		response.Error(w, http.StatusNotFound, "Sekolah tidak ditemukan", err)
+		return
+	}
+
+	sekolah.LogoBase64 = payload.LogoBase64
+	sekolah.LogoX = payload.LogoX
+	sekolah.LogoY = payload.LogoY
+	sekolah.LogoSize = payload.LogoSize
+	sekolah.KopSurat = payload.KopSurat
+	if payload.DividerThickness > 0 {
+		sekolah.DividerThickness = payload.DividerThickness
+	} else {
+		sekolah.DividerThickness = 3
+	}
+
+	if err := database.DB.WithContext(r.Context()).Save(&sekolah).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal mengupdate pengaturan", err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, sekolah)
+}

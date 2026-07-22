@@ -16,6 +16,12 @@
   let mapelList = $state([]);
   let selectedMapel = $state(null);
   let siswaList = $state([]);
+  let searchQuery = $state('');
+  let filteredSiswa = $derived(
+    siswaList.filter((s) =>
+      (s.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
   let nilaiMap = $state({});
   let loadingMapel = $state(false);
   let loadingNilai = $state(false);
@@ -330,7 +336,7 @@
 
 <div class="page-container">
   <div class="page-header">
-    <button class="btn-back" onclick={() => goto('/guru/input-diniyah')}>
+    <button class="btn-back" onclick={() => goto('/guru/input-nilai/diniyah')}>
       <Icon name="chevronLeft" size={16} /> Kembali
     </button>
     <div>
@@ -366,12 +372,10 @@
     </div>
 
     <div class="toolbar-right">
-      <button 
-        class="btn-sm btn-secondary"
-        onclick={() => goto(`/guru/input-diniyah/kelas/${kelasId}/catatan-masal?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombelParam)}&sekolah_id=${sekolahId}`)}
-      >
-        <Icon name="fileText" size={14} /> Catatan Masal
-      </button>
+      <div class="search-bar">
+        <Icon name="search" size={14} class="search-icon" />
+        <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />
+      </div>
       <button class="btn-sm btn-primary" onclick={downloadTemplate}>
         <Icon name="download" size={14} /> Template Excel
       </button>
@@ -412,7 +416,7 @@
           </tr>
         </thead>
         <tbody onpaste={handlePaste}>
-          {#each siswaList as siswa, idx (siswa.siswa_id)}
+          {#each filteredSiswa as siswa, idx (siswa.siswa_id)}
             {@const data = getSiswaData(siswa.siswa_id)}
             <tr class:saving={savingCell === String(siswa.siswa_id)} data-siswa-id={siswa.siswa_id}>
               <td class="text-center">{idx + 1}</td>
@@ -601,6 +605,28 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  .search-bar {
+    display: inline-flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    gap: 0.4rem;
+  }
+  .search-icon {
+    color: #94a3b8;
+  }
+  .search-input {
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: #1e293b;
+    width: 160px;
+    outline: none;
   }
 
   .btn-sm {

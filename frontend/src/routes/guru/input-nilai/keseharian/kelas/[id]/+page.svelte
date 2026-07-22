@@ -37,10 +37,15 @@
     // reset form inputs
     plgFormJenisId = '';
     plgFormPoin = 0;
-    plgFormIqob = '';
+    plgSearchQuery = '';
+    plgShowDropdown = true;
+    plgSelectedNama = '';
     iqobFormJenisId = '';
     iqobFormPoin = 0;
     iqobFormKeterangan = '';
+    iqobSearchQuery = '';
+    iqobShowDropdown = true;
+    iqobSelectedNama = '';
     
     // load existing catatan
     const ex = catatanRaporMap[student.siswa_id];
@@ -57,6 +62,10 @@
   let indikatorList = $state([]);
   let selectedIndikator = $state('');
   let siswaData = $state([]);
+  let searchQuery = $state('');
+  let filteredSiswaData = $derived(
+    siswaData.filter(s => (s.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   let rekapData = $state({});
   let loading = $state(false);
   let error = $state('');
@@ -65,6 +74,9 @@
   // ===== PELANGGARAN STATE =====
   let jenisPelanggaranList = $state([]);
   let pelanggaranSiswaList = $state([]);
+  let filteredPelanggaranSiswaList = $derived(
+    pelanggaranSiswaList.filter(s => (s.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   let pelanggaranCatatanMap = $state({});
   let loadingPelanggaran = $state(false);
   let errorPelanggaran = $state('');
@@ -75,7 +87,13 @@
   let plgFormJenisId = $state('');
   let plgFormTanggal = $state(new Date().toISOString().split('T')[0]);
   let plgFormPoin = $state(0);
-  let plgFormIqob = $state('');
+  
+  let plgSearchQuery = $state('');
+  let plgShowDropdown = $state(true);
+  let plgSelectedNama = $state('');
+  let plgFilteredOptions = $derived(
+    jenisPelanggaranList.filter(j => j.nama.toLowerCase().includes(plgSearchQuery.toLowerCase()))
+  );
   let plgFormLoading = $state(false);
   let plgFormError = $state('');
 
@@ -94,6 +112,13 @@
   let iqobFormTanggal = $state(new Date().toISOString().split('T')[0]);
   let iqobFormPoin = $state(0);
   let iqobFormKeterangan = $state('');
+  
+  let iqobSearchQuery = $state('');
+  let iqobShowDropdown = $state(true);
+  let iqobSelectedNama = $state('');
+  let iqobFilteredOptions = $derived(
+    jenisIqobList.filter(j => j.nama.toLowerCase().includes(iqobSearchQuery.toLowerCase()))
+  );
   let iqobFormLoading = $state(false);
   let iqobFormError = $state('');
 
@@ -321,9 +346,12 @@
     return date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  function onSelectJenis() {
-    const jenis = jenisPelanggaranList.find(j => j.id == plgFormJenisId);
-    if (jenis) plgFormPoin = jenis.poin;
+  function selectPelanggaran(j) {
+    plgFormJenisId = j.id;
+    plgFormPoin = j.poin;
+    plgSelectedNama = j.nama;
+    plgShowDropdown = false;
+    plgSearchQuery = '';
   }
 
   async function submitPelanggaran() {
@@ -352,12 +380,14 @@
         const b = await res.json().catch(() => ({}));
         throw new Error(b.message || 'Gagal menambah pelanggaran');
       }
-      toastStore.show('Pelanggaran berhasil dicatat', 'info');
+      toastStore.show('Pelanggaran berhasil dicatat', 'success');
       showFormPelanggaran = false;
       plgFormSiswaId = '';
       plgFormJenisId = '';
       plgFormPoin = 0;
-      plgFormIqob = '';
+      plgSearchQuery = '';
+      plgShowDropdown = true;
+      plgSelectedNama = '';
       await loadPelanggaranKelas();
     } catch (err) {
       plgFormError = err.message;
@@ -422,9 +452,12 @@
 
 
 
-  function onSelectJenisIqob() {
-    const jenis = jenisIqobList.find(j => j.id == iqobFormJenisId);
-    if (jenis) iqobFormPoin = jenis.poin;
+  function selectIqob(j) {
+    iqobFormJenisId = j.id;
+    iqobFormPoin = j.poin;
+    iqobSelectedNama = j.nama;
+    iqobShowDropdown = false;
+    iqobSearchQuery = '';
   }
 
   async function submitIqob() {
@@ -459,6 +492,9 @@
       iqobFormJenisId = '';
       iqobFormPoin = 0;
       iqobFormKeterangan = '';
+      iqobSearchQuery = '';
+      iqobShowDropdown = true;
+      iqobSelectedNama = '';
       await loadIqobKelas();
     } catch (err) {
       iqobFormError = err.message;
@@ -502,16 +538,20 @@
 </svelte:head>
 
 <div class="page-container">
-  <button class="btn-back" onclick={() => goto('/guru/input-keseharian')}>
+  <button class="btn-back" onclick={() => goto('/guru/input-nilai/keseharian')}>
     <Icon name="chevronLeft" size={18} /> Kembali ke Daftar Kelas
   </button>
 
-  <div class="header-action" style="margin-top: 1.5rem;">
+  <div class="header-action" style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
     <div>
       <h2>Input Keseharian: {displayKelasName}</h2>
       <p class="subtitle">
         Input poin keseharian dan catat pelanggaran siswa.
       </p>
+    </div>
+    <div class="search-bar">
+      <Icon name="search" size={16} class="search-icon" />
+      <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />
     </div>
   </div>
 
@@ -566,7 +606,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each siswaData as s, i}
+            {#each filteredSiswaData as s, i}
               {@const r = rekapData[s.siswa_id]}
               <tr>
                 <td>{i + 1}</td>
@@ -633,7 +673,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each pelanggaranSiswaList as s, i}
+              {#each filteredPelanggaranSiswaList as s, i}
                 {@const plg = getTotalPoinPelanggaran(s.siswa_id)}
                 {@const iqob = getTotalPoinIqob(s.siswa_id)}
                 {@const akhir = getPoinAkhir(s.siswa_id)}
@@ -732,14 +772,41 @@
             <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; display:flex; align-items:center; gap:6px;"><Icon name="plus" size={16}/> Tambah Pelanggaran</h4>
             
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-              <div class="form-group" style="flex: 2; min-width: 200px;">
-                <label for="plg-jenis-modal">Jenis Pelanggaran</label>
-                <select id="plg-jenis-modal" class="input" bind:value={plgFormJenisId} onchange={onSelectJenis}>
-                  <option value="">-- Pilih Jenis --</option>
-                  {#each jenisPelanggaranList as j}
-                    <option value={j.id}>{j.nama} (+{j.poin})</option>
-                  {/each}
-                </select>
+              <div class="form-group" style="position: relative; flex: 2; min-width: 200px;">
+                <label>Jenis Pelanggaran</label>
+                {#if !plgShowDropdown && plgSelectedNama}
+                  <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <div class="input" style="flex: 1; background: #e2e8f0; color: #334155; font-weight: 500; font-size: 0.9rem; line-height: 1.4;">
+                      {plgSelectedNama} <span style="color: #dc2626;">(+{plgFormPoin})</span>
+                    </div>
+                    <button class="btn-secondary" style="padding: 0.5rem; height: 100%;" onclick={() => { plgShowDropdown = true; plgSelectedNama = ''; plgFormJenisId = ''; plgFormPoin = 0; }}>
+                      Ubah
+                    </button>
+                  </div>
+                {:else}
+                  <input type="text" class="input" placeholder="Ketik jenis pelanggaran..." bind:value={plgSearchQuery} />
+                  {#if plgSearchQuery.length > 0}
+                    <div style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px;">
+                      {#if plgFilteredOptions.length === 0}
+                        <div style="padding: 0.75rem; color: #64748b; font-size: 0.9rem; text-align: center;">Tidak ada hasil ditemukan.</div>
+                      {:else}
+                        {#each plgFilteredOptions as j}
+                          <!-- svelte-ignore a11y_click_events_have_key_events -->
+                          <!-- svelte-ignore a11y_no_static_element_interactions -->
+                          <div 
+                            style="padding: 0.75rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 0.9rem; transition: background 0.1s;"
+                            onmouseover={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                            onmouseout={(e) => e.currentTarget.style.background = 'transparent'}
+                            onclick={() => selectPelanggaran(j)}
+                          >
+                            <div style="font-weight: 500; color: #0f172a; margin-bottom: 0.25rem;">{j.nama}</div>
+                            <div style="color: #dc2626; font-size: 0.8rem; font-weight: 700;">+{j.poin} Poin</div>
+                          </div>
+                        {/each}
+                      {/if}
+                    </div>
+                  {/if}
+                {/if}
               </div>
               <div class="form-group" style="flex: 1; min-width: 120px;">
                 <label for="plg-tgl-modal">Tanggal</label>
@@ -750,11 +817,6 @@
                 <input id="plg-poin-modal" type="number" step="0.1" class="input" bind:value={plgFormPoin} />
               </div>
             </div>
-            <div class="form-group" style="margin-top: 0.5rem;">
-              <label for="plg-iqob-modal">Iqob / Sanksi Fisik (Opsional)</label>
-              <input id="plg-iqob-modal" type="text" class="input" bind:value={plgFormIqob} placeholder="Contoh: Push up 10x" />
-            </div>
-            
             <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
               <button class="btn-primary" onclick={submitPelanggaran} disabled={plgFormLoading}>
                 {plgFormLoading ? 'Menyimpan...' : 'Simpan Pelanggaran'}
@@ -773,9 +835,6 @@
                   <div class="history-info">
                     <span class="history-date">{formatDate(c.tanggal)}</span>
                     <span class="history-desc">{c.nama_pelanggaran} <span style="color: #dc2626; font-weight: 600;">(+{c.poin})</span></span>
-                    {#if c.iqob}
-                      <span style="font-size: 0.85em; color: #64748b; font-style: italic;">Sanksi: {c.iqob}</span>
-                    {/if}
                   </div>
                   <button class="btn-icon-mini text-red" title="Hapus" onclick={() => hapusCatatan(c.id)}>
                     <Icon name="x" size={14} />
@@ -793,14 +852,41 @@
             <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem; display:flex; align-items:center; gap:6px;"><Icon name="plus" size={16}/> Tambah Iqob (Pengurang Poin)</h4>
             
             <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-              <div class="form-group" style="flex: 2; min-width: 200px;">
-                <label for="iqob-jenis-modal">Jenis Iqob</label>
-                <select id="iqob-jenis-modal" class="input" bind:value={iqobFormJenisId} onchange={onSelectJenisIqob}>
-                  <option value="">-- Pilih Jenis --</option>
-                  {#each jenisIqobList as j}
-                    <option value={j.id}>{j.nama} (-{j.poin})</option>
-                  {/each}
-                </select>
+              <div class="form-group" style="position: relative; flex: 2; min-width: 200px;">
+                <label>Jenis Iqob</label>
+                {#if !iqobShowDropdown && iqobSelectedNama}
+                  <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <div class="input" style="flex: 1; background: #e2e8f0; color: #334155; font-weight: 500; font-size: 0.9rem; line-height: 1.4;">
+                      {iqobSelectedNama} <span style="color: #16a34a;">(-{iqobFormPoin})</span>
+                    </div>
+                    <button class="btn-secondary" style="padding: 0.5rem; height: 100%;" onclick={() => { iqobShowDropdown = true; iqobSelectedNama = ''; iqobFormJenisId = ''; iqobFormPoin = 0; }}>
+                      Ubah
+                    </button>
+                  </div>
+                {:else}
+                  <input type="text" class="input" placeholder="Ketik jenis iqob..." bind:value={iqobSearchQuery} />
+                  {#if iqobSearchQuery.length > 0}
+                    <div style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px;">
+                      {#if iqobFilteredOptions.length === 0}
+                        <div style="padding: 0.75rem; color: #64748b; font-size: 0.9rem; text-align: center;">Tidak ada hasil ditemukan.</div>
+                      {:else}
+                        {#each iqobFilteredOptions as j}
+                          <!-- svelte-ignore a11y_click_events_have_key_events -->
+                          <!-- svelte-ignore a11y_no_static_element_interactions -->
+                          <div 
+                            style="padding: 0.75rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 0.9rem; transition: background 0.1s;"
+                            onmouseover={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                            onmouseout={(e) => e.currentTarget.style.background = 'transparent'}
+                            onclick={() => selectIqob(j)}
+                          >
+                            <div style="font-weight: 500; color: #0f172a; margin-bottom: 0.25rem;">{j.nama}</div>
+                            <div style="color: #16a34a; font-size: 0.8rem; font-weight: 700;">-{j.poin} Poin</div>
+                          </div>
+                        {/each}
+                      {/if}
+                    </div>
+                  {/if}
+                {/if}
               </div>
               <div class="form-group" style="flex: 1; min-width: 120px;">
                 <label for="iqob-tgl-modal">Tanggal</label>
@@ -874,6 +960,28 @@
 {/if}
 
 <style>
+
+  .search-bar {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    gap: 0.5rem;
+  }
+  .search-icon {
+    color: #94a3b8;
+  }
+  .search-input {
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #1e293b;
+    width: 200px;
+    outline: none;
+  }
 
   /* MODAL KUSTOM INTERNAL */
   .modal-backdrop {

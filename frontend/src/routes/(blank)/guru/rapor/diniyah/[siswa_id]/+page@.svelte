@@ -19,6 +19,46 @@
   let customKoordinator = $state('AJI SYAFAAT');
   let customKepalaSekolah = $state('');
 
+  // Dynamic Kop & Logo
+  let customLogoUrl = $state('');
+  let logoX = $state(600);
+  let logoY = $state(20);
+  let logoSize = $state(80);
+  let dividerThickness = $state(3);
+
+  // Local Signature Settings
+  let ttdKepala = $state('');
+  let ttdMusyrif = $state('');
+  let ttdKepalaSize = $state(100);
+  let ttdMusyrifSize = $state(100);
+
+  $effect(() => {
+    if (ttdKepalaSize !== undefined) localStorage.setItem('ttdKepalaSize_global', ttdKepalaSize.toString());
+    if (ttdMusyrifSize !== undefined) localStorage.setItem('ttdMusyrifSize_global', ttdMusyrifSize.toString());
+  });
+
+  function handleTtdKepala(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      ttdKepala = event.target.result;
+      localStorage.setItem('ttdKepala_global', ttdKepala);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleTtdMusyrif(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      ttdMusyrif = event.target.result;
+      localStorage.setItem('ttdMusyrif_global', ttdMusyrif);
+    };
+    reader.readAsDataURL(file);
+  }
+
   onMount(async () => {
     try {
       let query = '';
@@ -28,10 +68,13 @@
       });
       if (!res.ok) throw new Error('Gagal memuat rapor diniyah.');
       rapor = await res.json();
-      
-      const resCatatan = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/catatan-rapor?jenis_rapor=diniyah${sekolahId ? `&sekolah_id=${sekolahId}` : ''}`, {
-        credentials: 'include'
-      });
+
+      const resCatatan = await fetch(
+        `${apiUrl}/api/guru/siswa/${siswaId}/catatan-rapor?jenis_rapor=diniyah${sekolahId ? `&sekolah_id=${sekolahId}` : ''}`,
+        {
+          credentials: 'include'
+        }
+      );
       if (resCatatan.ok) {
         const catBody = await resCatatan.json();
         catatanRapor = catBody.catatan || '';
@@ -39,8 +82,35 @@
 
       // Initialize dynamic print settings after data loads
       customTanggalRapor = formatTanggal();
+      
+      // Load local storage ttd
+      ttdKepala = localStorage.getItem('ttdKepala_global') || '';
+      ttdMusyrif = localStorage.getItem('ttdMusyrif_global') || '';
+      
+      const kSize = localStorage.getItem('ttdKepalaSize_global');
+      if (kSize) ttdKepalaSize = parseInt(kSize) || 100;
+      
+      const mSize = localStorage.getItem('ttdMusyrifSize_global');
+      if (mSize) ttdMusyrifSize = parseInt(mSize) || 100;
+
       if (rapor.sekolah?.kepala_sekolah) {
         customKepalaSekolah = rapor.sekolah.kepala_sekolah;
+      }
+      if (rapor.sekolah) {
+        if (rapor.sekolah.logo_base64) customLogoUrl = rapor.sekolah.logo_base64;
+        logoX = rapor.sekolah.logo_x || 600;
+        logoY = rapor.sekolah.logo_y || 20;
+        logoSize = rapor.sekolah.logo_size || 80;
+        dividerThickness = rapor.sekolah.divider_thickness || 3;
+
+        if (rapor.sekolah.kop_surat) {
+          try {
+            const parsed = JSON.parse(rapor.sekolah.kop_surat);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              kopLines = parsed;
+            }
+          } catch (e) {}
+        }
       }
     } catch (err) {
       error = err.message;
@@ -182,6 +252,23 @@
     return map[tingkat] || tingkat;
   }
 
+  let kopLines = $state([
+    { text: 'YAYASAN IMAM NAWAWI PALANGKA RAYA', color: '#558b2f', size: 18, bold: true },
+    { text: 'SMP ISLAM IMAM NAWAWI', color: '#1565c0', size: 16, bold: true },
+    {
+      text: 'Jl. Tjilik Riwut KM 8 (Jl. Gajah Mada) Kel. Bukit Tunggal Kec. Jekan Raya Kota Palangka Raya',
+      color: '#000000',
+      size: 12,
+      bold: false
+    },
+    {
+      text: 'Email: smpislamnawawi@gmail.com Telp. 0898 1567 898',
+      color: '#000000',
+      size: 12,
+      bold: false
+    }
+  ]);
+
   function formatTanggal() {
     const months = [
       'Januari',
@@ -244,6 +331,9 @@
           Tanggal Rapor:
           <input type="text" class="form-input" bind:value={customTanggalRapor} />
         </label>
+      </div>
+
+      <div class="settings-grid" style="margin-top:16px;">
         <label>
           Koordinator Diniyah:
           <input type="text" class="form-input" bind:value={customKoordinator} />
@@ -252,6 +342,22 @@
           Kepala Sekolah:
           <input type="text" class="form-input" bind:value={customKepalaSekolah} />
         </label>
+        <label>
+          Ttd Kepala (Kanan):
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdKepala} />
+        </label>
+        <label>
+          Ukuran Ttd Kepala ({ttdKepalaSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdKepalaSize} />
+        </label>
+        <label>
+          Ttd Koordinator (Kiri):
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdMusyrif} />
+        </label>
+        <label>
+          Ukuran Ttd Koordinator ({ttdMusyrifSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdMusyrifSize} />
+        </label>
       </div>
     </div>
 
@@ -259,12 +365,27 @@
     <div class="a4-container">
       <!-- Header -->
       <div class="header-section">
-        <h1 class="header-sekolah">{rapor.sekolah?.nama_sekolah || 'SEKOLAH'}</h1>
-        <p class="header-address">{rapor.sekolah?.alamat || ''}</p>
-        <p class="header-contact">Email: {rapor.sekolah?.email || '-'} Telp. 0898 1567 898</p>
+        {#if customLogoUrl}
+          <img
+            src={customLogoUrl}
+            alt="Logo"
+            style="position:absolute; left: {logoX}px; top: {logoY}px; width: {logoSize}px; z-index: 50;"
+          />
+        {/if}
+        {#each kopLines as line}
+          <div
+            style="color: {line.color}; font-size: {line.size}px; font-weight: {line.bold
+              ? 'bold'
+              : 'normal'}; margin: {line.bold ? '4px 0' : '0'}; letter-spacing: 1px;"
+          >
+            {line.text}
+          </div>
+        {/each}
       </div>
 
-      <div class="header-line"></div>
+      <div
+        style="border-top: {dividerThickness}px double black; border-bottom: none; height: 0; margin-bottom: 24px;"
+      ></div>
 
       <!-- Title -->
       <div class="title-section">
@@ -407,13 +528,21 @@
         <div class="sig-col">
           <p class="sig-invisible">{customTanggalRapor}</p>
           <p>Koordinator Diniyah</p>
-          <div class="sig-space"></div>
+          <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
+            {#if ttdMusyrif}
+              <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
+            {/if}
+          </div>
           <p class="sig-name">{customKoordinator || '____________________'}</p>
         </div>
         <div class="sig-col">
           <p>{customTanggalRapor}</p>
           <p>Kepala Sekolah</p>
-          <div class="sig-space"></div>
+          <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
+            {#if ttdKepala}
+              <img src={ttdKepala} alt="Ttd Kepala" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdKepalaSize / 100}); transform-origin: center;" />
+            {/if}
+          </div>
           <p class="sig-name">{customKepalaSekolah || '____________________'}</p>
         </div>
       </div>
@@ -430,8 +559,8 @@
 
   .arabic {
     font-family: 'Amiri', 'Traditional Arabic', serif;
-    font-size: 18px !important;
-    line-height: 1.4 !important;
+    font-size: 16px !important;
+    line-height: 1.2 !important;
   }
 
   @media print {
@@ -452,7 +581,7 @@
     .a4-container {
       box-shadow: none !important;
       margin: 0 !important;
-      padding: 1cm 2cm 2cm 2cm !important;
+      padding: 1cm !important;
       width: 100% !important;
       max-width: none !important;
     }
@@ -541,33 +670,23 @@
 
   .a4-container {
     background: white;
+    position: relative;
     width: 100%;
     max-width: 210mm;
     min-height: auto !important;
     height: auto !important;
     margin: 0 auto;
-    padding: 1cm 2cm 2cm 2cm !important;
+    padding: 1cm !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    font-family: sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 14px;
     color: black;
   }
 
   .header-section {
+    position: relative;
     text-align: center;
     margin-bottom: 16px;
-  }
-  .header-sekolah {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    margin-top: 4px;
-    margin-bottom: 8px;
-  }
-  .header-address,
-  .header-contact {
-    font-size: 12px;
-    margin: 4px 0 0;
   }
 
   .header-line {
@@ -630,7 +749,7 @@
   .rapor-table th,
   .rapor-table td {
     border: 1px solid black;
-    padding: 4px 8px;
+    padding: 2px 4px;
     vertical-align: middle;
   }
 
@@ -643,22 +762,22 @@
     width: 32px;
   }
   .col-mapel {
-    width: 180px;
+    width: 200px;
   }
   .col-angka {
     width: 60px;
   }
   .col-tulisan {
-    width: 160px;
+    width: 185px;
   }
   .col-tulisan-arab {
-    width: 160px;
+    width: 110px;
   }
   .col-angka-arab {
-    width: 60px;
+    width: 50px;
   }
   .col-mapel-arab {
-    width: 160px;
+    width: 135px;
   }
   .col-no-arab {
     width: 32px;

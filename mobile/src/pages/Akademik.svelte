@@ -1,7 +1,31 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { navigate } from '../store/nav.svelte';
     import BottomNav from '../components/BottomNav.svelte';
     import Icon from '../components/Icon.svelte';
+    import { guruState } from '../store/guru.svelte';
+    import { getSekolahForGuru } from '../services/endpoints';
+    
+    let isLoading = $state(true);
+    let errorMessage = $state('');
+
+    onMount(async () => {
+        try {
+            if (guruState.sekolahList.length === 0) {
+                const res = await getSekolahForGuru();
+                guruState.sekolahList = res?.data || [];
+                
+                // If there's no active school selected, auto-select the first one
+                if (guruState.activeSekolahId === 0 && guruState.sekolahList.length > 0) {
+                    guruState.activeSekolahId = guruState.sekolahList[0].id;
+                }
+            }
+        } catch (e: any) {
+            errorMessage = e.message || "Gagal memuat jenjang sekolah";
+        } finally {
+            isLoading = false;
+        }
+    });
 </script>
 
 <div class="mobile-app-wrapper">
@@ -14,9 +38,27 @@
                     <h1 class="page-title">Akademik</h1>
                     <p class="page-subtitle">Kelola nilai dan perkembangan siswa</p>
                 </div>
+                
+                <!-- Pilih Jenjang Sekolah -->
+                <div class="sekolah-selector">
+                    <label for="sekolah-select">Pilih Jenjang Sekolah</label>
+                    {#if isLoading}
+                        <div class="loading-state">Memuat daftar sekolah...</div>
+                    {:else if errorMessage}
+                        <div class="error-state">{errorMessage}</div>
+                    {:else if guruState.sekolahList.length === 0}
+                        <div class="error-state">Anda tidak memiliki akses ke sekolah mana pun.</div>
+                    {:else}
+                        <select id="sekolah-select" bind:value={guruState.activeSekolahId} class="select-input">
+                            {#each guruState.sekolahList as sek}
+                                <option value={sek.id}>{sek.nama}</option>
+                            {/each}
+                        </select>
+                    {/if}
+                </div>
 
                 <!-- Menu List -->
-                <div class="menu-list">
+                <div class="menu-list" class:disabled-menu={guruState.activeSekolahId === 0}>
 
                     <!-- Perkembangan Siswa -->
                     <button class="menu-card bg-purple" onclick={() => navigate('menu_perkembangan')}>
@@ -120,6 +162,48 @@
         color: #6b7280;
         margin-top: 0.25rem;
         margin-bottom: 0;
+    }
+
+    .sekolah-selector {
+        margin-bottom: 1.5rem;
+        background: white;
+        padding: 1rem;
+        border-radius: 1rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    }
+    .sekolah-selector label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #4b5563;
+        margin-bottom: 0.5rem;
+    }
+    .select-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        background-color: #f9fafb;
+        font-size: 1rem;
+        color: #1f2937;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .select-input:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+    }
+    .loading-state, .error-state {
+        font-size: 0.875rem;
+        padding: 0.5rem 0;
+        color: #6b7280;
+    }
+    .error-state { color: #ef4444; }
+
+    .disabled-menu {
+        opacity: 0.5;
+        pointer-events: none;
     }
 
     .menu-list {

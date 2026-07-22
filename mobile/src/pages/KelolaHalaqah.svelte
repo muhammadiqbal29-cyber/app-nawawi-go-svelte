@@ -5,6 +5,7 @@
     import { getSiswaAvailableTahfiz, getAnggotaHalaqah, createHalaqah, updateAnggotaHalaqah, updateHalaqah, deleteHalaqah } from '../services/endpoints';
     import { toastStore } from '../store/toast.svelte';
     import { modalStore } from '../store/modal.svelte';
+    import { guruState } from '../store/guru.svelte';
 
     let id_halaqah = $derived(routerState.navParams?.id_halaqah);
     let nama_halaqah = $state('');
@@ -28,7 +29,7 @@
             nama_halaqah = routerState.navParams?.nama_halaqah || '';
             
             // Fetch available students
-            const availableRes = await getSiswaAvailableTahfiz();
+            const availableRes = await getSiswaAvailableTahfiz(guruState.activeSekolahId || 1);
             availableStudents = availableRes || [];
 
             // If editing existing halaqah

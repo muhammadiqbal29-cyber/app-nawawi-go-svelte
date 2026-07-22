@@ -101,7 +101,7 @@
       rombel: kelas.rombel || '__kosong__',
       sekolah_id: String(sekolahId),
     });
-    const basePath = isV2 ? '/guru/input-nilai-v2' : '/guru/input-nilai';
+    const basePath = isV2 ? '/guru/input-nilai/tahfiz-v2' : '/guru/input-nilai/tahfiz';
     return `${basePath}/kelas/${kelas.id}?${params.toString()}`;
   }
 </script>

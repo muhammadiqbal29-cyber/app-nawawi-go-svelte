@@ -4,6 +4,7 @@
     import Icon from '../components/Icon.svelte';
     import Toast from '../components/Toast.svelte';
     import { getIndikatorKeseharian, getSiswaKelas, submitSesiKeseharian } from '../services/endpoints';
+    import { guruState } from '../store/guru.svelte';
 
     let showToast = $state(false);
     let toastMessage = $state('');
@@ -29,12 +30,11 @@
 
     onMount(async () => {
         try {
-            // Hardcode sekolah_id = 1 as per current mobile app behavior
-            indikatorList = await getIndikatorKeseharian(1);
+            indikatorList = await getIndikatorKeseharian(guruState.activeSekolahId || 1);
             if (kelasId) {
                 siswaList = await getSiswaKelas(kelasId, rombel);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error("Gagal load data keseharian", e);
             toastMessage = "Gagal memuat data. Periksa koneksi Anda.";
             toastType = "error";
@@ -86,7 +86,7 @@
             // kita lakukan perulangan untuk setiap indikator yang dipilih (untuk 1 siswa ini).
             const promises = selectedIndikatorIds.map(indId => {
                 const payload = {
-                    sekolah_id: 1, // Default
+                    sekolah_id: guruState.activeSekolahId || 1,
                     indikator_id: Number(indId),
                     tanggal: tanggal,
                     catatan: catatan,

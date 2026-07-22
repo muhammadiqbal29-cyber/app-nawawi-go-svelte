@@ -386,12 +386,12 @@ func buildRaporDiniyahData(
 	}
 
 	for _, m := range mapelList {
-		mn := MapelNilai{MapelDiniyah: m}
 		if n, ok := nilaiMap[m.ID]; ok {
+			mn := MapelNilai{MapelDiniyah: m}
 			resp := toResponse(n)
 			mn.Nilai = &resp
+			result = append(result, mn)
 		}
-		result = append(result, mn)
 	}
 
 	return map[string]interface{}{

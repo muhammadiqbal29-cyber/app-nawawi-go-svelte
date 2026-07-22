@@ -3,13 +3,14 @@
     import { navigate } from '../store/nav.svelte';
     import Icon from '../components/Icon.svelte';
     import { getKelasKeseharian } from '../services/endpoints';
+    import { guruState } from '../store/guru.svelte';
 
     let kelasList = $state<any[]>([]);
     let isLoading = $state(true);
 
     onMount(async () => {
         try {
-            const res = await getKelasKeseharian(1);
+            const res = await getKelasKeseharian(guruState.activeSekolahId || 1);
             kelasList = res || [];
         } catch (e) {
             console.error("Gagal memuat kelas", e);

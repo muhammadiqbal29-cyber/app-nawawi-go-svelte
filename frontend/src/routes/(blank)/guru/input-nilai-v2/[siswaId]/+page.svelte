@@ -20,8 +20,8 @@
 
   let backUrl = $derived(
     kelasId
-      ? `/guru/input-nilai-v2/kelas/${kelasId}?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombel)}&sekolah_id=${sekolahId}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}`
-      : '/guru/input-nilai-v2'
+      ? `/guru/input-nilai/tahfiz-v2/kelas/${kelasId}?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombel)}&sekolah_id=${sekolahId}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}`
+      : '/guru/input-nilai/tahfiz-v2'
   );
 
   let rows = $state([]);

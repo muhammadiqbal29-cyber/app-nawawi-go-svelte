@@ -4,6 +4,7 @@
     import Icon from '../components/Icon.svelte';
     import Toast from '../components/Toast.svelte';
     import { postSetoranTahfiz, getMateriTahfizAktif } from '../services/endpoints';
+    import { guruState } from '../store/guru.svelte';
 
     let showToast = $state(false);
     let toastMessage = $state('');
@@ -24,7 +25,7 @@
 
     onMount(async () => {
         try {
-            materiTahfizList = await getMateriTahfizAktif(1);
+            materiTahfizList = await getMateriTahfizAktif(guruState.activeSekolahId || 1);
         } catch (e) {
             console.error("Gagal load materi", e);
         }

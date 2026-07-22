@@ -11,6 +11,41 @@
   let rombel = $derived($page.url.searchParams.get('rombel') || '');
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '');
 
+  // Local Signature Settings
+  let ttdKepala = $state('');
+  let ttdMusyrif = $state('');
+  let ttdKepalaSize = $state(100);
+  let ttdMusyrifSize = $state(100);
+
+  $effect(() => {
+    if (ttdKepalaSize !== undefined) localStorage.setItem('ttdKepalaSize_global', ttdKepalaSize.toString());
+    if (ttdMusyrifSize !== undefined) localStorage.setItem('ttdMusyrifSize_global', ttdMusyrifSize.toString());
+  });
+
+  function handleTtdKepala(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        ttdKepala = event.target.result;
+        localStorage.setItem('ttdKepala_global', ttdKepala);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function handleTtdMusyrif(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        ttdMusyrif = event.target.result;
+        localStorage.setItem('ttdMusyrif_global', ttdMusyrif);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
   let loading = $state(true);
   let error = $state('');
   let raporList = $state([]);
@@ -56,6 +91,16 @@
           catatan: catMap[r.siswa.id] || ''
         }));
       }
+
+      // Load local storage ttd
+      ttdKepala = localStorage.getItem('ttdKepala_global') || '';
+      ttdMusyrif = localStorage.getItem('ttdMusyrif_global') || '';
+
+      const kSize = localStorage.getItem('ttdKepalaSize_global');
+      if (kSize) ttdKepalaSize = parseInt(kSize) || 100;
+      
+      const mSize = localStorage.getItem('ttdMusyrifSize_global');
+      if (mSize) ttdMusyrifSize = parseInt(mSize) || 100;
 
       // Set default print settings based on first data if available
       customTanggalRapor = formatTanggal();
@@ -305,6 +350,22 @@
           Kepala Sekolah:
           <input type="text" class="form-input" bind:value={customKepalaSekolah} />
         </label>
+        <label>
+          Ttd Kepala (Kanan):
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdKepala} />
+        </label>
+        <label>
+          Ukuran Ttd Kepala ({ttdKepalaSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdKepalaSize} />
+        </label>
+        <label>
+          Ttd Koordinator (Kiri):
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdMusyrif} />
+        </label>
+        <label>
+          Ukuran Ttd Koordinator ({ttdMusyrifSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdMusyrifSize} />
+        </label>
       </div>
     </div>
 
@@ -465,13 +526,21 @@
           <div class="sig-col">
             <p class="sig-invisible">{customTanggalRapor}</p>
             <p>Koordinator Diniyah</p>
-            <div class="sig-space"></div>
+            <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
+              {#if ttdMusyrif}
+                <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
+              {/if}
+            </div>
             <p class="sig-name">{customKoordinator || '____________________'}</p>
           </div>
           <div class="sig-col">
             <p>{customTanggalRapor}</p>
             <p>Kepala Sekolah</p>
-            <div class="sig-space"></div>
+            <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
+              {#if ttdKepala}
+                <img src={ttdKepala} alt="Ttd Kepala" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdKepalaSize / 100}); transform-origin: center;" />
+              {/if}
+            </div>
             <p class="sig-name">{customKepalaSekolah || '____________________'}</p>
           </div>
         </div>

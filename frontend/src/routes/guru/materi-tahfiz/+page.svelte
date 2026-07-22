@@ -23,7 +23,9 @@
       }
     })()
   );
-  let hasTahfiz = $derived(selectedFeatures.includes('input_tahfiz') || selectedFeatures.includes('input_tahfiz_v2'));
+  let hasTahfiz = $derived(
+    selectedFeatures.includes('input_tahfiz') || selectedFeatures.includes('input_tahfiz_v2')
+  );
   let hasDiniyah = $derived(selectedFeatures.includes('input_diniyah'));
   let hasKeseharian = $derived(selectedFeatures.includes('rapor_keseharian'));
 
@@ -66,6 +68,7 @@
 
   // --- State: Tab ---
   let activeTab = $state('tahfiz');
+  let tahfizActiveTab = $state('materi'); // 'materi', 'kelulusan', 'kriteria'
 
   // --- State: Mapel Diniyah ---
   let diniyahList = $state([]);
@@ -110,6 +113,37 @@
   let keseharianEditLoading = $state(false);
   let keseharianDeletingId = $state(null);
 
+  // --- State: Kop & Logo Rapor ---
+  let customLogoUrl = $state('');
+  let logoX = $state(600);
+  let logoY = $state(20);
+  let logoSize = $state(80);
+  let dividerThickness = $state(3);
+
+  let isDragging = false;
+  let startX = 0,
+    startY = 0;
+  let initialLogoX = 0,
+    initialLogoY = 0;
+  let isSavingLogo = $state(false);
+
+  let kopLines = $state([
+    { text: 'YAYASAN IMAM NAWAWI PALANGKA RAYA', color: '#558b2f', size: 18, bold: true },
+    { text: 'SMP ISLAM IMAM NAWAWI', color: '#1565c0', size: 16, bold: true },
+    {
+      text: 'Jl. Tjilik Riwut KM 8 (Jl. Gajah Mada) Kel. Bukit Tunggal Kec. Jekan Raya Kota Palangka Raya',
+      color: '#000000',
+      size: 12,
+      bold: false
+    },
+    {
+      text: 'Email: smpislamnawawi@gmail.com Telp. 0898 1567 898',
+      color: '#000000',
+      size: 12,
+      bold: false
+    }
+  ]);
+
   $effect(() => {
     if (selectedSekolah) {
       loadMateri();
@@ -121,8 +155,113 @@
         loadPelanggaran();
         loadIqob();
       }
+      loadKopLogoData();
     }
   });
+
+  function loadKopLogoData() {
+    if (!selectedSekolah) return;
+    customLogoUrl = selectedSekolah.logo_base64 || '';
+    logoX = selectedSekolah.logo_x || 600;
+    logoY = selectedSekolah.logo_y || 20;
+    logoSize = selectedSekolah.logo_size || 80;
+    dividerThickness = selectedSekolah.divider_thickness || 3;
+
+    if (selectedSekolah.kop_surat) {
+      try {
+        const parsed = JSON.parse(selectedSekolah.kop_surat);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          kopLines = parsed;
+        }
+      } catch (e) {}
+    }
+  }
+
+  function handleLogoUpload(e) {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        customLogoUrl = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function onLogoMouseDown(e) {
+    e.preventDefault();
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    initialLogoX = logoX;
+    initialLogoY = logoY;
+    window.addEventListener('mousemove', onLogoMouseMove);
+    window.addEventListener('mouseup', onLogoMouseUp);
+  }
+
+  function onLogoMouseMove(e) {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    logoX = initialLogoX + dx;
+    logoY = initialLogoY + dy;
+  }
+
+  function onLogoMouseUp() {
+    isDragging = false;
+    window.removeEventListener('mousemove', onLogoMouseMove);
+    window.removeEventListener('mouseup', onLogoMouseUp);
+  }
+
+  function addKopLine() {
+    kopLines.push({ text: 'Teks Baru', color: '#000000', size: 14, bold: false });
+  }
+
+  function removeKopLine(index) {
+    kopLines.splice(index, 1);
+  }
+
+  async function saveLogoSettings() {
+    isSavingLogo = true;
+    try {
+      const payload = {
+        logo_base64: customLogoUrl,
+        logo_x: logoX,
+        logo_y: logoY,
+        logo_size: logoSize,
+        kop_surat: JSON.stringify(kopLines),
+        divider_thickness: dividerThickness
+      };
+      const res = await fetch(`${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/rapor-logo`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('Gagal menyimpan pengaturan rapor');
+      toastStore.show('Pengaturan Kop dan Logo Rapor berhasil disimpan', 'success');
+
+      // Update local state directly so it persists if we don't refetch sekolah list immediately
+      guruState.sekolahList = guruState.sekolahList.map((s) => {
+        if (s.id === selectedSekolah.id) {
+          return {
+            ...s,
+            logo_base64: customLogoUrl,
+            logo_x: logoX,
+            logo_y: logoY,
+            logo_size: logoSize,
+            kop_surat: payload.kop_surat,
+            divider_thickness: dividerThickness
+          };
+        }
+        return s;
+      });
+    } catch (err) {
+      toastStore.show(err.message, 'error');
+    } finally {
+      isSavingLogo = false;
+    }
+  }
 
   async function loadMateri() {
     if (!selectedSekolah) return;
@@ -432,7 +571,9 @@
     if (!diniyahFormNama.trim()) return;
     isTranslatingDiniyahForm = true;
     try {
-      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=id&tl=ar&dt=t&q=${encodeURIComponent(diniyahFormNama)}`);
+      const res = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=id&tl=ar&dt=t&q=${encodeURIComponent(diniyahFormNama)}`
+      );
       const data = await res.json();
       if (data && data[0] && data[0][0] && data[0][0][0]) {
         diniyahFormNamaArab = data[0][0][0];
@@ -908,16 +1049,14 @@
     }
   }
 
-
   async function loadIqob() {
     if (!selectedSekolah) return;
     loadingIqob = true;
     errorIqob = '';
     try {
-      const res = await fetch(
-        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis`,
-        { credentials: 'include' }
-      );
+      const res = await fetch(`${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis`, {
+        credentials: 'include'
+      });
       if (!res.ok) throw new Error('Gagal memuat jenis iqob.');
       const body = await res.json();
       iqobList = body.data || [];
@@ -936,23 +1075,20 @@
     iqobFormLoading = true;
     iqobFormError = '';
     try {
-      const res = await fetch(
-        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            nama: iqobFormNama.trim(),
-            poin: Number(iqobFormPoin) || 0,
-            keterangan: iqobFormKeterangan.trim(),
-            aktif: true
-          })
-        }
-      );
+      const res = await fetch(`${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/iqob/jenis`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: iqobFormNama.trim(),
+          poin: Number(iqobFormPoin) || 0,
+          keterangan: iqobFormKeterangan.trim(),
+          aktif: true
+        })
+      });
       if (!res.ok) throw new Error('Gagal menyimpan jenis iqob');
       await loadIqob();
-      
+
       iqobFormNama = '';
       iqobFormPoin = 0;
       iqobFormKeterangan = '';
@@ -1162,6 +1298,15 @@
           Iqob
         </button>
       {/if}
+      {#if hasTahfiz || hasDiniyah || hasKeseharian}
+        <button
+          class="tab-btn"
+          class:active={activeTab === 'kop_logo'}
+          onclick={() => (activeTab = 'kop_logo')}
+        >
+          Kop & Logo Rapor
+        </button>
+      {/if}
     </div>
 
     {#if !hasTahfiz && !hasDiniyah && !hasKeseharian}
@@ -1177,6 +1322,29 @@
       {#if activeTab === 'tahfiz' && hasTahfiz}
         <!-- ======= TAB TAHFIZ (konten lama) ======= -->
 
+        <!-- Sub-tabs for Tahfiz -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.35rem; border-radius: 999px; max-width: 750px;">
+          <button
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {tahfizActiveTab === 'materi' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            onclick={() => (tahfizActiveTab = 'materi')}
+          >
+            Daftar Materi Hafalan
+          </button>
+          <button
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {tahfizActiveTab === 'kelulusan' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            onclick={() => (tahfizActiveTab = 'kelulusan')}
+          >
+            Konfigurasi Nilai Kelulusan
+          </button>
+          <button
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {tahfizActiveTab === 'kriteria' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            onclick={() => (tahfizActiveTab = 'kriteria')}
+          >
+            Kriteria Penilaian
+          </button>
+        </div>
+
+        {#if tahfizActiveTab === 'materi'}
         <!-- Toolbar -->
         <div class="toolbar">
           <span class="materi-count">
@@ -1372,7 +1540,9 @@
             </table>
           </div>
         {/if}
+        {/if}
 
+        {#if tahfizActiveTab === 'kelulusan'}
         <section class="kelulusan-settings">
           <div class="settings-header">
             <div>
@@ -1430,10 +1600,32 @@
               </div>
             {/if}
           </div>
+          
+          <p class="settings-note">
+            Hanya berlaku untuk nilai yang belum tersimpan. Nilai yang sudah ada tidak akan berubah.
+          </p>
+        </section>
+        {/if}
 
-          <div class="settings-kriteria-block">
+        {#if tahfizActiveTab === 'kriteria'}
+        <section class="kelulusan-settings">
+          <div class="settings-header">
+            <div>
+              <h2 class="settings-title">Kriteria Penilaian Rapor</h2>
+              <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Istimewa)</p>
+            </div>
+          </div>
+          
+          {#if konfigurasiError}
+            <div class="alert-error">{konfigurasiError}</div>
+          {/if}
+          {#if konfigurasiSuccess}
+            <div class="alert-success">{konfigurasiSuccess}</div>
+          {/if}
+
+          <div class="settings-kriteria-block" style="margin-top: 1rem;">
             <div class="settings-kriteria-header">
-              <div class="settings-class-label">Kriteria Penilaian Rapor (Skala 100)</div>
+              <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
               <button
                 class="btn-secondary btn-sm"
                 onclick={tambahKriteria}
@@ -1501,11 +1693,18 @@
               {/if}
             </div>
           </div>
-
-          <p class="settings-note">
-            Hanya berlaku untuk nilai yang belum tersimpan. Nilai yang sudah ada tidak akan berubah.
-          </p>
+          
+          <div style="margin-top: 1.5rem;">
+            <button
+              class="btn-primary"
+              onclick={simpanKonfigurasiNilaiTahfiz}
+              disabled={loadingKonfigurasi || konfigurasiSaving}
+            >
+              {konfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
+            </button>
+          </div>
         </section>
+        {/if}
         <!-- ======= END TAB TAHFIZ ======= -->
       {:else if activeTab === 'diniyah' && hasDiniyah}
         <!-- ======= TAB DINIYAH ======= -->
@@ -1537,10 +1736,20 @@
                 />
               </div>
               <div class="form-group form-group-wide">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <div
+                  style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;"
+                >
                   <label for="diniyah-arab" style="margin-bottom: 0;">Nama Mapel (Arab)</label>
-                  <button type="button" class="btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick={translateDiniyahForm} disabled={isTranslatingDiniyahForm || !diniyahFormNama.trim()} title="Terjemahkan otomatis dari Latin">
-                    <Icon name="refreshCw" size={12} /> {isTranslatingDiniyahForm ? 'Menerjemahkan...' : 'Translate'}
+                  <button
+                    type="button"
+                    class="btn-secondary btn-sm"
+                    style="padding: 0.2rem 0.5rem; font-size: 0.75rem;"
+                    onclick={translateDiniyahForm}
+                    disabled={isTranslatingDiniyahForm || !diniyahFormNama.trim()}
+                    title="Terjemahkan otomatis dari Latin"
+                  >
+                    <Icon name="refreshCw" size={12} />
+                    {isTranslatingDiniyahForm ? 'Menerjemahkan...' : 'Translate'}
                   </button>
                 </div>
                 <input
@@ -1865,12 +2074,12 @@
           </div>
         {/if}
         <!-- ======= END TAB KESEHARIAN ======= -->
-
       {:else if activeTab === 'pelanggaran' && hasKeseharian}
         <!-- ======= TAB PELANGGARAN ======= -->
         <div class="toolbar">
           <span class="materi-count">
-            {pelanggaranList.length} jenis pelanggaran ({pelanggaranList.filter((p) => p.aktif).length} aktif)
+            {pelanggaranList.length} jenis pelanggaran ({pelanggaranList.filter((p) => p.aktif)
+              .length} aktif)
           </span>
           <div class="toolbar-actions" style="display: flex; gap: 8px;">
             <button class="btn-secondary" onclick={handleDownloadTemplatePelanggaran}>
@@ -1892,7 +2101,10 @@
               onchange={handleImportPelanggaran}
               style="display: none;"
             />
-            <button class="btn-primary" onclick={() => (showPelanggaranForm = !showPelanggaranForm)}>
+            <button
+              class="btn-primary"
+              onclick={() => (showPelanggaranForm = !showPelanggaranForm)}
+            >
               <Icon name="plus" size={16} /> Tambah Pelanggaran
             </button>
           </div>
@@ -1926,7 +2138,12 @@
             <div class="form-actions">
               <button
                 class="btn-secondary"
-                onclick={() => { showPelanggaranForm = false; pelanggaranFormNama = ''; pelanggaranFormPoin = 0; pelanggaranFormError = ''; }}
+                onclick={() => {
+                  showPelanggaranForm = false;
+                  pelanggaranFormNama = '';
+                  pelanggaranFormPoin = 0;
+                  pelanggaranFormError = '';
+                }}
                 disabled={pelanggaranFormLoading}>Batal</button
               >
               <button
@@ -2046,7 +2263,6 @@
           </div>
         {/if}
         <!-- ======= END TAB PELANGGARAN ======= -->
-
       {:else if activeTab === 'iqob' && hasKeseharian}
         <!-- ======= TAB IQOB ======= -->
         <div class="toolbar">
@@ -2117,13 +2333,12 @@
             <div class="form-actions" style="margin-top: 16px;">
               <button
                 class="btn-cancel"
-                onclick={() => { showIqobForm = false; iqobFormError = ''; }}
-              >Batal</button>
-              <button
-                class="btn-save"
-                onclick={tambahIqob}
-                disabled={iqobFormLoading}
+                onclick={() => {
+                  showIqobForm = false;
+                  iqobFormError = '';
+                }}>Batal</button
               >
+              <button class="btn-save" onclick={tambahIqob} disabled={iqobFormLoading}>
                 {iqobFormLoading ? 'Menyimpan...' : 'Simpan Iqob'}
               </button>
             </div>
@@ -2163,12 +2378,23 @@
                   <tr>
                     {#if iqobEditingId === p.id}
                       <td><input type="text" class="input" bind:value={iqobEditNama} /></td>
-                      <td><input type="number" step="0.1" class="input" bind:value={iqobEditPoin} /></td>
+                      <td
+                        ><input
+                          type="number"
+                          step="0.1"
+                          class="input"
+                          bind:value={iqobEditPoin}
+                        /></td
+                      >
                       <td><input type="text" class="input" bind:value={iqobEditKeterangan} /></td>
                       <td></td>
                       <td>
                         <div class="action-buttons">
-                          <button class="btn-save" onclick={() => simpanIqobEdit(p)} disabled={iqobEditLoading}>
+                          <button
+                            class="btn-save"
+                            onclick={() => simpanIqobEdit(p)}
+                            disabled={iqobEditLoading}
+                          >
                             <Icon name="check" size={16} />
                           </button>
                           <button class="btn-cancel" onclick={cancelIqobEdit}>Batal</button>
@@ -2190,10 +2416,19 @@
                       </td>
                       <td>
                         <div class="action-buttons">
-                          <button class="btn-icon text-blue" onclick={() => startIqobEdit(p)} title="Edit Iqob">
+                          <button
+                            class="btn-icon text-blue"
+                            onclick={() => startIqobEdit(p)}
+                            title="Edit Iqob"
+                          >
                             <Icon name="edit" size={18} />
                           </button>
-                          <button class="btn-icon text-red" onclick={() => hapusIqob(p.id)} disabled={iqobDeletingId === p.id} title="Hapus Iqob">
+                          <button
+                            class="btn-icon text-red"
+                            onclick={() => hapusIqob(p.id)}
+                            disabled={iqobDeletingId === p.id}
+                            title="Hapus Iqob"
+                          >
                             <Icon name="trash" size={18} />
                           </button>
                         </div>
@@ -2205,6 +2440,160 @@
             </table>
           </div>
         {/if}
+      {:else if activeTab === 'kop_logo'}
+        <!-- ======= TAB KOP & LOGO ======= -->
+        <div class="card" style="padding: 2rem;">
+          <h2 style="margin-top: 0;">Pengaturan Kop & Logo Rapor</h2>
+          <p style="color: #64748b; margin-bottom: 2rem;">
+            Atur Kop Surat (teks baris) dan Logo Sekolah. Pengaturan ini akan diaplikasikan ke semua
+            jenis rapor.
+          </p>
+
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;"
+          >
+            <!-- Logo Settings -->
+            <div>
+              <h3
+                style="border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem;"
+              >
+                Logo Sekolah
+              </h3>
+              <div class="form-group" style="margin-bottom: 1rem;">
+                <label>Unggah Logo</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onchange={handleLogoUpload}
+                  class="form-input"
+                />
+              </div>
+              <div class="form-group">
+                <label>Ukuran Logo ({logoSize}px)</label>
+                <input type="range" min="30" max="300" bind:value={logoSize} />
+              </div>
+              <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.5rem;">
+                Geser logo pada area pratinjau di bawah untuk mengatur letaknya secara bebas.
+              </p>
+              <div class="form-group" style="margin-top: 1rem;">
+                <label>Ketebalan Garis Pemisah ({dividerThickness}px)</label>
+                <input type="range" min="1" max="8" bind:value={dividerThickness} />
+              </div>
+            </div>
+
+            <!-- Kop Settings -->
+            <div>
+              <h3
+                style="border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem;"
+              >
+                Teks Kop Surat
+              </h3>
+              <div
+                style="max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-right: 0.5rem;"
+              >
+                {#each kopLines as line, i}
+                  <div
+                    style="display: flex; gap: 0.5rem; align-items: center; background: #f8fafc; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px;"
+                  >
+                    <input
+                      type="text"
+                      class="form-input"
+                      bind:value={line.text}
+                      style="flex: 1;"
+                      placeholder="Teks baris..."
+                    />
+                    <input
+                      type="color"
+                      bind:value={line.color}
+                      title="Warna Teks"
+                      style="width: 32px; height: 32px; padding: 0; border: none; cursor: pointer;"
+                    />
+                    <input
+                      type="number"
+                      class="form-input"
+                      bind:value={line.size}
+                      min="8"
+                      max="48"
+                      style="width: 60px;"
+                      title="Ukuran Font (px)"
+                    />
+                    <label
+                      style="display: flex; align-items: center; gap: 4px; font-size: 0.85rem; cursor: pointer;"
+                    >
+                      <input type="checkbox" bind:checked={line.bold} /> Bold
+                    </label>
+                    <button
+                      class="btn-icon text-danger"
+                      onclick={() => removeKopLine(i)}
+                      title="Hapus"
+                    >
+                      <Icon name="trash" size={16} />
+                    </button>
+                  </div>
+                {/each}
+              </div>
+              <button
+                class="btn-secondary"
+                style="margin-top: 1rem; width: 100%; justify-content: center;"
+                onclick={addKopLine}
+              >
+                <Icon name="plus" size={16} /> Tambah Baris Kop
+              </button>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <h3
+            style="border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem;"
+          >
+            Pratinjau Kertas A4 (Area Atas)
+          </h3>
+          <div
+            style="border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #f1f5f9; padding: 2rem 0;"
+          >
+            <!-- Simulation of A4 Container at scaled size, matching .page in reports -->
+            <div
+              style="width: 210mm; min-height: 100mm; background: white; margin: 0 auto; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transform: scale(0.8); transform-origin: top center; overflow: hidden; padding: 1cm !important; box-sizing: border-box;"
+            >
+              <!-- header-section: same as in reports (position: relative; text-align: center; margin-bottom: 16px) -->
+              <div style="position: relative; text-align: center; margin-bottom: 16px;">
+                {#if customLogoUrl}
+                  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+                  <img
+                    src={customLogoUrl}
+                    alt="Logo"
+                    style="position: absolute; left: {logoX}px; top: {logoY}px; width: {logoSize}px; cursor: move; z-index: 50; border: {isDragging
+                      ? '1px dashed #3b82f6'
+                      : '1px transparent solid'};"
+                    onmousedown={onLogoMouseDown}
+                  />
+                {/if}
+                {#each kopLines as line}
+                  <div
+                    style="color: {line.color}; font-size: {line.size}px; font-weight: {line.bold
+                      ? 'bold'
+                      : 'normal'}; margin: {line.bold ? '4px 0' : '0'}; letter-spacing: 1px;"
+                  >
+                    {line.text}
+                  </div>
+                {/each}
+              </div>
+
+              <!-- Double Line: same as .header-line in reports -->
+              <div
+                style="border-top: {dividerThickness}px double black; border-bottom: none; height: 0; margin-bottom: 24px;"
+              ></div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+            <button class="btn-primary" onclick={saveLogoSettings} disabled={isSavingLogo}>
+              <Icon name={isSavingLogo ? 'loader' : 'save'} size={18} />
+              {isSavingLogo ? 'Menyimpan...' : 'Simpan Pengaturan'}
+            </button>
+          </div>
+        </div>
+        <!-- ======= END TAB KOP & LOGO ======= -->
       {/if}
     {/if}
     <!-- Akhir else (!hasTahfiz && !hasDiniyah) -->

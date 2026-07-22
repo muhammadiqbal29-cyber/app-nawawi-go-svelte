@@ -12,7 +12,7 @@
   let hasAccess = $derived(
     guruState.activeSekolahId &&
       guruState.aksesMap[guruState.activeSekolahId] &&
-      guruState.aksesMap[guruState.activeSekolahId].includes('rapor_keseharian')
+      guruState.aksesMap[guruState.activeSekolahId].includes('input_diniyah')
   );
 
   $effect(() => {
@@ -52,12 +52,12 @@
       rombel: kelas.rombel || '__kosong__',
       sekolah_id: String(guruState.activeSekolahId)
     });
-    return `/guru/input-keseharian/kelas/${kelas.id}?${params.toString()}`;
+    return `/guru/input-nilai/diniyah/kelas/${kelas.id}?${params.toString()}`;
   }
 </script>
 
 <svelte:head>
-  <title>Input Keseharian - SIAKAD</title>
+  <title>Nilai Diniyah - SIAKAD</title>
 </svelte:head>
 
 {#if !guruState.activeSekolahId}
@@ -71,7 +71,7 @@
     <Icon name="alertCircle" size={48} />
     <h3>Akses Ditolak</h3>
     <p>
-      Anda tidak memiliki hak akses <b>Input Keseharian</b> untuk jenjang {guruState.activeSekolahName}.
+      Anda tidak memiliki hak akses <b>Nilai Diniyah</b> untuk jenjang {guruState.activeSekolahName}.
     </p>
   </div>
 {:else}
@@ -79,10 +79,8 @@
     <div class="page-container">
       <div class="page-header-actions">
         <div>
-          <h1 class="page-title">Input Keseharian</h1>
-          <p class="page-subtitle">
-            Pilih kelas untuk memfinalisasi nilai dan rapor keseharian siswa.
-          </p>
+          <h1 class="page-title">Nilai Diniyah</h1>
+          <p class="page-subtitle">Pilih kelas untuk menginput nilai mata pelajaran diniyah.</p>
         </div>
       </div>
 

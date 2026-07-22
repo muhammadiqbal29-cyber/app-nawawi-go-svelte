@@ -7,6 +7,10 @@
   let kelasList = $state([]);
   let selectedKelas = $state(null);
   let siswaList = $state([]);
+  let searchQuery = $state('');
+  let filteredSiswa = $derived(
+    siswaList.filter((s) => (s.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   let loadingKelas = $state(false);
   let loadingSiswa = $state(false);
   let error = $state('');
@@ -143,6 +147,13 @@
         </div>
       </div>
     </div>
+    
+    <div class="search-container" style="margin-bottom: 1.5rem;">
+      <div class="search-bar">
+        <Icon name="search" size={16} class="search-icon" />
+        <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />
+      </div>
+    </div>
 
     {#if loadingSiswa}
       <div class="loading-box">Memuat siswa...</div>
@@ -153,7 +164,7 @@
       </div>
     {:else}
       <div class="siswa-grid">
-        {#each siswaList as siswa (siswa.id)}
+        {#each filteredSiswa as siswa (siswa.id)}
           <a
             class="siswa-card"
             href="/guru/rapor/tasmi/{siswa.id}?sekolah_id={guruState.activeSekolahId}"
@@ -252,8 +263,34 @@
     font-size: 0.85rem;
   }
   .kelas-count {
+    font-size: 0.8rem;
     color: #64748b;
-    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .search-bar {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .search-icon {
+    color: #94a3b8;
+  }
+  .search-input {
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #1e293b;
+    width: 100%;
+    outline: none;
   }
 
   .selected-header {

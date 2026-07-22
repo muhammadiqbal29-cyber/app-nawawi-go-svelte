@@ -33,6 +33,10 @@ export async function getKonfigurasiPresensi() {
     return get<any>('/api/guru/me/presensi/konfigurasi');
 }
 
+export async function getSekolahForGuru() {
+    return get<any>('/api/guru/sekolah');
+}
+
 // ==========================================
 // TAHFIZ HALAQAH
 // ==========================================
@@ -63,8 +67,8 @@ export async function updateAnggotaHalaqah(idKelompok: number, siswa_ids: number
     return put<any>(`/api/guru/halaqah/${idKelompok}/anggota`, { siswa_ids });
 }
 
-export async function getSiswaAvailableTahfiz() {
-    const data = await get<any[]>('/api/guru/sekolah/1/siswa-available-tahfiz');
+export async function getSiswaAvailableTahfiz(sekolahId: number) {
+    const data = await get<any[]>(`/api/guru/sekolah/${sekolahId}/siswa-available-tahfiz`);
     return data || [];
 }
 

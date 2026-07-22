@@ -7,7 +7,7 @@
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  let kelasId = $derived($page.params.id);
+  let kelasId = $derived($page.params.kelas_id);
   let kelasLabel = $derived($page.url.searchParams.get('kelas') || `Kelas #${kelasId}`);
   let rombel = $derived($page.url.searchParams.get('rombel') || '__kosong__');
   let rombelText = $derived(rombel === '__kosong__' ? 'Tanpa Rombel' : `Rombel ${rombel}`);
@@ -19,6 +19,10 @@
 
   // data = [{ siswa, mapel_nilai, rata_rata, catatan }]
   let siswaData = $state([]);
+  let searchQuery = $state('');
+  let filteredSiswa = $derived(
+    siswaData.filter((s) => (s.nama || '').toLowerCase().includes(searchQuery.toLowerCase()))
+  );
   let catatanMap = $state({});
 
   onMount(loadData);
@@ -27,17 +31,17 @@
     loading = true;
     error = '';
     try {
-      // 1. Ambil data rapor diniyah masal untuk kalkulasi rata-rata
+      // 1. Ambil data rapor tahfiz v2 masal
       const params = new URLSearchParams({ rombel });
-      const resRapor = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/rapor-diniyah-masal?${params.toString()}`, {
+      const resRapor = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/tahfiz-v2-masal?${params.toString()}`, {
         credentials: 'include'
       });
-      if (!resRapor.ok) throw new Error('Gagal memuat data rapor diniyah');
+      if (!resRapor.ok) throw new Error('Gagal memuat data rapor tahfiz v2');
       const raporData = await resRapor.json();
 
       // 2. Ambil catatan rapor yang sudah ada
       const paramsCatatan = new URLSearchParams({
-        jenis_rapor: 'diniyah',
+        jenis_rapor: 'tahfiz',
         sekolah_id: sekolahId,
         rombel
       });
@@ -57,26 +61,13 @@
       });
       catatanMap = map;
 
-      // Process data siswa & hitung rata-rata
+      // Process data siswa
       siswaData = (raporData || []).map(item => {
-        const mapelNilai = item.mapel_nilai || [];
-        let total = 0;
-        let count = 0;
-        
-        mapelNilai.forEach(mn => {
-          if (mn.nilai && typeof mn.nilai.nilai_rapor === 'number') {
-            total += mn.nilai.nilai_rapor;
-            count++;
-          }
-        });
-
-        const rataRata = count > 0 ? (total / count) : 0;
-        
         return {
           siswa_id: item.siswa.id,
           nama: item.siswa.nama_lengkap,
           nisn: item.siswa.nisn,
-          rata_rata: rataRata,
+          rata_rata: 0,
           catatan: map[item.siswa.id] || ''
         };
       }).sort((a, b) => a.nama.localeCompare(b.nama));
@@ -91,16 +82,8 @@
   function generateAutoCatatan() {
     siswaData = siswaData.map(s => {
       let cat = s.catatan;
-      if (!cat) { // Hanya isi jika masih kosong
-        if (s.rata_rata >= 90) {
-          cat = 'Alhamdulillah, pencapaian yang sangat baik dalam pelajaran Diniyah. Pertahankan dan tingkatkan terus belajarnya.';
-        } else if (s.rata_rata >= 80) {
-          cat = 'Pencapaian yang baik dalam pelajaran Diniyah. Terus semangat belajar dan murajaah.';
-        } else if (s.rata_rata >= 70) {
-          cat = 'Pencapaian cukup baik. Tingkatkan lagi kefokusan dan semangat belajarnya.';
-        } else if (s.rata_rata > 0) {
-          cat = 'Perlu bimbingan dan motivasi lebih dalam belajar Diniyah. Tetap semangat dan jangan menyerah.';
-        }
+      if (!cat) {
+        cat = 'Pencapaian yang baik dalam hafalan Al-Qur\'an. Terus semangat dan jaga murajaahnya.';
       }
       return { ...s, catatan: cat };
     });
@@ -110,30 +93,26 @@
   async function simpanSemua() {
     saving = true;
     try {
-      const payload = {
-        sekolah_id: Number(sekolahId),
-        jenis_rapor: 'diniyah',
-        data: siswaData.map(s => ({
-          siswa_id: s.siswa_id,
-          catatan: s.catatan || ''
-        }))
-      };
-
-      const res = await fetch(`${apiUrl}/api/guru/catatan-rapor`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const promises = siswaData.map(s => {
+        return fetch(`${apiUrl}/api/guru/nilai-catatan`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sekolah_id: Number(sekolahId),
+            siswa_id: s.siswa_id,
+            catatan: s.catatan || ''
+          })
+        }).then(res => {
+          if (!res.ok) throw new Error(`Gagal menyimpan untuk siswa ID ${s.siswa_id}`);
+        });
       });
 
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Gagal menyimpan catatan masal');
-      }
+      await Promise.all(promises);
 
       toastStore.show('Catatan masal berhasil disimpan', 'success');
       setTimeout(() => {
-        goto(`/guru/input-diniyah/kelas/${kelasId}?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombel)}&sekolah_id=${sekolahId}`);
+        goto('/guru/rapor/ujian-tahfiz-v2');
       }, 1000);
     } catch (err) {
       toastStore.show(err.message, 'error');
@@ -144,7 +123,7 @@
 </script>
 
 <svelte:head>
-  <title>Catatan Masal Diniyah - {kelasLabel}</title>
+  <title>Catatan Masal Tahfiz V2 - {kelasLabel}</title>
 </svelte:head>
 
 <div class="page-container">
@@ -152,15 +131,19 @@
     <div>
       <button 
         class="back-link" 
-        onclick={() => goto(`/guru/input-diniyah/kelas/${kelasId}?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombel)}&sekolah_id=${sekolahId}`)}
+        onclick={() => goto('/guru/rapor/ujian-tahfiz-v2')}
       >
         <Icon name="arrowLeft" size={16} /> Kembali
       </button>
-      <h1 class="page-title">Catatan Masal Diniyah</h1>
+      <h1 class="page-title">Catatan Masal Ujian Tahfiz V2</h1>
       <p class="page-subtitle">{kelasLabel} · {rombelText} · {siswaData.length} siswa</p>
     </div>
     
     <div class="action-buttons">
+      <div class="search-bar">
+        <Icon name="search" size={16} class="search-icon" />
+        <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />
+      </div>
       <button class="btn-action-secondary" onclick={generateAutoCatatan} disabled={loading || siswaData.length === 0}>
         <Icon name="zap" size={16} /> Generate Otomatis
       </button>
@@ -189,22 +172,16 @@
           <tr>
             <th style="width: 5%;">No</th>
             <th style="width: 25%;">Nama Siswa</th>
-            <th style="width: 10%; text-align: center;">Rata-rata Nilai</th>
-            <th style="width: 60%;">Catatan Rapor</th>
+            <th style="width: 70%;">Catatan Rapor</th>
           </tr>
         </thead>
         <tbody>
-          {#each siswaData as siswa, index (siswa.siswa_id)}
+          {#each filteredSiswa as siswa, index (siswa.siswa_id)}
             <tr>
               <td class="text-center">{index + 1}</td>
               <td>
                 <div class="siswa-nama">{siswa.nama}</div>
                 <div class="siswa-nisn">NISN: {siswa.nisn}</div>
-              </td>
-              <td class="text-center">
-                <span class="badge {siswa.rata_rata >= 70 ? 'badge-success' : 'badge-warning'}">
-                  {siswa.rata_rata.toFixed(1)}
-                </span>
               </td>
               <td>
                 <textarea 
@@ -257,6 +234,30 @@
 
   .back-link:hover {
     color: var(--color-primary, #4f46e5);
+  }
+
+  .search-bar {
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    gap: 0.5rem;
+    width: 250px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .search-icon {
+    color: #94a3b8;
+  }
+  .search-input {
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #1e293b;
+    width: 100%;
+    outline: none;
   }
 
   .page-title {

@@ -315,6 +315,8 @@ func main() {
 	// Rute Dashboard
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/dashboard/tahfiz", guru.GetDashboardTahfizHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/dashboard/diniyah", guru.GetDashboardDiniyahHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/rapor-logo", sekolah.UpdateRaporLogoHandler).Methods("PUT")
+	
 	// Terapkan CORS
 	handler := HandleCORS(r)
 

@@ -11,8 +11,12 @@
   let loading = $state(true);
   let error = $state('');
 
-  let totalPelanggaran = $derived(raporData ? (raporData.pelanggaran || []).reduce((acc, p) => acc + (p.poin || 0), 0) : 0);
-  let totalIqob = $derived(raporData ? (raporData.iqob || []).reduce((acc, p) => acc + (p.poin || 0), 0) : 0);
+  let totalPelanggaran = $derived(
+    raporData ? (raporData.pelanggaran || []).reduce((acc, p) => acc + (p.poin || 0), 0) : 0
+  );
+  let totalIqob = $derived(
+    raporData ? (raporData.iqob || []).reduce((acc, p) => acc + (p.poin || 0), 0) : 0
+  );
   let sisaPelanggaran = $derived(totalPelanggaran > totalIqob ? totalPelanggaran - totalIqob : 0);
   let nilaiKedisiplinanAkhir = $derived(100 - sisaPelanggaran);
 
@@ -26,6 +30,90 @@
   let customTanggalRapor = $state(currentDate);
   let customKepalaAsrama = $state('AJI SYAFAAT');
   let customMusyrif = $state('');
+
+  let logoX = $state(600);
+  let logoY = $state(20);
+  let logoSize = $state(80);
+  let customLogoUrl = $state('');
+  let kopLines = $state([]);
+  let dividerThickness = $state(3);
+
+  // Local Signature Settings
+  let ttdKepala = $state('');
+  let ttdMusyrif = $state('');
+  let ttdKepalaSize = $state(100);
+  let ttdMusyrifSize = $state(100);
+
+  import { onMount } from 'svelte';
+  onMount(() => {
+    ttdKepala = localStorage.getItem('ttdKepala_global') || '';
+    ttdMusyrif = localStorage.getItem('ttdMusyrif_global') || '';
+    ttdKepalaSize = parseInt(localStorage.getItem('ttdKepalaSize_global')) || 100;
+    ttdMusyrifSize = parseInt(localStorage.getItem('ttdMusyrifSize_global')) || 100;
+  });
+
+  $effect(() => {
+    if (ttdKepalaSize !== undefined) localStorage.setItem('ttdKepalaSize_global', ttdKepalaSize.toString());
+    if (ttdMusyrifSize !== undefined) localStorage.setItem('ttdMusyrifSize_global', ttdMusyrifSize.toString());
+  });
+
+  function handleTtdKepala(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      ttdKepala = event.target.result;
+      localStorage.setItem('ttdKepala_global', ttdKepala);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleTtdMusyrif(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      ttdMusyrif = event.target.result;
+      localStorage.setItem('ttdMusyrif_global', ttdMusyrif);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  $effect(() => {
+    if (raporData?.sekolah) {
+      customLogoUrl = raporData.sekolah.logo_base64 || '';
+      logoX = raporData.sekolah.logo_x || 600;
+      logoY = raporData.sekolah.logo_y || 20;
+      logoSize = raporData.sekolah.logo_size || 80;
+      dividerThickness = raporData.sekolah.divider_thickness || 3;
+      let localKop = [];
+      if (raporData.sekolah.kop_surat) {
+        try {
+          const parsed = JSON.parse(raporData.sekolah.kop_surat);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localKop = parsed;
+          }
+        } catch (e) {}
+      }
+      if (localKop.length === 0) {
+        localKop = [
+          {
+            text: raporData.sekolah.nama_sekolah || 'SMP ISLAM IMAM NAWAWI',
+            color: '#000000',
+            size: 18,
+            bold: true
+          },
+          {
+            text: raporData.sekolah.alamat || 'Jl. Tjilik Riwut KM 8',
+            color: '#000000',
+            size: 12,
+            bold: false
+          }
+        ];
+      }
+      kopLines = localKop;
+    }
+  });
 
   $effect(() => {
     if (siswaId) {
@@ -46,14 +134,17 @@
         );
       const json = await res.json();
       raporData = json.data;
-      
+
       const paramsCatatan = new URLSearchParams({
         jenis_rapor: 'keseharian',
         sekolah_id: sekolahId
       });
-      const resCatatan = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/catatan-rapor?${paramsCatatan.toString()}`, {
-        credentials: 'include'
-      });
+      const resCatatan = await fetch(
+        `${apiUrl}/api/guru/siswa/${siswaId}/catatan-rapor?${paramsCatatan.toString()}`,
+        {
+          credentials: 'include'
+        }
+      );
       if (resCatatan.ok) {
         const catBody = await resCatatan.json();
         raporData.catatan = catBody.catatan || '';
@@ -79,8 +170,8 @@
 
   function getRiwayatGabungan(rd) {
     if (!rd) return [];
-    const p = (rd.pelanggaran || []).map(x => ({ ...x, tipe: 'Pelanggaran' }));
-    const iq = (rd.iqob || []).map(x => ({ ...x, tipe: 'Iqob' }));
+    const p = (rd.pelanggaran || []).map((x) => ({ ...x, tipe: 'Pelanggaran' }));
+    const iq = (rd.iqob || []).map((x) => ({ ...x, tipe: 'Iqob' }));
     return [...p, ...iq].sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
   }
 
@@ -98,7 +189,6 @@
     }
     return result;
   }
-
 </script>
 
 <svelte:head>
@@ -151,22 +241,50 @@
             placeholder="Nama Musyrif"
           />
         </label>
+        <label>
+          Ttd Kepala (Kanan):
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdKepala} />
+        </label>
+        <label>
+          Ukuran Ttd Kepala ({ttdKepalaSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdKepalaSize} />
+        </label>
+        <label>
+          Ttd Musyrif (Kiri):
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdMusyrif} />
+        </label>
+        <label>
+          Ukuran Ttd Musyrif ({ttdMusyrifSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdMusyrifSize} />
+        </label>
       </div>
     </div>
 
-    <div class="a4-container">
+    <div class="a4-container" style="position:relative;">
       <!-- Header -->
-      <div class="header-section">
-        <h1 class="header-sekolah">{raporData.sekolah?.nama_sekolah || 'SMP ISLAM IMAM NAWAWI'}</h1>
-        <p class="header-address">
-          {raporData.sekolah?.alamat ||
-            'Jl. Tjilik Riwut KM 8 (Jl. Gajah Mada) Kel. Bukit Tunggal Kec. Jekan Raya Kota Palangka Raya'}
-        </p>
-        <p class="header-contact">Email: smpislamnawawi@gmail.com Telp. 0898 1567 898</p>
+      <div class="header-section" style="text-align: center; margin-bottom: 16px;">
+        {#if customLogoUrl}
+          <img
+            src={customLogoUrl}
+            alt="Logo"
+            style="position:absolute; left: {logoX}px; top: {logoY}px; width: {logoSize}px; z-index: 50;"
+          />
+        {/if}
+        {#each kopLines as line}
+          <div
+            style="color: {line.color}; font-size: {line.size}px; font-weight: {line.bold
+              ? 'bold'
+              : 'normal'}; margin: {line.bold ? '4px 0' : '0'}; letter-spacing: 1px;"
+          >
+            {line.text}
+          </div>
+        {/each}
       </div>
 
       <!-- Double Border Line -->
-      <div class="header-line"></div>
+      <div
+        style="border-top: {dividerThickness}px double black; border-bottom: none; height: 0; margin-bottom: 24px;"
+      ></div>
 
       <!-- Title -->
       <div class="title-section">
@@ -174,23 +292,33 @@
       </div>
 
       <!-- Student Info -->
-      <div class="student-info">
-        <table class="info-table">
+      <div class="student-info" style="display: flex; justify-content: space-between;">
+        <table class="info-table" style="width: auto;">
           <tbody>
             <tr>
-              <td class="info-label">NAMA SISWA</td>
+              <td class="info-label" style="width: 100px;">NAMA SISWA</td>
               <td class="info-sep">:</td>
               <td>{raporData.siswa?.nama_lengkap || '-'}</td>
             </tr>
             <tr>
-              <td>KAMAR</td>
+              <td class="info-label">KELAS</td>
+              <td class="info-sep">:</td>
+              <td>{raporData.riwayat?.rombel?.kelas?.nama || '-'} {raporData.riwayat?.rombel?.nama || ''}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="info-table" style="width: auto;">
+          <tbody>
+            <tr>
+              <td class="info-label" style="width: 140px;">KAMAR</td>
               <td class="info-sep">:</td>
               <td>{raporData.riwayat?.kamar || '-'}</td>
             </tr>
             <tr>
-              <td>MUSYRIF/MUSYRIFAH</td>
+              <td class="info-label">{raporData.siswa?.jenis_kelamin === 'P' || raporData.siswa?.jenis_kelamin === 'Perempuan' ? 'MUSYRIFAH' : 'MUSYRIF'}</td>
               <td class="info-sep">:</td>
-              <td>-</td>
+              <td>{customMusyrif || '-'}</td>
             </tr>
           </tbody>
         </table>
@@ -234,7 +362,7 @@
       </div>
 
       <!-- Bagian B: RAPOR PELANGGARAN & IQOB -->
-      <div class="mb-2 mt-4">
+      <div class="section-pelanggaran mb-2 mt-8">
         <h4 class="font-bold text-base mb-2">B. RAPOR PELANGGARAN & IQOB</h4>
         <table class="rapor-table">
           <thead>
@@ -250,6 +378,12 @@
           <tbody>
             {#if true}
               {@const riwayat = getRiwayatSideBySide(raporData)}
+              {@const tPlg = (raporData.pelanggaran || []).reduce(
+                (acc, p) => acc + (p.poin || 0),
+                0
+              )}
+              {@const tIqob = (raporData.iqob || []).reduce((acc, p) => acc + (p.poin || 0), 0)}
+              {@const tSisa = tPlg > tIqob ? tPlg - tIqob : 0}
               {#if riwayat.length > 0}
                 {#each riwayat as r, i (i)}
                   <tr style="color: black;">
@@ -274,42 +408,20 @@
                   </td>
                 </tr>
               {/if}
+              <!-- Ringkasan Poin Akhir -->
+              <tr class="font-bold border-t-2 border-black" style="color: black;">
+                <td colspan="3" class="text-right">TOTAL POIN PELANGGARAN</td>
+                <td class="text-center">{tPlg}</td>
+                <td class="text-right">TOTAL PENGURANGAN IQOB</td>
+                <td class="text-center">{tIqob}</td>
+              </tr>
+              <tr class="font-bold" style="color: black;">
+                <td colspan="5" class="text-right">SISA POIN PELANGGARAN</td>
+                <td class="text-center">{tSisa}</td>
+              </tr>
             {/if}
           </tbody>
         </table>
-
-        <!-- Ringkasan Poin Akhir -->
-        <div class="font-bold mt-4 ml-2 border p-4 bg-gray-50">
-          {#if true}
-            {@const tPlg = (raporData.pelanggaran || []).reduce((acc, p) => acc + (p.poin || 0), 0)}
-            {@const tIqob = (raporData.iqob || []).reduce((acc, p) => acc + (p.poin || 0), 0)}
-            {@const tSisa = tPlg > tIqob ? tPlg - tIqob : 0}
-            <table class="border-none w-auto text-sm text-black" style="border:none; color: black;">
-              <tbody>
-                <tr>
-                  <td class="border-none py-1 px-0 w-48" style="border:none">TOTAL POIN PELANGGARAN</td>
-                  <td class="info-sep" style="padding:0 8px;">=</td>
-                  <td>{tPlg}</td>
-                </tr>
-                <tr>
-                  <td style="border:none">TOTAL PENGURANGAN IQOB</td>
-                  <td class="info-sep" style="border:none; padding:0 8px;">=</td>
-                  <td class="border-none py-1 px-0" style="border:none">{tIqob}</td>
-                </tr>
-                <tr style="border-top: 1px solid #ccc;">
-                  <td style="padding-top: 8px;">SISA POIN PELANGGARAN</td>
-                  <td class="info-sep" style="padding-top: 8px; padding-left: 8px; padding-right: 8px;">=</td>
-                  <td class="border-none py-1 px-0" style="border:none; padding-top: 8px;">{tSisa}</td>
-                </tr>
-                <tr>
-                  <td style="font-size: 1.1em;">NILAI KEDISIPLINAN AKHIR</td>
-                  <td class="info-sep" style="padding:0 8px; font-size: 1.1em;">=</td>
-                  <td class="border-none py-1 px-0 font-bold" style="border:none; font-size: 1.1em;">{100 - tSisa}</td>
-                </tr>
-              </tbody>
-            </table>
-          {/if}
-        </div>
       </div>
 
       <!-- Catatan Keseharian -->
@@ -322,16 +434,23 @@
       <div class="signature-section">
         <div class="sig-col">
           <p class="sig-invisible">Palangka Raya, {customTanggalRapor}</p>
-          <!-- Spacer -->
+          <p>&nbsp;</p>
           <p>Kepala Asrama</p>
-          <div class="sig-space"></div>
-          <!-- Space for signature -->
-          <p class="sig-name">{customKepalaAsrama || '____________________'}</p>
+          <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
+            {#if ttdKepala}
+              <img src={ttdKepala} alt="Ttd Kepala" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdKepalaSize / 100}); transform-origin: center;" />
+            {/if}
+          </div>
+          <p class="sig-name">{customKepalaAsrama || '_________________________'}</p>
         </div>
         <div class="sig-col">
           <p>Palangka Raya, {customTanggalRapor}</p>
-          <p>Musyrif/Musyrifah Asrama</p>
-          <div class="sig-space"></div>
+          <p>{raporData.siswa?.jenis_kelamin === 'P' || raporData.siswa?.jenis_kelamin === 'Perempuan' ? 'Musyrifah Asrama' : 'Musyrif Asrama'}</p>
+          <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
+            {#if ttdMusyrif}
+              <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
+            {/if}
+          </div>
           <!-- Space for signature -->
           <p class="sig-name">{customMusyrif || '_________________________'}</p>
         </div>
@@ -368,12 +487,20 @@
       padding: 0 !important;
       margin: 0 !important;
     }
+    .print-wrapper {
+      padding: 0 !important;
+      background: white !important;
+    }
     .a4-container {
       box-shadow: none !important;
       margin: 0 !important;
-      padding: 1cm 2cm 2cm 2cm !important;
+      padding: 1cm !important;
       width: 100% !important;
       max-width: none !important;
+    }
+    .section-pelanggaran {
+      page-break-before: always;
+      padding-top: 1cm;
     }
     @page {
       size: A4 portrait;
@@ -465,28 +592,17 @@
     min-height: auto !important;
     height: auto !important;
     margin: 0 auto;
-    padding: 1cm 2cm 2cm 2cm !important;
+    padding: 1cm !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    font-family: sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 14px;
     color: black;
   }
 
   .header-section {
+    position: relative;
     text-align: center;
     margin-bottom: 16px;
-  }
-  .header-sekolah {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    margin-top: 4px;
-    margin-bottom: 8px;
-  }
-  .header-address,
-  .header-contact {
-    font-size: 12px;
-    margin: 4px 0 0;
   }
 
   .header-line {
@@ -562,25 +678,22 @@
     width: 32px;
   }
   .col-mapel {
-    width: 180px;
+    width: 200px;
   }
   .col-angka {
     width: 60px;
   }
   .col-tulisan {
-    width: 160px;
+    width: 185px;
   }
   .col-tulisan-arab {
-    width: 160px;
+    width: 110px;
   }
   .col-angka-arab {
-    width: 60px;
+    width: 50px;
   }
   .col-mapel-arab {
-    width: 160px;
-  }
-  .col-no-arab {
-    width: 32px;
+    width: 135px;
   }
 
   .text-center {
@@ -590,14 +703,7 @@
     text-align: right;
   }
 
-  .group-header {
-    font-weight: 700;
-    background: #f9fafb;
-  }
   @media print {
-    .group-header {
-      background: transparent;
-    }
   }
 
   .catatan-box {
@@ -605,11 +711,6 @@
     border: 1px solid black;
     padding: 8px;
     min-height: 64px;
-  }
-  .catatan-label {
-    font-weight: 700;
-    font-size: 14px;
-    margin: 0;
   }
 
   .signature-section {
@@ -636,26 +737,5 @@
     font-weight: 700;
     text-decoration: underline;
     margin: 0;
-  }
-
-  .loading-box {
-    padding: 3rem;
-    text-align: center;
-    color: #64748b;
-    border: 1px dashed #cbd5e1;
-    border-radius: 8px;
-    background: #f8fafc;
-    max-width: 400px;
-    margin: 100px auto;
-  }
-  .error-box {
-    padding: 1.5rem;
-    text-align: center;
-    color: #dc2626;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    max-width: 400px;
-    margin: 100px auto;
   }
 </style>

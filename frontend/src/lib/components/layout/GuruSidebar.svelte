@@ -30,38 +30,11 @@
         </button>
       </li>
 
-      {#if hasInput}
-        <li class:active={currentPath.startsWith('/guru/input-nilai') && !currentPath.startsWith('/guru/input-nilai-v2')}>
+      {#if hasInput || hasInputV2 || hasDiniyah || hasKeseharian}
+        <li class:active={currentPath.startsWith('/guru/input-nilai')}>
           <button class="nav-link" onclick={() => goto('/guru/input-nilai')}>
             <Icon name="edit" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Nilai Tahfiz (Versi 1)</span>
-          </button>
-        </li>
-      {/if}
-
-      {#if hasInputV2}
-        <li class:active={currentPath.startsWith('/guru/input-nilai-v2')}>
-          <button class="nav-link" onclick={() => goto('/guru/input-nilai-v2')}>
-            <Icon name="checkCircle" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Nilai Tahfiz (Versi 2)</span>
-          </button>
-        </li>
-      {/if}
-
-      {#if hasDiniyah}
-        <li class:active={currentPath.startsWith('/guru/input-diniyah')}>
-          <button class="nav-link" onclick={() => goto('/guru/input-diniyah')}>
-            <Icon name="book" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Nilai Diniyah</span>
-          </button>
-        </li>
-      {/if}
-
-      {#if hasKeseharian}
-        <li class:active={currentPath.startsWith('/guru/input-keseharian')}>
-          <button class="nav-link" onclick={() => goto('/guru/input-keseharian')}>
-            <Icon name="checkCircle" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Input Nilai Keseharian</span>
+            <span class="label" class:hidden={!isOpen}>Input Nilai</span>
           </button>
         </li>
       {/if}
@@ -135,7 +108,7 @@
   .logo {
     width: 32px;
     height: 32px;
-    background-color: #6366f1;
+    background-color: var(--color-primary, #22c55e);
     color: white;
     border-radius: 8px;
     display: flex;
@@ -153,7 +126,7 @@
     margin-left: 1rem;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #6366f1;
+    color: var(--color-primary, #22c55e);
     white-space: nowrap;
     opacity: 1;
     transition: opacity 0.2s;
@@ -206,12 +179,12 @@
 
   .nav-link:hover {
     background-color: var(--color-surface-hover, #f1f5f9);
-    color: #6366f1;
+    color: var(--color-primary, #22c55e);
   }
 
   .sidebar-nav li.active .nav-link {
-    background-color: rgba(99, 102, 241, 0.1);
-    color: #6366f1;
+    background-color: rgba(34, 197, 94, 0.1);
+    color: var(--color-primary, #22c55e);
   }
 
   .icon {

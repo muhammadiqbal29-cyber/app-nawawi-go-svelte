@@ -30,6 +30,69 @@
   let customOrangTua = $state('____________________');
   let customSubJudul = $state("Evaluasi Pembelajaran Juz 30 (Juz 'Amma)");
 
+  let logoX = $state(600);
+  let logoY = $state(20);
+  let logoSize = $state(80);
+  let dividerThickness = $state(3);
+  let customLogoUrl = $state('');
+  let kopLines = $state([]);
+
+  // Local Signature Settings
+  let ttdMusyrif = $state('');
+  let ttdMusyrifSize = $state(100);
+
+  $effect(() => {
+    if (ttdMusyrifSize !== undefined) localStorage.setItem('ttdMusyrifSize_global', ttdMusyrifSize.toString());
+  });
+
+  function handleTtdMusyrif(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      ttdMusyrif = event.target.result;
+      localStorage.setItem('ttdMusyrif_global', ttdMusyrif);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  $effect(() => {
+    if (raporList.length > 0 && raporList[0].sekolah) {
+      const sekolah = raporList[0].sekolah;
+      customLogoUrl = sekolah.logo_base64 || '';
+      logoX = sekolah.logo_x || 600;
+      logoY = sekolah.logo_y || 20;
+      logoSize = sekolah.logo_size || 80;
+      dividerThickness = sekolah.divider_thickness || 3;
+      let localKop = [];
+      if (sekolah.kop_surat) {
+        try {
+          const parsed = JSON.parse(sekolah.kop_surat);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localKop = parsed;
+          }
+        } catch (e) {}
+      }
+      if (localKop.length === 0) {
+        localKop = [
+          {
+            text: sekolah.nama_sekolah || 'SMP ISLAM IMAM NAWAWI',
+            color: '#000000',
+            size: 18,
+            bold: true
+          },
+          {
+            text: sekolah.alamat || 'Jl. Tjilik Riwut KM 8',
+            color: '#000000',
+            size: 12,
+            bold: false
+          }
+        ];
+      }
+      kopLines = localKop;
+    }
+  });
+
   onMount(async () => {
     try {
       await Promise.all([loadKonfigurasiTahfiz(), loadDataMasal()]);
@@ -70,11 +133,17 @@
     const data = await res.json();
     raporList = data || [];
 
+    // Set default print settings based on first data if available
+    customTanggalRapor = formatTanggal();
+    ttdMusyrif = localStorage.getItem('ttdMusyrif_global') || '';
+    
+    const mSize = localStorage.getItem('ttdMusyrifSize_global');
+    if (mSize) ttdMusyrifSize = parseInt(mSize) || 100;
+
     if (raporList.length > 0 && raporList[0].sekolah) {
       const s = raporList[0].sekolah;
       // Removed custom state mapping, we'll use raporData.sekolah directly in the template
     }
-    customTanggalRapor = formatTanggal();
   }
 
   function formatTanggal() {
@@ -202,6 +271,18 @@
           Keterangan Evaluasi (Sub-Judul):
           <input type="text" class="form-input" bind:value={customSubJudul} />
         </label>
+        <label
+          style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+        >
+          Ttd Guru Pembimbing:
+          <input type="file" class="form-input" accept="image/*" onchange={handleTtdMusyrif} />
+        </label>
+        <label
+          style="display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; color: #475569; gap: 0.25rem;"
+        >
+          Ukuran Ttd Guru Pembimbing ({ttdMusyrifSize}%):
+          <input type="range" min="10" max="300" class="form-input" bind:value={ttdMusyrifSize} />
+        </label>
       </div>
     </div>
 
@@ -219,25 +300,30 @@
 
       <!-- A4 Paper Container -->
       <div class="page" id="rapor-container-{raporData.siswa.id}">
-        <div>
+        <div style="position:relative;">
           <div class="report-header">
-            <div class="header-section">
-              <h1 class="header-sekolah">{raporData.sekolah?.nama_sekolah || 'SEKOLAH'}</h1>
-              <p class="header-npsn">NPSN: {raporData.sekolah?.npsn || '-'}</p>
-              <p class="header-address">
-                {raporData.sekolah?.alamat || ''}{raporData.sekolah?.kode_pos
-                  ? `, Kode Pos: ${raporData.sekolah.kode_pos}`
-                  : ''}
-              </p>
-              <p class="header-contact">
-                {#if raporData.sekolah?.email}Email: {raporData.sekolah.email}{/if}
-                {#if raporData.sekolah?.email && raporData.sekolah?.website}
-                  |
-                {/if}
-                {#if raporData.sekolah?.website}Website: {raporData.sekolah.website}{/if}
-              </p>
+            <div class="header-section" style="text-align: center; margin-bottom: 16px;">
+              {#if customLogoUrl}
+                <img
+                  src={customLogoUrl}
+                  alt="Logo"
+                  style="position:absolute; left: {logoX}px; top: {logoY}px; width: {logoSize}px; z-index: 50;"
+                />
+              {/if}
+              {#each kopLines as line}
+                <div
+                  style="color: {line.color}; font-size: {line.size}px; font-weight: {line.bold
+                    ? 'bold'
+                    : 'normal'}; margin: {line.bold ? '4px 0' : '0'}; letter-spacing: 1px;"
+                >
+                  {line.text}
+                </div>
+              {/each}
             </div>
-            <div class="header-line"></div>
+            <!-- Double Border Line -->
+            <div
+              style="border-top: {dividerThickness}px double black; border-bottom: none; height: 0; margin-bottom: 24px;"
+            ></div>
             <div class="report-title">
               <h2>RAPOR HAFALAN AL-QUR'AN</h2>
               <h3>{customSubJudul}</h3>
@@ -356,7 +442,14 @@
               <div>
                 <p>{customKota}, {customTanggalRapor}</p>
                 <p class="signature-title">Guru Pembimbing Tahfiz</p>
-                <div class="signature-line">( {customGuruPembimbing} )</div>
+                {#if ttdMusyrif}
+                  <div style="height: 3rem; margin-top: 0.5rem; display: flex; justify-content: center; align-items: center;">
+                    <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
+                  </div>
+                  <div class="signature-line" style="margin-top: 0.5rem;">( {customGuruPembimbing} )</div>
+                {:else}
+                  <div class="signature-line">( {customGuruPembimbing} )</div>
+                {/if}
               </div>
             </div>
           </div>
@@ -477,7 +570,7 @@
   .page {
     width: var(--print-width);
     min-height: var(--print-height);
-    padding: 20mm;
+    padding: 1cm !important;
     margin: 20px auto;
     background: white;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
@@ -494,28 +587,11 @@
   }
 
   .header-section {
+    position: relative;
     text-align: center;
     margin-bottom: 16px;
   }
-  .header-sekolah {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    margin-top: 4px;
-    margin-bottom: 4px;
-  }
-  .header-npsn {
-    margin: 0;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #333;
-    letter-spacing: 0.05em;
-  }
-  .header-address,
-  .header-contact {
-    font-size: 12px;
-    margin: 4px 0 0;
-  }
+
   .header-line {
     border-top: 3px double black;
     border-bottom: none;
@@ -754,7 +830,7 @@
     }
     .page {
       margin: 0;
-      padding: 1cm 2cm 2cm 2cm !important;
+      padding: 1cm !important;
       box-shadow: none;
       width: 100%;
       min-height: auto !important;

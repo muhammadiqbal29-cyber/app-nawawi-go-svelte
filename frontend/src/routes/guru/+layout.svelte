@@ -75,6 +75,9 @@
           const profilRes = await fetch(`${apiUrl}/api/guru/me/profil`, { credentials: 'include' });
           if (profilRes.ok) {
             const data = await profilRes.json();
+            if (data && data.nama_lengkap) {
+              auth.loggedInUser = data.nama_lengkap;
+            }
             if (data && data.akses_sekolah) {
               try {
                 guruSchoolAkses = JSON.parse(data.akses_sekolah) || {};
