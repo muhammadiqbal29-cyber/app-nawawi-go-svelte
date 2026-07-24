@@ -6,7 +6,10 @@
   import Icon from '$lib/components/ui/Icon.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-  let sekolahId = 1;
+  let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
+
 
   let siswaId = $derived($page.params.siswaId);
   let nama = $derived($page.url.searchParams.get('nama') || 'Siswa Tidak Ditemukan');
@@ -117,6 +120,8 @@
         jenis_penilaian: 'semester',
         mata_pelajaran: 'Tahfiz'
       });
+      if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.set('semester_id', paramSemId);
       const res = await fetch(
         `${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz?${params.toString()}`,
         { credentials: 'include' }
@@ -318,7 +323,7 @@
               </tr>
             {/each}
           </tbody>
-          <tfoot>
+          <tbody>
             <tr class="tfoot-row">
               <td colspan="7" class="tfoot-label">Total Poin Diperoleh</td>
               <td class="tfoot-value">{totalPoin} / {maxPoin}</td>
@@ -327,7 +332,7 @@
               <td colspan="7" class="tfoot-label">Rata-rata Nilai (Skala 100)</td>
               <td class="tfoot-value">{averageScore}</td>
             </tr>
-          </tfoot>
+          </tbody>
         </table>
       {:else}
         <div class="empty-state-message">
@@ -335,51 +340,54 @@
         </div>
       {/if}
 
-      <!-- Catatan -->
-      <div class="catatan-box">
-        <p style="font-weight: 700; margin-bottom: 4px;">CATATAN:</p>
-        <p style="white-space: pre-wrap;">{nilaiHeader?.catatan || '-'}</p>
-      </div>
-
-      <div class="report-footer">
-        <div class="note-box">
-          <p class="note-title">Kriteria Penilaian Rapor:</p>
-          <table>
-            <tbody>
-              {#if kriteriaPenilaian && kriteriaPenilaian.length > 0}
-                {#each kriteriaPenilaian as k (k.id || k.min)}
-                  <tr>
-                    <td>{k.min === 0 ? `< ${k.max + 1}` : `${k.min} - ${k.max}`}</td>
-                    <td>: {k.arab} ({k.indo})</td>
-                  </tr>
-                {/each}
-              {:else}
-                <tr><td>90 - 100</td><td>: مُمْتَاز (Istimewa)</td></tr>
-                <tr><td>80 - 89</td><td>: جَيِّد جِدًّا (Sangat Baik)</td></tr>
-                <tr><td>70 - 79</td><td>: جَيِّد (Baik)</td></tr>
-                <tr><td>60 - 69</td><td>: مَقْبُول (Cukup)</td></tr>
-                <tr><td>&lt; 60</td><td>: رَاسِب (Mengulang)</td></tr>
-              {/if}
-            </tbody>
-          </table>
+      <!-- Wrapper Footer Rapor supaya tidak terpotong -->
+      <div style="page-break-inside: avoid; break-inside: avoid;">
+        <!-- Catatan -->
+        <div class="catatan-box">
+          <p style="font-weight: 700; margin-bottom: 4px;">CATATAN:</p>
+          <p style="white-space: pre-wrap;">{nilaiHeader?.catatan || '-'}</p>
         </div>
-        <div class="signatures">
-          <div>
-            <p class="signature-label">Mengetahui,</p>
-            <p class="signature-title">Orang Tua / Wali Siswa</p>
-            <div class="signature-line">( ____________________ )</div>
+
+        <div class="report-footer">
+          <div class="note-box">
+            <p class="note-title">Kriteria Penilaian Rapor:</p>
+            <table>
+              <tbody>
+                {#if kriteriaPenilaian && kriteriaPenilaian.length > 0}
+                  {#each kriteriaPenilaian as k (k.id || k.min)}
+                    <tr>
+                      <td>{k.min === 0 ? `< ${k.max + 1}` : `${k.min} - ${k.max}`}</td>
+                      <td>: {k.arab} ({k.indo})</td>
+                    </tr>
+                  {/each}
+                {:else}
+                  <tr><td>90 - 100</td><td>: مُمْتَاز (Istimewa)</td></tr>
+                  <tr><td>80 - 89</td><td>: جَيِّد جِدًّا (Sangat Baik)</td></tr>
+                  <tr><td>70 - 79</td><td>: جَيِّد (Baik)</td></tr>
+                  <tr><td>60 - 69</td><td>: مَقْبُول (Cukup)</td></tr>
+                  <tr><td>&lt; 60</td><td>: رَاسِب (Mengulang)</td></tr>
+                {/if}
+              </tbody>
+            </table>
           </div>
-          <div>
-            <p id="print-date">{customKota}, {customTanggalRapor}</p>
-            <p class="signature-title">Guru Pembimbing Tahfiz</p>
-            {#if ttdMusyrif}
-              <div style="height: 3rem; margin-top: 0.5rem; display: flex; justify-content: center; align-items: center;">
-                <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
-              </div>
-              <div class="signature-line" style="margin-top: 0.5rem;">( {customGuruPembimbing} )</div>
-            {:else}
-              <div class="signature-line">( {customGuruPembimbing} )</div>
-            {/if}
+          <div class="signatures">
+            <div>
+              <p class="signature-label">Mengetahui,</p>
+              <p class="signature-title">Orang Tua / Wali Siswa</p>
+              <div class="signature-line">( ____________________ )</div>
+            </div>
+            <div>
+              <p id="print-date">{customKota}, {customTanggalRapor}</p>
+              <p class="signature-title">Guru Pembimbing Tahfiz</p>
+              {#if ttdMusyrif}
+                <div style="height: 3rem; margin-top: 0.5rem; display: flex; justify-content: center; align-items: center;">
+                  <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
+                </div>
+                <div class="signature-line" style="margin-top: 0.5rem;">( {customGuruPembimbing} )</div>
+              {:else}
+                <div class="signature-line">( {customGuruPembimbing} )</div>
+              {/if}
+            </div>
           </div>
         </div>
       </div>
@@ -392,7 +400,7 @@
 
   @page {
     size: A4;
-    margin: 0;
+    margin: 1cm;
   }
 
   :root {
@@ -609,11 +617,11 @@
   }
 
   #tahfiz-table {
-    width: 100%;
+    width: 99.8%;
     border-collapse: collapse;
     font-size: 9.5pt;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    
   }
 
   #tahfiz-table th,
@@ -760,7 +768,7 @@
     }
     .page {
       margin: 0;
-      padding: 1cm !important;
+      padding: 0 !important;
       box-shadow: none;
       width: 100%;
       min-height: auto !important;

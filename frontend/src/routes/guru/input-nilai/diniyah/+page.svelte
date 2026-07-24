@@ -16,16 +16,26 @@
   );
 
   $effect(() => {
-    if (guruState.activeSekolahId) {
-      loadKelas();
+    const sekolahId = guruState.activeSekolahId;
+    const taId = guruState.activeTahunId;
+    const semId = guruState.activeSemesterId;
+    if (sekolahId && taId && semId) {
+      loadKelas(taId, semId);
     }
   });
 
-  async function loadKelas() {
+  async function loadKelas(taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
     loadingKelas = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`, {
+      let url = `${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`;
+      const params = new URLSearchParams();
+      if (taId) params.append('tahun_ajaran_id', taId);
+      if (semId) params.append('semester_id', semId);
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+      const res = await fetch(url, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat data kelas.');
@@ -52,6 +62,8 @@
       rombel: kelas.rombel || '__kosong__',
       sekolah_id: String(guruState.activeSekolahId)
     });
+    if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
+    if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
     return `/guru/input-nilai/diniyah/kelas/${kelas.id}?${params.toString()}`;
   }
 </script>

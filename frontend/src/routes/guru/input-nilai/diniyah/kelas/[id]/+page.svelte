@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { goto } from '$app/navigation';
+  import { guruState } from '$lib/guruState.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -31,7 +32,15 @@
 
   const KKM = 65;
 
-  onMount(loadMapel);
+  $effect(() => {
+    if (guruState.activeTahunId && guruState.activeSemesterId && rombelParam) {
+      if (mapelList.length === 0) {
+        loadMapel();
+      } else {
+        loadNilai();
+      }
+    }
+  });
 
   async function loadMapel() {
     loadingMapel = true;
@@ -61,6 +70,8 @@
         mapel_diniyah_id: String(selectedMapel.id),
         rombel: rombelParam
       });
+      if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
       const res = await fetch(
         `${apiUrl}/api/guru/kelas/${kelasId}/nilai-diniyah?${params.toString()}`,
         { credentials: 'include' }
@@ -187,6 +198,8 @@
         remidi_pts: data.remidi_pts,
         pas: data.pas || 0
       };
+      if (guruState.activeTahunId) payload.tahun_ajaran_id = guruState.activeTahunId;
+      if (guruState.activeSemesterId) payload.semester_id = guruState.activeSemesterId;
       const res = await fetch(`${apiUrl}/api/guru/nilai-diniyah`, {
         method: 'POST',
         credentials: 'include',
@@ -247,6 +260,8 @@
   function downloadTemplate() {
     if (!selectedMapel) return;
     const params = new URLSearchParams({ rombel: rombelParam });
+    if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
+    if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
     window.location.href = `${apiUrl}/api/guru/kelas/${kelasId}/mapel-diniyah/${selectedMapel.id}/template?${params.toString()}`;
   }
 

@@ -5,13 +5,13 @@
   import GuruSidebar from '$lib/components/layout/GuruSidebar.svelte';
   import Header from '$lib/components/layout/Header.svelte';
   import JenjangModal from '$lib/components/guru/JenjangModal.svelte';
+  import TahunModal from '$lib/components/guru/TahunModal.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
 
   let { children } = $props();
 
   let sidebarOpen = $state(true);
   let currentPath = $derived($page.url.pathname);
-  let activeTahun = $state('');
   // fiturGuru sekarang di-derive dari aksesMap sekolah yang sedang aktif
   let fiturGuru = $derived(
     guruState.activeSekolahId ? guruState.aksesMap[guruState.activeSekolahId] || [] : []
@@ -144,17 +144,37 @@
     }
 
     // Fetch Tahun Ajaran
-    fetch(`${apiUrl}/api/tahun-ajaran`, { credentials: 'include' })
+    fetch(`${apiUrl}/api/guru/tahun-ajaran`, { credentials: 'include' })
       .then((res) => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
       .then((data) => {
         if (data && data.length > 0) {
-          const aktif = data.find((t) => t.status === 'Active');
-          let semAktif = null;
-          if (aktif && aktif.semesters) {
-            semAktif = aktif.semesters.find((s) => s.status_aktif);
-          }
-          if (aktif) {
-            activeTahun = `${aktif.nama_tahun} - ${semAktif ? semAktif.tipe_semester : '?'}`;
+          guruState.tahunList = data;
+          
+          let savedTaId = typeof window !== 'undefined' ? localStorage.getItem('siakad_active_ta_id') : null;
+          let savedSemId = typeof window !== 'undefined' ? localStorage.getItem('siakad_active_sem_id') : null;
+          let savedTaName = typeof window !== 'undefined' ? localStorage.getItem('siakad_active_ta_name') : null;
+
+          if (savedTaId && savedSemId && savedTaName) {
+            guruState.activeTahunId = parseInt(savedTaId);
+            guruState.activeSemesterId = parseInt(savedSemId);
+            guruState.activeTahunName = savedTaName;
+          } else {
+            const aktif = data.find((t) => t.status === 'Active') || data[0];
+            let semAktif = null;
+            if (aktif && aktif.semesters) {
+              semAktif = aktif.semesters.find((s) => s.status_aktif) || aktif.semesters[0];
+            }
+            if (aktif && semAktif) {
+              guruState.activeTahunId = aktif.id;
+              guruState.activeSemesterId = semAktif.id;
+              guruState.activeTahunName = `${aktif.nama_tahun} - ${semAktif.tipe_semester}`;
+              
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('siakad_active_ta_id', aktif.id);
+                localStorage.setItem('siakad_active_sem_id', semAktif.id);
+                localStorage.setItem('siakad_active_ta_name', guruState.activeTahunName);
+              }
+            }
           }
         }
       })
@@ -195,7 +215,8 @@
   <div class="main-content">
     <Header
       title={currentTitle}
-      {activeTahun}
+      activeTahun={guruState.activeTahunName}
+      onGantiTahun={() => (guruState.showTahunModal = true)}
       userRole="guru"
       activeJenjang={guruState.activeSekolahName}
       onGantiJenjang={() => (guruState.showJenjangModal = true)}
@@ -211,6 +232,7 @@
 </div>
 
 <JenjangModal />
+<TahunModal />
 
 <style>
   .layout-wrapper {

@@ -42,7 +42,6 @@
     plgSelectedNama = '';
     iqobFormJenisId = '';
     iqobFormPoin = 0;
-    iqobFormKeterangan = '';
     iqobSearchQuery = '';
     iqobShowDropdown = true;
     iqobSelectedNama = '';
@@ -96,6 +95,7 @@
   );
   let plgFormLoading = $state(false);
   let plgFormError = $state('');
+  let pendingPelanggaranList = $state([]);
 
 
   // ===== IQOB STATE =====
@@ -111,7 +111,6 @@
   let iqobFormJenisId = $state('');
   let iqobFormTanggal = $state(new Date().toISOString().split('T')[0]);
   let iqobFormPoin = $state(0);
-  let iqobFormKeterangan = $state('');
   
   let iqobSearchQuery = $state('');
   let iqobShowDropdown = $state(true);
@@ -121,6 +120,34 @@
   );
   let iqobFormLoading = $state(false);
   let iqobFormError = $state('');
+  let pendingIqobList = $state([]);
+  let pendingIqobPoints = $derived(
+    pendingIqobList.reduce((sum, item) => sum + Number(item.poin), 0)
+  );
+  let recommendedIqob = $derived((() => {
+    if (!selectedStudent || !jenisIqobList || jenisIqobList.length === 0) return null;
+    const currentPoints = getPoinAkhir(selectedStudent.siswa_id) - pendingIqobPoints;
+    if (currentPoints <= 0) return null;
+    
+    const available = [...jenisIqobList].filter(j => j.aktif !== false).sort((a, b) => a.poin - b.poin);
+    if (available.length === 0) return null;
+
+    const exact = available.find(j => j.poin === currentPoints);
+    if (exact) return exact;
+
+    if (currentPoints < available[0].poin) return available[0];
+
+    let closest = available[0];
+    let minDiff = Math.abs(available[0].poin - currentPoints);
+    for (const j of available) {
+      const diff = Math.abs(j.poin - currentPoints);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = j;
+      }
+    }
+    return closest;
+  })());
 
   // ===== CATATAN RAPOR STATE =====
   let catatanRaporMap = $state({});
@@ -175,6 +202,8 @@
       const url = new URL(`${apiUrl}/api/guru/kelas/${kelasId}/keseharian/rekap`);
       url.searchParams.append('sekolah_id', sekolahId);
       url.searchParams.append('indikator_id', selectedIndikator);
+      if (guruState.activeTahunId) url.searchParams.append('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) url.searchParams.append('semester_id', guruState.activeSemesterId);
 
       const res = await fetch(url.toString(), { credentials: 'include' });
       if (!res.ok) throw new Error('Gagal memuat rekap keseharian.');
@@ -266,6 +295,8 @@
     try {
       const url = new URL(`${apiUrl}/api/guru/kelas/${kelasId}/pelanggaran`);
       url.searchParams.append('sekolah_id', sekolahId);
+      if (guruState.activeTahunId) url.searchParams.append('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) url.searchParams.append('semester_id', guruState.activeSemesterId);
       if (rombel && rombel !== '__kosong__') url.searchParams.append('rombel', rombel);
       else if (rombel === '__kosong__') url.searchParams.append('rombel', '__kosong__');
 
@@ -286,60 +317,10 @@
     if (activeTab === 'pelanggaran_iqob' && sekolahId && kelasId) {
       loadPelanggaranKelas();
       loadIqobKelas();
-      loadCatatanRapor();
-    }
+          }
   });
 
-  async function loadCatatanRapor() {
-    if (!kelasId) return;
-    try {
-      const paramsCatatan = new URLSearchParams({
-        jenis_rapor: 'keseharian',
-        sekolah_id: sekolahId
-      });
-      const res = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/catatan-rapor?${paramsCatatan.toString()}`, {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const body = await res.json();
-        const map = {};
-        for (const c of (body.catatan || [])) {
-          map[c.siswa_id] = c;
-        }
-        catatanRaporMap = map;
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function submitCatatan() {
-    catatanFormLoading = true;
-    catatanFormError = '';
-    try {
-      const res = await fetch(`${apiUrl}/api/guru/catatan-rapor`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jenis_rapor: 'keseharian',
-          sekolah_id: Number(sekolahId),
-          data: [{
-            siswa_id: Number(catatanFormSiswaId),
-            catatan: catatanFormText
-          }]
-        })
-      });
-      if (!res.ok) throw new Error('Gagal menyimpan catatan');
-      toastStore.show('Catatan rapor keseharian berhasil disimpan', 'success');
-      await loadCatatanRapor();
-    } catch (err) {
-      catatanFormError = err.message;
-    } finally {
-      catatanFormLoading = false;
-    }
-  }
-
+  
   function formatDate(dateStr) {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
@@ -348,46 +329,74 @@
 
   function selectPelanggaran(j) {
     plgFormJenisId = j.id;
-    plgFormPoin = j.poin;
     plgSelectedNama = j.nama;
-    plgShowDropdown = false;
     plgSearchQuery = '';
+    plgShowDropdown = false;
+    plgFormPoin = j.poin;
+  }
+
+  function tambahPendingPelanggaran() {
+    if (!plgFormJenisId || !plgFormTanggal) {
+      plgFormError = 'Pilih jenis pelanggaran dan tanggal terlebih dahulu';
+      return;
+    }
+    plgFormError = '';
+    pendingPelanggaranList = [...pendingPelanggaranList, {
+      jenis_pelanggaran_id: plgFormJenisId,
+      nama: plgSelectedNama,
+      tanggal: plgFormTanggal,
+      poin: plgFormPoin,
+      iqob: plgFormIqob
+    }];
+    plgFormJenisId = '';
+    plgFormPoin = 0;
+    plgSearchQuery = '';
+    plgShowDropdown = true;
+    plgSelectedNama = '';
+  }
+
+  function removePendingPelanggaran(index) {
+    pendingPelanggaranList = pendingPelanggaranList.filter((_, i) => i !== index);
   }
 
   async function submitPelanggaran() {
-    if (!plgFormSiswaId || !plgFormJenisId || !plgFormTanggal) {
-      plgFormError = 'Siswa, jenis pelanggaran, dan tanggal wajib diisi';
+    if (pendingPelanggaranList.length === 0) {
+      plgFormError = 'Tambahkan setidaknya satu pelanggaran ke daftar';
       return;
     }
     plgFormLoading = true;
     plgFormError = '';
 
     try {
-      const res = await fetch(`${apiUrl}/api/guru/pelanggaran/catatan`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siswa_id: Number(plgFormSiswaId),
-          sekolah_id: Number(sekolahId),
-          jenis_pelanggaran_id: Number(plgFormJenisId),
-          tanggal: plgFormTanggal,
-          poin: Number(plgFormPoin),
-          iqob: plgFormIqob
-        })
+      const url = new URL(`${apiUrl}/api/guru/pelanggaran/catatan`);
+      if (guruState.activeTahunId) url.searchParams.append('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) url.searchParams.append('semester_id', guruState.activeSemesterId);
+
+      const promises = pendingPelanggaranList.map(item => {
+        return fetch(url.toString(), {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siswa_id: Number(plgFormSiswaId),
+            sekolah_id: Number(sekolahId),
+            jenis_pelanggaran_id: Number(item.jenis_pelanggaran_id),
+            tanggal: item.tanggal,
+            poin: Number(item.poin),
+            iqob: item.iqob || ''
+          })
+        }).then(async r => {
+          if (!r.ok) {
+            const b = await r.json().catch(() => ({}));
+            throw new Error(b.message || `Gagal menambah pelanggaran: ${item.nama}`);
+          }
+        });
       });
-      if (!res.ok) {
-        const b = await res.json().catch(() => ({}));
-        throw new Error(b.message || 'Gagal menambah pelanggaran');
-      }
+
+      await Promise.all(promises);
+
       toastStore.show('Pelanggaran berhasil dicatat', 'success');
-      showFormPelanggaran = false;
-      plgFormSiswaId = '';
-      plgFormJenisId = '';
-      plgFormPoin = 0;
-      plgSearchQuery = '';
-      plgShowDropdown = true;
-      plgSelectedNama = '';
+      pendingPelanggaranList = [];
       await loadPelanggaranKelas();
     } catch (err) {
       plgFormError = err.message;
@@ -434,6 +443,8 @@
     try {
       const url = new URL(`${apiUrl}/api/guru/kelas/${kelasId}/iqob`);
       url.searchParams.append('sekolah_id', sekolahId);
+      if (guruState.activeTahunId) url.searchParams.append('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) url.searchParams.append('semester_id', guruState.activeSemesterId);
       if (rombel && rombel !== '__kosong__') url.searchParams.append('rombel', rombel);
       else if (rombel === '__kosong__') url.searchParams.append('rombel', '__kosong__');
 
@@ -460,41 +471,76 @@
     iqobSearchQuery = '';
   }
 
+  function applyRecommendedIqob() {
+    if (recommendedIqob) {
+      iqobFormJenisId = recommendedIqob.id;
+      iqobFormPoin = recommendedIqob.poin;
+      iqobSelectedNama = recommendedIqob.nama;
+      iqobShowDropdown = false;
+      iqobSearchQuery = '';
+    }
+  }
+
+  function tambahPendingIqob() {
+    if (!iqobFormJenisId || !iqobFormTanggal) {
+      iqobFormError = 'Pilih jenis iqob dan tanggal terlebih dahulu';
+      return;
+    }
+    iqobFormError = '';
+    pendingIqobList = [...pendingIqobList, {
+      jenis_iqob_id: iqobFormJenisId,
+      nama: iqobSelectedNama,
+      tanggal: iqobFormTanggal,
+      poin: iqobFormPoin
+    }];
+    iqobFormJenisId = '';
+    iqobFormPoin = 0;
+    iqobSearchQuery = '';
+    iqobShowDropdown = true;
+    iqobSelectedNama = '';
+  }
+
+  function removePendingIqob(index) {
+    pendingIqobList = pendingIqobList.filter((_, i) => i !== index);
+  }
+
   async function submitIqob() {
-    if (!iqobFormSiswaId || !iqobFormJenisId || !iqobFormTanggal) {
-      iqobFormError = 'Siswa, jenis iqob, dan tanggal wajib diisi';
+    if (pendingIqobList.length === 0) {
+      iqobFormError = 'Tambahkan setidaknya satu iqob ke daftar';
       return;
     }
     iqobFormLoading = true;
     iqobFormError = '';
 
     try {
-      const res = await fetch(`${apiUrl}/api/guru/iqob/catatan`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siswa_id: Number(iqobFormSiswaId),
-          sekolah_id: Number(sekolahId),
-          jenis_iqob_id: Number(iqobFormJenisId),
-          tanggal: iqobFormTanggal,
-          poin: Number(iqobFormPoin),
-          keterangan: iqobFormKeterangan
-        })
+      const url = new URL(`${apiUrl}/api/guru/iqob/catatan`);
+      if (guruState.activeTahunId) url.searchParams.append('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) url.searchParams.append('semester_id', guruState.activeSemesterId);
+
+      const promises = pendingIqobList.map(item => {
+        return fetch(url.toString(), {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            siswa_id: Number(iqobFormSiswaId),
+            sekolah_id: Number(sekolahId),
+            jenis_iqob_id: Number(item.jenis_iqob_id),
+            tanggal: item.tanggal,
+            poin: Number(item.poin)
+          })
+        }).then(async r => {
+          if (!r.ok) {
+            const b = await r.json().catch(() => ({}));
+            throw new Error(b.message || `Gagal menambah iqob: ${item.nama}`);
+          }
+        });
       });
-      if (!res.ok) {
-        const b = await res.json().catch(() => ({}));
-        throw new Error(b.message || 'Gagal menambah iqob');
-      }
+
+      await Promise.all(promises);
+
       toastStore.show('Iqob berhasil dicatat', 'success');
-      showFormIqob = false;
-      iqobFormSiswaId = '';
-      iqobFormJenisId = '';
-      iqobFormPoin = 0;
-      iqobFormKeterangan = '';
-      iqobSearchQuery = '';
-      iqobShowDropdown = true;
-      iqobSelectedNama = '';
+      pendingIqobList = [];
       await loadIqobKelas();
     } catch (err) {
       iqobFormError = err.message;
@@ -761,9 +807,7 @@
           <button class="tab-btn" class:active={modalActiveTab === 'iqob'} onclick={() => (modalActiveTab = 'iqob')}>
             Riwayat Iqob
           </button>
-          <button class="tab-btn" class:active={modalActiveTab === 'catatan'} onclick={() => (modalActiveTab = 'catatan')}>
-            Catatan Rapor
-          </button>
+
         </div>
 
         <!-- ISI TAB MODAL: PELANGGARAN -->
@@ -818,12 +862,35 @@
               </div>
             </div>
             <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-              <button class="btn-primary" onclick={submitPelanggaran} disabled={plgFormLoading}>
-                {plgFormLoading ? 'Menyimpan...' : 'Simpan Pelanggaran'}
+              <button class="btn-secondary" onclick={tambahPendingPelanggaran} disabled={plgFormLoading}>
+                <Icon name="plus" size={14} /> Tambah ke Daftar
               </button>
             </div>
             {#if plgFormError}
               <div class="alert-error mt-2">{plgFormError}</div>
+            {/if}
+
+            {#if pendingPelanggaranList.length > 0}
+              <div style="margin-top: 1.5rem; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 1rem;">
+                <h5 style="margin: 0 0 0.75rem 0; font-size: 0.9rem; color: #475569;">Daftar Pelanggaran Baru (Belum Disimpan)</h5>
+                {#each pendingPelanggaranList as p, i}
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #f1f5f9;">
+                    <div>
+                      <span style="font-weight: 500; font-size: 0.9rem;">{p.nama}</span>
+                      <span style="color: #64748b; font-size: 0.8rem; margin-left: 8px;">{formatDate(p.tanggal)}</span>
+                      <span style="color: #dc2626; font-size: 0.8rem; font-weight: 600; margin-left: 8px;">(+{p.poin})</span>
+                    </div>
+                    <button class="btn-icon-mini text-red" title="Hapus" onclick={() => removePendingPelanggaran(i)}>
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
+                {/each}
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                  <button class="btn-primary" onclick={submitPelanggaran} disabled={plgFormLoading}>
+                    {plgFormLoading ? 'Menyimpan...' : `Simpan Semua (${pendingPelanggaranList.length})`}
+                  </button>
+                </div>
+              </div>
             {/if}
           </div>
 
@@ -864,6 +931,18 @@
                     </button>
                   </div>
                 {:else}
+                  {#if recommendedIqob}
+                    <div style="margin-bottom: 0.5rem; background: #e0f2fe; border: 1px solid #bae6fd; padding: 0.5rem; border-radius: 4px; display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <span style="font-size: 0.8rem; font-weight: 600; color: #0284c7; display: block; margin-bottom: 2px;">💡 Rekomendasi Iqob (Poin Pelanggaran Tersisa: {getPoinAkhir(selectedStudent.siswa_id) - pendingIqobPoints}):</span>
+                        <span style="font-size: 0.85rem; color: #0f172a; font-weight: 500;">{recommendedIqob.nama}</span>
+                        <span style="color: #16a34a; font-size: 0.85rem; font-weight: 600; margin-left: 4px;">(-{recommendedIqob.poin})</span>
+                      </div>
+                      <button class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick={applyRecommendedIqob}>
+                        Gunakan
+                      </button>
+                    </div>
+                  {/if}
                   <input type="text" class="input" placeholder="Ketik jenis iqob..." bind:value={iqobSearchQuery} />
                   {#if iqobSearchQuery.length > 0}
                     <div style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 250px; overflow-y: auto; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin-top: 4px;">
@@ -873,7 +952,7 @@
                         {#each iqobFilteredOptions as j}
                           <!-- svelte-ignore a11y_click_events_have_key_events -->
                           <!-- svelte-ignore a11y_no_static_element_interactions -->
-                          <div 
+                          <div
                             style="padding: 0.75rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 0.9rem; transition: background 0.1s;"
                             onmouseover={(e) => e.currentTarget.style.background = '#f1f5f9'}
                             onmouseout={(e) => e.currentTarget.style.background = 'transparent'}
@@ -897,18 +976,37 @@
                 <input id="iqob-poin-modal" type="number" step="0.1" class="input" bind:value={iqobFormPoin} />
               </div>
             </div>
-            <div class="form-group" style="margin-top: 0.5rem;">
-              <label for="iqob-ket-modal">Keterangan (Opsional)</label>
-              <input id="iqob-ket-modal" type="text" class="input" bind:value={iqobFormKeterangan} placeholder="Contoh: Membersihkan masjid" />
-            </div>
-            
+
             <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-              <button class="btn-primary" onclick={submitIqob} disabled={iqobFormLoading}>
-                {iqobFormLoading ? 'Menyimpan...' : 'Simpan Iqob'}
+              <button class="btn-secondary" onclick={tambahPendingIqob} disabled={iqobFormLoading}>
+                <Icon name="plus" size={14} /> Tambah ke Daftar
               </button>
             </div>
             {#if iqobFormError}
               <div class="alert-error mt-2">{iqobFormError}</div>
+            {/if}
+
+            {#if pendingIqobList.length > 0}
+              <div style="margin-top: 1.5rem; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 1rem;">
+                <h5 style="margin: 0 0 0.75rem 0; font-size: 0.9rem; color: #475569;">Daftar Iqob Baru (Belum Disimpan)</h5>
+                {#each pendingIqobList as p, i}
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid #f1f5f9;">
+                    <div>
+                      <span style="font-weight: 500; font-size: 0.9rem;">{p.nama}</span>
+                      <span style="color: #64748b; font-size: 0.8rem; margin-left: 8px;">{formatDate(p.tanggal)}</span>
+                      <span style="color: #16a34a; font-size: 0.8rem; font-weight: 600; margin-left: 8px;">(-{p.poin})</span>
+                    </div>
+                    <button class="btn-icon-mini text-red" title="Hapus" onclick={() => removePendingIqob(i)}>
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
+                {/each}
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                  <button class="btn-primary" onclick={submitIqob} disabled={iqobFormLoading}>
+                    {iqobFormLoading ? 'Menyimpan...' : `Simpan Semua (${pendingIqobList.length})`}
+                  </button>
+                </div>
+              </div>
             {/if}
           </div>
 
@@ -933,26 +1031,6 @@
           {:else}
             <div class="text-muted" style="text-align: center; padding: 2rem;">Tidak ada catatan iqob.</div>
           {/if}
-
-        <!-- ISI TAB MODAL: CATATAN RAPOR -->
-        {:else if modalActiveTab === 'catatan'}
-          <div class="modal-form-section" style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-            <h4 style="margin: 0 0 1rem 0; font-size: 0.95rem;">Catatan Khusus untuk Rapor Keseharian</h4>
-            
-            <div class="form-group">
-              <label for="catatan-rapor-modal">Teks Catatan</label>
-              <textarea id="catatan-rapor-modal" class="input" bind:value={catatanFormText} rows="4" placeholder="Misal: Siswa menunjukkan peningkatan akhlak yang baik..."></textarea>
-            </div>
-            
-            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-              <button class="btn-primary" onclick={submitCatatan} disabled={catatanFormLoading}>
-                {catatanFormLoading ? 'Menyimpan...' : 'Simpan Catatan'}
-              </button>
-            </div>
-            {#if catatanFormError}
-              <div class="alert-error mt-2">{catatanFormError}</div>
-            {/if}
-          </div>
         {/if}
       </div>
     </div>

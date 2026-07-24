@@ -12,13 +12,15 @@
   let rombelText = $derived(rombel === '__kosong__' ? 'Tanpa Rombel' : `Rombel ${rombel}`);
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
   let jenisPenilaian = $derived($page.url.searchParams.get('jenis_penilaian') || 'semester');
+  let tahunAjaranId = $derived($page.url.searchParams.get('tahun_ajaran_id'));
+  let semesterId = $derived($page.url.searchParams.get('semester_id'));
 
   let siswaList = $state([]);
   let loading = $state(false);
   let error = $state('');
   let searchQuery = $state('');
   let nilaiMap = $state({});
-  let currentMapel = 'Ujian Tahfiz';
+  let currentMapel = 'Ujian Tasmi';
 
   let filteredSiswa = $derived(
     searchQuery
@@ -33,10 +35,12 @@
     error = '';
     try {
       const params = new URLSearchParams({
-        mata_pelajaran: 'Ujian Tahfiz',
+        mata_pelajaran: 'Ujian Tasmi',
         jenis_penilaian: jenisPenilaian,
         rombel
       });
+      if (tahunAjaranId) params.append('tahun_ajaran_id', tahunAjaranId);
+      if (semesterId) params.append('semester_id', semesterId);
       const res = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/nilai?${params.toString()}`, {
         credentials: 'include'
       });
@@ -98,7 +102,7 @@
           <div style="flex: 1;"></div>
           <a
             class="btn-action-primary"
-            href={`/guru/input-nilai-v2/${siswa.id}?kelas=${encodeURIComponent(`${kelasLabel} - ${rombelText}`)}&nama=${encodeURIComponent(siswa.nama)}&sekolah_id=${sekolahId}&kelas_id=${kelasId}&rombel=${encodeURIComponent(rombel)}&kelas_label=${encodeURIComponent(kelasLabel)}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}`}
+            href={`/guru/input-nilai-v2/${siswa.id}?kelas=${encodeURIComponent(`${kelasLabel} - ${rombelText}`)}&nama=${encodeURIComponent(siswa.nama)}&sekolah_id=${sekolahId}&kelas_id=${kelasId}&rombel=${encodeURIComponent(rombel)}&kelas_label=${encodeURIComponent(kelasLabel)}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}${tahunAjaranId ? `&tahun_ajaran_id=${tahunAjaranId}` : ''}${semesterId ? `&semester_id=${semesterId}` : ''}`}
           >
             <Icon name="edit" size={14} /> Input Nilai
           </a>

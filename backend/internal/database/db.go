@@ -56,12 +56,21 @@ func migrateAndSeed() {
 	// MySQL Error 3780 occurs when column types don't match between FK pairs
 	fixForeignKeyMismatch()
 
+	// Fix: Drop old unique indexes for NilaiTasmi and NilaiTasmiV2 to recreate them with the Tahap column
+	if DB.Migrator().HasIndex(&models.NilaiTasmi{}, "idx_nilai_tasmi_scope") {
+		DB.Migrator().DropIndex(&models.NilaiTasmi{}, "idx_nilai_tasmi_scope")
+	}
+	if DB.Migrator().HasIndex(&models.NilaiTasmiV2{}, "idx_nilai_tasmi_v2_scope") {
+		DB.Migrator().DropIndex(&models.NilaiTasmiV2{}, "idx_nilai_tasmi_v2_scope")
+	}
+
 	// AutoMigrate
 	err := DB.AutoMigrate(
 		&models.User{},
 		&models.Sekolah{},
 		&models.KonfigurasiPresensi{},
 		&models.KonfigurasiNilaiTahfiz{},
+		&models.KonfigurasiNilaiDiniyah{},
 		&models.TahunAjaran{},
 		&models.Semester{},
 		&models.Kelas{},
@@ -72,6 +81,10 @@ func migrateAndSeed() {
 		&models.NilaiTahfizDetail{},
 		&models.NilaiTahfizV2{},
 		&models.NilaiTahfizDetailV2{},
+		&models.NilaiTasmi{},
+		&models.NilaiTasmiDetail{},
+		&models.NilaiTasmiV2{},
+		&models.NilaiTasmiDetailV2{},
 		&models.MateriTahfiz{},
 		&models.Guru{},
 		&models.PresensiGuru{},
@@ -90,6 +103,10 @@ func migrateAndSeed() {
 		&models.JenisIqob{},
 		&models.CatatanIqob{},
 		&models.CatatanRapor{},
+		&models.BankCatatanTahfizV2{},
+		&models.BankCatatanDiniyah{},
+		&models.KonfigurasiNilaiKeseharian{},
+		models.BankCatatanKeseharian{},
 	)
 	if err != nil {
 		slog.Error("Gagal melakukan migrasi tabel", "error", err)
@@ -124,6 +141,11 @@ func migrateAndSeed() {
 
 	// Seed default konfigurasi presensi (jika belum ada)
 	seedKonfigurasiPresensi()
+
+	// Seed bank catatan
+	seedBankCatatanTahfizV2()
+	seedBankCatatanDiniyah()
+	seedBankCatatanKeseharian()
 }
 
 func seedUser(email, password, role string) {

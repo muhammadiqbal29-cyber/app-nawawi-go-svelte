@@ -4,6 +4,8 @@
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+  
+        
   let kelasList = $state([]);
   let selectedKelas = $state(null);
   let siswaList = $state([]);
@@ -16,7 +18,11 @@
   let error = $state('');
 
   $effect(() => {
-    if (guruState.activeSekolahId) {
+    // Read values synchronously for Svelte 5 reactivity tracking
+    const sekolahId = guruState.activeSekolahId;
+    const taId = guruState.activeTahunId;
+    const semId = guruState.activeSemesterId;
+    if (sekolahId && taId && semId) {
       loadKelas().then(() => {
         if (typeof window !== 'undefined') {
           const saved = sessionStorage.getItem('rapor_keseharian_kelas');
@@ -33,11 +39,17 @@
     }
   });
 
+  
+  
+
   async function loadKelas() {
     if (!guruState.activeSekolahId) return;
     loadingKelas = true;
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`, {
+      let url = `${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`;
+    if (guruState.activeTahunId) url += `?tahun_ajaran_id=${guruState.activeTahunId}`;
+    if (guruState.activeSemesterId) url += `&semester_id=${guruState.activeSemesterId}`;
+    const res = await fetch(url, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat data kelas.');
@@ -57,6 +69,8 @@
     loadingSiswa = true;
     try {
       const params = new URLSearchParams({ rombel: kelas.rombel || '__kosong__' });
+      if (guruState.activeTahunId) params.set('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) params.set('semester_id', guruState.activeSemesterId);
       const res = await fetch(`${apiUrl}/api/guru/kelas/${kelas.id}/siswa?${params.toString()}`, {
         credentials: 'include'
       });
@@ -98,6 +112,9 @@
       <p class="subtitle">Pilih kelas lalu pilih siswa untuk melihat rapor keseharian.</p>
     </div>
   </div>
+
+  
+  
 
   {#if error}
     <div class="alert-error">{error}</div>
@@ -148,13 +165,13 @@
       </div>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
         <a
-          href={`/guru/rapor/keseharian/kelas/${selectedKelas.id}/catatan-masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&kelas=${encodeURIComponent(kelasLabel(selectedKelas))}`}
+          href={`/guru/rapor/keseharian/kelas/${selectedKelas.id}/catatan-masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}&kelas=${encodeURIComponent(kelasLabel(selectedKelas))}`}
           class="btn-catatan-masal"
         >
           <Icon name="edit" size={16} /> Isi Catatan Masal
         </a>
         <a
-          href={`/guru/rapor/keseharian/kelas/${selectedKelas.id}/masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}`}
+          href={`/guru/rapor/keseharian/kelas/${selectedKelas.id}/masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}`}
           class="btn-print-masal"
         >
           <Icon name="printer" size={16} /> Cetak Rapor Masal
@@ -181,7 +198,7 @@
         {#each filteredSiswa as siswa (siswa.id)}
           <a
             class="siswa-card"
-            href="/guru/rapor/keseharian/{siswa.id}?sekolah_id={guruState.activeSekolahId}"
+            href="/guru/rapor/keseharian/{siswa.id}?sekolah_id={guruState.activeSekolahId}&tahun_ajaran_id={guruState.activeTahunId}&semester_id={guruState.activeSemesterId}"
           >
             <div class="siswa-info">
               <span class="siswa-nama">{siswa.nama_lengkap}</span>
@@ -456,4 +473,10 @@
     color: #dc2626;
     border: 1px solid #fecaca;
   }
+
+  
+  
+  
+  
+
 </style>

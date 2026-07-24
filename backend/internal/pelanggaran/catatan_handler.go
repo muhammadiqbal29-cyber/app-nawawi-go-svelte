@@ -111,7 +111,7 @@ func GetCatatanPelanggaranKelasHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT rk.siswa_id, s.nama_lengkap, s.nisn
 		FROM riwayat_kelas rk
 		JOIN siswas s ON s.id = rk.siswa_id
-		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ? AND s.status = 'Aktif'
+		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ?
 	`
 	siswaArgs := []interface{}{kelasID, taID}
 

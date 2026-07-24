@@ -5,6 +5,11 @@
   // State Management
   let activeTab = $state('sekolah');
   let errorMessage = $state('');
+  let selectedSchool = $state(null);
+  let showKopSuratModal = $state(false);
+
+  let enablePaketAlquran = $state(false);
+  let versiPenilaian = $state('v1');
   let successMessage = $state('');
   let loading = $state(false);
 
@@ -132,6 +137,8 @@
 
   function openCreateSekolah() {
     resetSekolahForm();
+    enablePaketAlquran = false;
+    versiPenilaian = 'v1';
     showModalSekolahCreate = true;
   }
 
@@ -141,6 +148,8 @@
       if (s.fitur) parsedFitur = JSON.parse(s.fitur);
     } catch {}
     sekolahForm = { ...s, fitur: parsedFitur };
+    enablePaketAlquran = parsedFitur.includes('paket_alquran') || parsedFitur.includes('input_tahfiz') || parsedFitur.includes('input_tahfiz_v2');
+    versiPenilaian = (parsedFitur.includes('input_tahfiz_v2') || parsedFitur.includes('input_tasmi_v2')) ? 'v2' : 'v1';
     showModalSekolahEdit = true;
   }
 
@@ -152,6 +161,12 @@
   async function handleSaveSekolah() {
     savingSekolah = true;
     try {
+      sekolahForm.fitur = sekolahForm.fitur.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi') && f !== 'paket_alquran');
+      if (enablePaketAlquran) {
+        sekolahForm.fitur.push('paket_alquran');
+        sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tahfiz_v2' : 'input_tahfiz');
+        sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tasmi_v2' : 'input_tasmi');
+      }
       const payload = { ...sekolahForm, fitur: JSON.stringify(sekolahForm.fitur) };
       const res = await fetch(`${apiUrl}/api/sekolah`, {
         method: 'POST',
@@ -177,6 +192,12 @@
   async function handleUpdateSekolah() {
     savingSekolah = true;
     try {
+      sekolahForm.fitur = sekolahForm.fitur.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi') && f !== 'paket_alquran');
+      if (enablePaketAlquran) {
+        sekolahForm.fitur.push('paket_alquran');
+        sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tahfiz_v2' : 'input_tahfiz');
+        sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tasmi_v2' : 'input_tasmi');
+      }
       const payload = { ...sekolahForm, fitur: JSON.stringify(sekolahForm.fitur) };
       const res = await fetch(`${apiUrl}/api/sekolah/${sekolahForm.id}`, {
         method: 'PUT',
@@ -664,14 +685,10 @@
           </div>
           <div class="form-group full-width" style="margin-top: 1rem;">
             <label>Fitur Tambahan Sekolah (Program Khusus)</label>
-            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
               <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
-                <input type="checkbox" bind:group={sekolahForm.fitur} value="input_tahfiz" />
-                Input Nilai Tahfiz (Versi 1)
-              </label>
-              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
-                <input type="checkbox" bind:group={sekolahForm.fitur} value="input_tahfiz_v2" />
-                Input Nilai Tahfiz (Versi 2)
+                <input type="checkbox" bind:checked={enablePaketAlquran} />
+                Paket Al-Qur'an (Tahfiz, Tasmi, Kelulusan)
               </label>
               <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
                 <input type="checkbox" bind:group={sekolahForm.fitur} value="input_diniyah" />
@@ -686,9 +703,19 @@
                 Konfigurasi Materi
               </label>
             </div>
-            <p style="margin: 0.25rem 0 0; font-size: 0.8rem; color: #64748b;">
-              Centang jika jenjang ini menyelenggarakan program Tahfiz atau Diniyah.
-            </p>
+            {#if enablePaketAlquran}
+              <label style="margin-top: 1rem;">Metode Penilaian Paket Al-Qur'an</label>
+              <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                  <input type="radio" bind:group={versiPenilaian} value="v1" />
+                  5 Kategori (0-5 per kategori)
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                  <input type="radio" bind:group={versiPenilaian} value="v2" />
+                  3 Kategori (0-100 per kategori)
+                </label>
+              </div>
+            {/if}
           </div>
         </div>
       </div>

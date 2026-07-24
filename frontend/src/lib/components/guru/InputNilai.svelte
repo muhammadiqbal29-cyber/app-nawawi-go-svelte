@@ -1,23 +1,36 @@
 <script>
-  import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { guruState } from '$lib/guruState.svelte.js';
 
-  let { sekolahId = 1, isV2 = false } = $props();
+  let { sekolahId = 1, isV2 = false, isTasmi = false } = $props();
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  let currentTab = $state('tahfiz');
+  let currentTab = $state(isTasmi ? 'tasmi' : 'tahfiz');
   let kelasList = $state([]);
   let loadingKelas = $state(false);
   let error = $state('');
 
-  onMount(loadKelas);
+  // Watch for changes in sekolahId or guruState year/semester
+  // We must read these values synchronously so Svelte 5 can track them
+  $effect(() => {
+    const taId = guruState.activeTahunId;
+    const semId = guruState.activeSemesterId;
+    const skId = sekolahId;
+    if (taId && semId && skId) {
+      loadKelas(selectedJenisPenilaian(), taId, semId);
+    }
+  });
 
-  async function loadKelas(jenisPenilaian = selectedJenisPenilaian()) {
+
+
+  async function loadKelas(jenisPenilaian = selectedJenisPenilaian(), taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
     loadingKelas = true;
     error = '';
     try {
       const params = new URLSearchParams({ jenis_penilaian: jenisPenilaian });
+      if (taId) params.append('tahun_ajaran_id', taId);
+      if (semId) params.append('semester_id', semId);
       const res = await fetch(
         `${apiUrl}/api/guru/sekolah/${sekolahId}/kelas?${params.toString()}`,
         {
@@ -30,7 +43,7 @@
       }
       const data = await res.json();
       kelasList = Array.isArray(data) ? data : [];
-      await hydrateJumlahSiswa(jenisPenilaian);
+      await hydrateJumlahSiswa(jenisPenilaian, taId, semId);
     } catch (err) {
       error = err.message || 'Gagal memuat data kelas.';
     } finally {
@@ -38,17 +51,19 @@
     }
   }
 
-  async function hydrateJumlahSiswa(jenisPenilaian = selectedJenisPenilaian()) {
+  async function hydrateJumlahSiswa(jenisPenilaian = selectedJenisPenilaian(), taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
     await Promise.all(
       kelasList.map(async (kelas) => {
         if (Number(kelas.jumlah_siswa || 0) > 0) return;
 
         try {
           const params = new URLSearchParams({
-            mata_pelajaran: 'Ujian Tahfiz',
+            mata_pelajaran: currentTab === 'tasmi' ? 'Ujian Tasmi' : 'Ujian Tahfiz',
             jenis_penilaian: jenisPenilaian,
             rombel: kelas.rombel || '__kosong__'
           });
+          if (taId) params.append('tahun_ajaran_id', taId);
+          if (semId) params.append('semester_id', semId);
           const res = await fetch(
             `${apiUrl}/api/guru/kelas/${kelas.id}/nilai?${params.toString()}`,
             {
@@ -73,7 +88,7 @@
 
   function changeTab(tab) {
     currentTab = tab;
-    if (tab === 'tahfiz' || tab === 'kelulusan') {
+    if (tab === 'tahfiz' || tab === 'kelulusan' || tab === 'tasmi') {
       loadKelas(tab === 'kelulusan' ? 'kelulusan' : 'semester');
     }
   }
@@ -100,8 +115,14 @@
       kelas: kelasLabel(kelas),
       rombel: kelas.rombel || '__kosong__',
       sekolah_id: String(sekolahId),
+      jenis_penilaian: selectedJenisPenilaian()
     });
-    const basePath = isV2 ? '/guru/input-nilai/tahfiz-v2' : '/guru/input-nilai/tahfiz';
+    if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
+    if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
+    let basePath = isV2 ? '/guru/input-nilai/tahfiz-v2' : '/guru/input-nilai/tahfiz';
+    if (currentTab === 'tasmi') {
+      basePath = isV2 ? '/guru/input-nilai/tasmi-v2' : '/guru/input-nilai/tasmi';
+    }
     return `${basePath}/kelas/${kelas.id}?${params.toString()}`;
   }
 </script>
@@ -109,7 +130,7 @@
 <div class="page-container">
   <div class="page-header-actions">
     <div>
-      <h1 class="page-title">{isV2 ? 'Input Nilai Tahfiz (Versi 2)' : 'Input Nilai (Versi 1)'}</h1>
+      <h1 class="page-title">{currentTab === 'tasmi' ? (isV2 ? 'Input Nilai Tasmi ' : 'Input Nilai Tasmi ') : (isV2 ? 'Input Nilai Tahfiz ' : 'Input Nilai ')}</h1>
       <p class="page-subtitle">Pilih kelas terlebih dahulu, lalu pilih siswa yang akan dinilai.</p>
     </div>
   </div>
@@ -149,7 +170,9 @@
     </button>
   </div>
 
-  {#if currentTab === 'tahfiz' || currentTab === 'kelulusan'}
+
+
+  {#if currentTab === 'tahfiz' || currentTab === 'kelulusan' || currentTab === 'tasmi'}
     <div class="kelas-section">
       <div class="section-heading">
         <div>
@@ -433,5 +456,37 @@
       width: 100%;
       overflow-x: auto;
     }
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+  }
+  .filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .filter-item label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+  }
+  .filter-item select {
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: white;
+    color: #1e293b;
+    min-width: 150px;
   }
 </style>

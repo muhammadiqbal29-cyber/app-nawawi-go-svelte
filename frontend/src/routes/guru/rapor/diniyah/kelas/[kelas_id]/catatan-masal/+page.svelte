@@ -27,6 +27,22 @@
 
   onMount(loadData);
 
+  async function scoreToPredicate(score, kriteriaArray = []) {
+    if (kriteriaArray.length > 0) {
+      for (const k of kriteriaArray) {
+        if (score >= k.min && score <= k.max) {
+          return k.indo || k.arab;
+        }
+      }
+    }
+    // Fallback jika tidak ada kriteria
+    if (score >= 90) return 'Mumtaz';
+    if (score >= 80) return 'Jayyid Jiddan';
+    if (score >= 70) return 'Jayyid';
+    if (score >= 60) return 'Maqbul';
+    return "Dha'if";
+  }
+
   async function loadData() {
     loading = true;
     error = '';
@@ -45,6 +61,8 @@
         sekolah_id: sekolahId,
         rombel
       });
+      if (paramTaId) paramsCatatan.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) paramsCatatan.set('semester_id', paramSemId);
       const resCatatan = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/catatan-rapor?${paramsCatatan.toString()}`, {
         credentials: 'include'
       });
@@ -52,6 +70,20 @@
       if (resCatatan.ok) {
         const body = await resCatatan.json();
         existingCatatan = body.catatan || [];
+      }
+
+      // 3. Ambil kriteria penilaian diniyah (jika sudah diset dari guru/admin)
+      let kriteriaPenilaian = [];
+      try {
+        const resKriteria = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/konfigurasi-nilai-diniyah`, {
+          credentials: 'include'
+        });
+        if (resKriteria.ok) {
+          const konfigBody = await resKriteria.json();
+          kriteriaPenilaian = konfigBody.kriteria_penilaian || [];
+        }
+      } catch (err) {
+        console.warn("Gagal mengambil kriteria penilaian diniyah, menggunakan fallback.", err);
       }
 
       // Map catatan
@@ -66,11 +98,15 @@
         const mapelNilai = item.mapel_nilai || [];
         let total = 0;
         let count = 0;
+        let highestMapel = null;
+        let lowestMapel = null;
         
         mapelNilai.forEach(mn => {
           if (mn.nilai && typeof mn.nilai.nilai_rapor === 'number') {
             total += mn.nilai.nilai_rapor;
             count++;
+            if (!highestMapel || mn.nilai.nilai_rapor > highestMapel.nilai.nilai_rapor) highestMapel = mn;
+            if (!lowestMapel || mn.nilai.nilai_rapor < lowestMapel.nilai.nilai_rapor) lowestMapel = mn;
           }
         });
 
@@ -81,7 +117,10 @@
           nama: item.siswa.nama_lengkap,
           nisn: item.siswa.nisn,
           rata_rata: rataRata,
-          catatan: map[item.siswa.id] || ''
+          mapelTertinggi: highestMapel,
+          mapelTerendah: lowestMapel,
+          catatan: map[item.siswa.id] || '',
+          predikat: scoreToPredicate(rataRata, kriteriaPenilaian)
         };
       }).sort((a, b) => a.nama.localeCompare(b.nama));
 

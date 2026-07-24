@@ -97,7 +97,7 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(AVG(td.tajwid), 0) as tajwid,
 			COALESCE(AVG(td.makhraj), 0) as makhraj
 		FROM siswas s
-		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
+		INNER JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
 		LEFT JOIN TahfizDetails td ON td.siswa_id = s.id
 		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
@@ -145,7 +145,7 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(m.nama_mapel, 'Tanpa Mapel') as mapel,
 			COALESCE(nd.nilai_rapor, 0) as nilai
 		FROM siswas s
-		LEFT JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
+		INNER JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
 		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id AND nd.tahun_ajaran_id = ?
 		INNER JOIN mapel_diniyahs m ON m.id = nd.mapel_diniyah_id AND m.sekolah_id = ?

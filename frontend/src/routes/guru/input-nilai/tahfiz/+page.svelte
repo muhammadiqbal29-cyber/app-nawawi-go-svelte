@@ -6,7 +6,7 @@
   let hasAccess = $derived(
     guruState.activeSekolahId &&
       guruState.aksesMap[guruState.activeSekolahId] &&
-      guruState.aksesMap[guruState.activeSekolahId].includes('input_tahfiz')
+      (guruState.aksesMap[guruState.activeSekolahId].includes('input_tahfiz') || guruState.aksesMap[guruState.activeSekolahId].includes('paket_alquran'))
   );
 </script>
 

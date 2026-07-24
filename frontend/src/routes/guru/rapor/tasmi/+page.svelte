@@ -4,9 +4,12 @@
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+  
+        
   let kelasList = $state([]);
   let selectedKelas = $state(null);
   let siswaList = $state([]);
+  let riwayatTasmiMap = $state({});
   let searchQuery = $state('');
   let filteredSiswa = $derived(
     siswaList.filter((s) => (s.nama_lengkap || '').toLowerCase().includes(searchQuery.toLowerCase()))
@@ -16,7 +19,11 @@
   let error = $state('');
 
   $effect(() => {
-    if (guruState.activeSekolahId) {
+    // Read values synchronously for Svelte 5 reactivity tracking
+    const sekolahId = guruState.activeSekolahId;
+    const taId = guruState.activeTahunId;
+    const semId = guruState.activeSemesterId;
+    if (sekolahId && taId && semId) {
       loadKelas().then(() => {
         if (typeof window !== 'undefined') {
           const saved = sessionStorage.getItem('rapor_tasmi_kelas');
@@ -33,11 +40,17 @@
     }
   });
 
+  
+  
+
   async function loadKelas() {
     if (!guruState.activeSekolahId) return;
     loadingKelas = true;
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`, {
+      let url = `${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`;
+    if (guruState.activeTahunId) url += `?tahun_ajaran_id=${guruState.activeTahunId}`;
+    if (guruState.activeSemesterId) url += `&semester_id=${guruState.activeSemesterId}`;
+    const res = await fetch(url, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat data kelas.');
@@ -57,12 +70,30 @@
     loadingSiswa = true;
     try {
       const params = new URLSearchParams({ rombel: kelas.rombel || '__kosong__' });
+      if (guruState.activeTahunId) params.set('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) params.set('semester_id', guruState.activeSemesterId);
       const res = await fetch(`${apiUrl}/api/guru/kelas/${kelas.id}/siswa?${params.toString()}`, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat daftar siswa.');
       const data = await res.json();
       siswaList = data.data || data || [];
+
+      // Fetch riwayat tasmi
+      const resRekap = await fetch(`${apiUrl}/api/guru/kelas/${kelas.id}/rekap-tasmi?rombel=${kelas.rombel || '__kosong__'}`, {
+        credentials: 'include'
+      });
+      if (resRekap.ok) {
+        const rekapData = await resRekap.json();
+        const rekapList = rekapData.rekap || [];
+        const map = {};
+        for (const r of rekapList) {
+          if (!map[r.siswa_id] || r.id > map[r.siswa_id].id) {
+             map[r.siswa_id] = r;
+          }
+        }
+        riwayatTasmiMap = map;
+      }
     } catch (err) {
       error = err.message;
     } finally {
@@ -98,6 +129,9 @@
       <p class="subtitle">Pilih kelas lalu pilih siswa untuk melihat rapor ujian tasmi'.</p>
     </div>
   </div>
+
+  
+  
 
   {#if error}
     <div class="alert-error">{error}</div>
@@ -146,6 +180,14 @@
           <span class="badge">{rombelLabel(selectedKelas.rombel)}</span>
         </div>
       </div>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <a
+          href={`/guru/rapor/tasmi/kelas/${selectedKelas.id}/catatan-masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}&kelas=${encodeURIComponent(kelasLabel(selectedKelas))}`}
+          class="btn-catatan-masal"
+        >
+          <Icon name="edit" size={16} /> Isi Catatan Masal
+        </a>
+      </div>
     </div>
     
     <div class="search-container" style="margin-bottom: 1.5rem;">
@@ -167,7 +209,7 @@
         {#each filteredSiswa as siswa (siswa.id)}
           <a
             class="siswa-card"
-            href="/guru/rapor/tasmi/{siswa.id}?sekolah_id={guruState.activeSekolahId}"
+            href={`/guru/rapor/tasmi/${siswa.id}?sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}&nama=${encodeURIComponent(siswa.nama_lengkap)}&nisn=${encodeURIComponent(siswa.nisn)}&kelas=${encodeURIComponent(kelasLabel(selectedKelas) + ' - ' + rombelLabel(selectedKelas.rombel))}&selectedKelasId=${selectedKelas.id}`}
           >
             <div class="siswa-info">
               <span class="siswa-nama">{siswa.nama_lengkap}</span>
@@ -319,6 +361,24 @@
   .btn-back:hover {
     color: #4338ca;
   }
+  .btn-catatan-masal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #10b981;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-catatan-masal:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+  }
   .selected-kelas {
     display: flex;
     align-items: center;
@@ -406,4 +466,28 @@
     color: #dc2626;
     border: 1px solid #fecaca;
   }
+
+  .siswa-badge-container {
+    margin-left: auto;
+  }
+  .badge-riwayat {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 9999px;
+  }
+  .badge-riwayat.success {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .badge-riwayat.neutral {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  
+  
+  
+  
+
 </style>

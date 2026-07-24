@@ -13,7 +13,7 @@ func TestCalculateNilaiTahfizHeaderUsesJumlahMateriWhenNoSnapshotPembagi(t *test
 		completeTahfizDetail(25),
 	}
 
-	calculateNilaiTahfizHeader(&header, details)
+	calculateNilaiTahfizHeader(&header, details, nil)
 
 	if header.JumlahMateri != 2 {
 		t.Fatalf("JumlahMateri = %d, want 2", header.JumlahMateri)
@@ -24,7 +24,7 @@ func TestCalculateNilaiTahfizHeaderUsesJumlahMateriWhenNoSnapshotPembagi(t *test
 	if header.NilaiAkhir != 90 {
 		t.Fatalf("NilaiAkhir = %v, want 90", header.NilaiAkhir)
 	}
-	if header.Predikat != "Mumtaz" {
+	if header.Predikat != "مُمْتَاز" {
 		t.Fatalf("Predikat = %q, want Mumtaz", header.Predikat)
 	}
 }
@@ -36,7 +36,7 @@ func TestCalculateNilaiTahfizHeaderUsesSnapshotPembagi(t *testing.T) {
 		completeTahfizDetail(25),
 	}
 
-	calculateNilaiTahfizHeader(&header, details)
+	calculateNilaiTahfizHeader(&header, details, nil)
 
 	if header.JumlahMateri != 2 {
 		t.Fatalf("JumlahMateri = %d, want 2", header.JumlahMateri)
@@ -47,7 +47,7 @@ func TestCalculateNilaiTahfizHeaderUsesSnapshotPembagi(t *testing.T) {
 	if header.NilaiAkhir != 36 {
 		t.Fatalf("NilaiAkhir = %v, want 36", header.NilaiAkhir)
 	}
-	if header.Predikat != "Rasib" {
+	if header.Predikat != "رَاسِب" {
 		t.Fatalf("Predikat = %q, want Rasib", header.Predikat)
 	}
 }

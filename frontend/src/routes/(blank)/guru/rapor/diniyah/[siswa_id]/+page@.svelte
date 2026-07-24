@@ -8,6 +8,8 @@
 
   let siswaId = $derived($page.params.siswa_id);
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
 
   let loading = $state(true);
   let error = $state('');
@@ -61,16 +63,20 @@
 
   onMount(async () => {
     try {
-      let query = '';
-      if (sekolahId) query = `?sekolah_id=${sekolahId}`;
-      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/rapor-diniyah${query}`, {
+      const params = new URLSearchParams();
+      if (sekolahId) params.set('sekolah_id', sekolahId);
+      if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.set('semester_id', paramSemId);
+
+      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/rapor-diniyah?${params.toString()}`, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat rapor diniyah.');
       rapor = await res.json();
 
+      params.set('jenis_rapor', 'diniyah');
       const resCatatan = await fetch(
-        `${apiUrl}/api/guru/siswa/${siswaId}/catatan-rapor?jenis_rapor=diniyah${sekolahId ? `&sekolah_id=${sekolahId}` : ''}`,
+        `${apiUrl}/api/guru/siswa/${siswaId}/catatan-rapor?${params.toString()}`,
         {
           credentials: 'include'
         }
@@ -553,7 +559,8 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
 
-  :global(body) {
+  :global(html),
+    :global(body) {
     background-color: #f3f4f6;
   }
 
@@ -564,6 +571,7 @@
   }
 
   @media print {
+    :global(html),
     :global(body) {
       background-color: white !important;
       margin: 0;
@@ -578,19 +586,23 @@
       padding: 0 !important;
       margin: 0 !important;
     }
+    .table-container {
+      overflow: visible !important;
+      overflow-x: visible !important;
+    }
     .a4-container {
       box-shadow: none !important;
       margin: 0 !important;
-      padding: 1cm !important;
+      padding: 0 !important;
       width: 100% !important;
       max-width: none !important;
     }
-    @page {
-      size: A4 portrait;
-      margin: 0;
-    }
   }
 
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
   .page-wrapper {
     padding: 2rem 0;
   }
@@ -677,6 +689,7 @@
     height: auto !important;
     margin: 0 auto;
     padding: 1cm !important;
+    box-sizing: border-box;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
     font-family: Arial, Helvetica, sans-serif;
     font-size: 14px;
@@ -737,11 +750,10 @@
   }
 
   .table-container {
-    overflow-x: auto;
   }
 
   .rapor-table {
-    width: 100%;
+    width: 99.8%;
     border-collapse: collapse;
     font-size: 12px;
   }

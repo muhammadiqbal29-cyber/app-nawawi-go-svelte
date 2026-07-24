@@ -26,6 +26,8 @@
     "vite": "^8.1.0"
   },
   "dependencies": {
-    "html2pdf.js": "^0.14.0"
+    "file-saver": "^2.0.5",
+    "html2pdf.js": "^0.14.0",
+    "jszip": "^3.10.1"
   }
 }

@@ -16,53 +16,46 @@
     guruState.activeSekolahId ? guruState.aksesMap[guruState.activeSekolahId] || [] : []
   );
 
-  const allReportCards = [
-    {
-      title: 'Rapor Ujian Tahfiz (Versi 1)',
-      description: 'Lihat rapor hasil ujian tahfiz siswa dan unduh cetakannya.',
-      href: '/guru/rapor/ujian-tahfiz',
-      icon: 'award',
-      feature: 'input_tahfiz'
-    },
-    {
-      title: 'Rapor Ujian Tahfiz (Versi 2)',
-      description: 'Lihat rapor tahfiz V2 dengan 3 kategori penilaian (Kelancaran, Tajwid, Makharij).',
-      href: '/guru/rapor/ujian-tahfiz-v2',
-      icon: 'award',
-      feature: 'input_tahfiz_v2'
-    },
-    {
-      title: "Rapor Ujian Tasmi'",
-      description: "Lihat rapor hasil ujian tasmi' siswa dan tinjau perkembangan bacaannya.",
-      href: '/guru/rapor/tasmi',
-      icon: 'bookOpen',
-      feature: 'input_tahfiz'
-    },
-    {
-      title: 'Rapor Ujian Kelulusan',
-      description: 'Lihat rapor ujian kelulusan siswa serta status kelulusan dan rekomendasi.',
-      href: '/guru/rapor/kelulusan',
-      icon: 'checkSquare',
-      feature: null
-    },
-    {
-      title: 'Rapor Diniyah',
-      description: 'Lihat laporan hasil pembelajaran mata pelajaran diniyyah siswa.',
-      href: '/guru/rapor/diniyah',
-      icon: 'book',
-      feature: 'input_diniyah'
-    },
-    {
-      title: 'Rapor Keseharian',
-      description: 'Pantau catatan kedisiplinan dan nilai keseharian siswa.',
-      href: '/guru/rapor/keseharian',
-      icon: 'clipboardCheck',
-      feature: 'rapor_keseharian'
-    }
-  ];
+  let hasPaketAlquran = $derived(
+    fiturGuru.includes('paket_alquran') ||
+      fiturGuru.includes('input_tahfiz') ||
+      fiturGuru.includes('input_tahfiz_v2')
+  );
+  let isV2 = $derived(fiturGuru.includes('input_tahfiz_v2'));
 
   let reportCards = $derived(
-    allReportCards.filter((card) => !card.feature || fiturGuru.includes(card.feature))
+    [
+      hasPaketAlquran && {
+        title: 'Rapor Ujian Tahfiz',
+        description: 'Lihat rapor hasil ujian tahfiz siswa dan unduh cetakannya.',
+        href: isV2 ? '/guru/rapor/ujian-tahfiz-v2' : '/guru/rapor/ujian-tahfiz',
+        icon: 'award'
+      },
+      hasPaketAlquran && {
+        title: "Rapor Ujian Tasmi'",
+        description: "Lihat rapor hasil ujian tasmi' siswa dan tinjau perkembangan bacaannya.",
+        href: isV2 ? '/guru/rapor/tasmi-v2' : '/guru/rapor/tasmi',
+        icon: 'bookOpen'
+      },
+      hasPaketAlquran && {
+        title: 'Rapor Ujian Kelulusan',
+        description: 'Lihat rapor ujian kelulusan siswa serta status kelulusan dan rekomendasi.',
+        href: isV2 ? '/guru/rapor/kelulusan-v2' : '/guru/rapor/kelulusan',
+        icon: 'checkSquare'
+      },
+      fiturGuru.includes('input_diniyah') && {
+        title: 'Rapor Diniyah',
+        description: 'Lihat laporan hasil pembelajaran mata pelajaran diniyyah siswa.',
+        href: '/guru/rapor/diniyah',
+        icon: 'book'
+      },
+      fiturGuru.includes('rapor_keseharian') && {
+        title: 'Rapor Keseharian',
+        description: 'Pantau catatan kedisiplinan dan nilai keseharian siswa.',
+        href: '/guru/rapor/keseharian',
+        icon: 'clipboardCheck'
+      }
+    ].filter(Boolean)
   );
 </script>
 

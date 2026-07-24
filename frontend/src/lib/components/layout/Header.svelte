@@ -8,6 +8,7 @@
     userRole = 'Pengguna',
     activeJenjang = '',
     onGantiJenjang = () => {},
+    onGantiTahun = () => {},
     onLogout,
     onToggleSidebar
   } = $props();
@@ -36,7 +37,16 @@
       </button>
     {/if}
     {#if activeTahun}
-      <span class="active-year-badge">{activeTahun}</span>
+      <button
+        class="active-jenjang-badge {!activeTahun ? 'pulse' : ''}"
+        onclick={onGantiTahun}
+        aria-label="Ganti Tahun Ajaran"
+        style="background-color: #dcfce7; color: #15803d; border-color: transparent;"
+      >
+        <Icon name="calendar" size={14} />
+        <span>{activeTahun}</span>
+        <Icon name="chevronDown" size={14} />
+      </button>
     {/if}
     <!-- svelte-ignore a11y-click-events-have-key-events -->
     <!-- svelte-ignore a11y-interactive-supports-focus -->

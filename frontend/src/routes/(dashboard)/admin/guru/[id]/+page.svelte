@@ -76,9 +76,10 @@
   }
 
   function getSekolahFitur(fiturStr) {
-    if (!fiturStr) return [];
     try {
-      return JSON.parse(fiturStr);
+      const arr = JSON.parse(fiturStr);
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi'));
     } catch {
       return [];
     }
@@ -142,18 +143,19 @@
   }
 
   function getFiturLabel(id) {
-    if (id === 'input_tahfiz') return 'Input Nilai Tahfiz (Versi 1)';
-    if (id === 'input_tahfiz_v2') return 'Input Nilai Tahfiz (Versi 2)';
+    if (id === 'paket_alquran') return "Paket Al-Qur'an (Tahfiz, Tasmi, Kelulusan)";
     if (id === 'input_diniyah') return 'Input Nilai Diniyah';
+    if (id === 'rapor_keseharian') return 'Rapor Keseharian';
     if (id === 'konfigurasi_materi') return 'Konfigurasi Materi';
     return id;
   }
 
   function getFiturDesc(id) {
-    if (id === 'input_tahfiz') return 'Bisa menginput dan mengubah nilai tahfiz siswa (Versi 1).';
-    if (id === 'input_tahfiz_v2') return 'Bisa menginput dan mengubah nilai tahfiz siswa (Versi 2).';
+    if (id === 'paket_alquran') return "Bisa menginput dan mengubah nilai Tahfiz, Tasmi', dan ujian kelulusan Al-Qur'an.";
     if (id === 'input_diniyah')
       return 'Bisa menginput dan mengubah nilai mata pelajaran diniyah siswa.';
+    if (id === 'rapor_keseharian')
+      return 'Bisa memantau dan mengisi catatan keseharian siswa.';
     if (id === 'konfigurasi_materi')
       return 'Bisa mengelola daftar materi tahfiz dan mapel diniyah.';
     return '';

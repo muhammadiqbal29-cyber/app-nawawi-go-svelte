@@ -1,11 +1,25 @@
 <script lang="ts">
     import { navigate } from '../store/nav.svelte';
+    import { guruState } from '../store/guru.svelte';
     import Icon from '../components/Icon.svelte';
     import { onMount } from 'svelte';
     import { getCurrentGuru } from '../services/endpoints';
 
     let guruData = $state<any>(null);
     let aksesFitur = $state<string[]>([]);
+    
+    let sekolahFitur = $derived.by(() => {
+        if (!guruState.activeSekolahId || guruState.sekolahList.length === 0) return [];
+        const activeSekolah = guruState.sekolahList.find(s => s.id === guruState.activeSekolahId);
+        if (activeSekolah && activeSekolah.fitur) {
+            try {
+                return JSON.parse(activeSekolah.fitur);
+            } catch(e) {
+                return [];
+            }
+        }
+        return [];
+    });
 
     onMount(async () => {
         try {
@@ -36,34 +50,52 @@
             <div class="content-padding">
                 <div class="menu-list">
 
-                    <!-- Akademik Umum Removed -->
-
-                    <!-- Tahsin & Tahfiz -->
-                    {#if aksesFitur.includes('Tahfiz') || aksesFitur.length === 0}
-                    <button class="menu-card bg-cyan" onclick={() => navigate('tahfiz')}>
-                        <div class="card-bubble"></div>
-                        <div class="card-icon">
-                            <Icon name="quran" />
-                        </div>
-                        <div class="card-content">
-                            <h3 class="card-title">Tahsin & Tahfiz</h3>
-                            <p class="card-desc">Progress setoran & hafalan</p>
-                        </div>
-                    </button>
+                    <!-- Mapel Diniyah -->
+                    {#if sekolahFitur.includes('input_diniyah') || sekolahFitur.includes('rapor_diniyah')}
+                        {#if aksesFitur.includes('Diniyah') || aksesFitur.length === 0}
+                        <button class="menu-card bg-cyan" onclick={() => navigate('daftar_kelas_diniyah')}>
+                            <div class="card-bubble"></div>
+                            <div class="card-icon">
+                                <Icon name="book" />
+                            </div>
+                            <div class="card-content">
+                                <h3 class="card-title">Mapel Diniyah</h3>
+                                <p class="card-desc">Progress nilai diniyah siswa</p>
+                            </div>
+                        </button>
+                        {/if}
                     {/if}
 
-                    <!-- Keseharian -->
-                    {#if aksesFitur.includes('Keseharian') || aksesFitur.includes('Asrama') || aksesFitur.length === 0}
-                    <button class="menu-card bg-purple" onclick={() => navigate('daftar_kelas_keseharian')}>
-                        <div class="card-bubble"></div>
-                        <div class="card-icon">
-                            <Icon name="clipboard-check" />
-                        </div>
-                        <div class="card-content">
-                            <h3 class="card-title">Keseharian</h3>
-                            <p class="card-desc">Log aktivitas & pelanggaran</p>
-                        </div>
-                    </button>
+                    <!-- Mapel Tahfiz -->
+                    {#if sekolahFitur.includes('input_tahfiz') || sekolahFitur.includes('input_tahfiz_v2')}
+                        {#if aksesFitur.includes('Tahfiz') || aksesFitur.includes('paket_alquran') || aksesFitur.length === 0}
+                        <button class="menu-card bg-pink" onclick={() => navigate('tahfiz')}>
+                            <div class="card-bubble"></div>
+                            <div class="card-icon">
+                                <Icon name="quran" />
+                            </div>
+                            <div class="card-content">
+                                <h3 class="card-title">Mapel Tahfiz</h3>
+                                <p class="card-desc">Progress setoran & hafalan</p>
+                            </div>
+                        </button>
+                        {/if}
+                    {/if}
+
+                    <!-- Mapel Keseharian -->
+                    {#if sekolahFitur.includes('rapor_keseharian')}
+                        {#if aksesFitur.includes('Keseharian') || aksesFitur.includes('Asrama') || aksesFitur.length === 0}
+                        <button class="menu-card bg-purple" onclick={() => navigate('daftar_kelas_keseharian')}>
+                            <div class="card-bubble"></div>
+                            <div class="card-icon">
+                                <Icon name="clipboard-check" />
+                            </div>
+                            <div class="card-content">
+                                <h3 class="card-title">Mapel Keseharian</h3>
+                                <p class="card-desc">Log aktivitas & pelanggaran</p>
+                            </div>
+                        </button>
+                        {/if}
                     {/if}
 
                 </div>

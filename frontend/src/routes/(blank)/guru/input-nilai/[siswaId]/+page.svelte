@@ -16,11 +16,13 @@
   let rombel = $derived($page.url.searchParams.get('rombel') || '__kosong__');
   let kelasLabel = $derived($page.url.searchParams.get('kelas_label') || '');
   let jenisPenilaian = $derived($page.url.searchParams.get('jenis_penilaian') || 'semester');
+  let tahunAjaranId = $derived($page.url.searchParams.get('tahun_ajaran_id'));
+  let semesterId = $derived($page.url.searchParams.get('semester_id'));
   let pageTitle = $derived(jenisPenilaian === 'kelulusan' ? 'Ujian Kelulusan' : 'Ujian Tahfiz');
 
   let backUrl = $derived(
     kelasId
-      ? `/guru/input-nilai/tahfiz/kelas/${kelasId}?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombel)}&sekolah_id=${sekolahId}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}`
+      ? `/guru/input-nilai/tahfiz/kelas/${kelasId}?kelas=${encodeURIComponent(kelasLabel)}&rombel=${encodeURIComponent(rombel)}&sekolah_id=${sekolahId}&jenis_penilaian=${encodeURIComponent(jenisPenilaian)}${tahunAjaranId ? `&tahun_ajaran_id=${tahunAjaranId}` : ''}${semesterId ? `&semester_id=${semesterId}` : ''}`
       : '/guru/input-nilai/tahfiz'
   );
 
@@ -105,6 +107,8 @@
         mata_pelajaran: mataPelajaran,
         jenis_penilaian: jenisPenilaian
       });
+      if (tahunAjaranId) params.append('tahun_ajaran_id', tahunAjaranId);
+      if (semesterId) params.append('semester_id', semesterId);
       const res = await fetch(
         `${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz?${params.toString()}`,
         {
@@ -137,8 +141,13 @@
     }
   }
 
-  function handleScoreInput(rowIndex, field) {
-    rows[rowIndex][field] = clampScore(rows[rowIndex][field]);
+  function handleScoreInput(event, rowIndex, field) {
+    let val = event.target.value;
+    if (val.length > 1 && val.startsWith('0')) {
+      val = Number(val).toString();
+      event.target.value = val;
+    }
+    rows[rowIndex][field] = clampScore(val);
     scheduleAutosave(rowIndex);
   }
 
@@ -166,6 +175,8 @@
         body: JSON.stringify({
           mata_pelajaran: mataPelajaran,
           jenis_penilaian: jenisPenilaian,
+          tahun_ajaran_id: tahunAjaranId ? Number(tahunAjaranId) : undefined,
+          semester_id: semesterId ? Number(semesterId) : undefined,
           nama_materi: row.namaMateri,
           juz: row.juz,
           urutan: rowIndex + 1,
@@ -279,7 +290,7 @@
                   max="5"
                   data-cell={`${index}-0`}
                   bind:value={row.hafalan}
-                  oninput={() => handleScoreInput(index, 'hafalan')}
+                  oninput={(e) => handleScoreInput(e, index, 'hafalan')}
                   onkeydown={(event) => moveCell(event, index, 0)}
                 />
               </td>
@@ -290,7 +301,7 @@
                   max="5"
                   data-cell={`${index}-1`}
                   bind:value={row.kelancaran}
-                  oninput={() => handleScoreInput(index, 'kelancaran')}
+                  oninput={(e) => handleScoreInput(e, index, 'kelancaran')}
                   onkeydown={(event) => moveCell(event, index, 1)}
                 />
               </td>
@@ -301,7 +312,7 @@
                   max="5"
                   data-cell={`${index}-2`}
                   bind:value={row.mad}
-                  oninput={() => handleScoreInput(index, 'mad')}
+                  oninput={(e) => handleScoreInput(e, index, 'mad')}
                   onkeydown={(event) => moveCell(event, index, 2)}
                 />
               </td>
@@ -312,7 +323,7 @@
                   max="5"
                   data-cell={`${index}-3`}
                   bind:value={row.tajwid}
-                  oninput={() => handleScoreInput(index, 'tajwid')}
+                  oninput={(e) => handleScoreInput(e, index, 'tajwid')}
                   onkeydown={(event) => moveCell(event, index, 3)}
                 />
               </td>
@@ -323,7 +334,7 @@
                   max="5"
                   data-cell={`${index}-4`}
                   bind:value={row.makharijulHuruf}
-                  oninput={() => handleScoreInput(index, 'makharijulHuruf')}
+                  oninput={(e) => handleScoreInput(e, index, 'makharijulHuruf')}
                   onkeydown={(event) => moveCell(event, index, 4)}
                 />
               </td>

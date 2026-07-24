@@ -94,6 +94,8 @@ func GetNilaiTahfizMasalHandler(w http.ResponseWriter, r *http.Request) {
 
 		var semester models.Semester
 		database.DB.First(&semester, semID)
+		var tahunAjaran models.TahunAjaran
+		database.DB.First(&tahunAjaran, taID)
 
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -105,6 +107,7 @@ func GetNilaiTahfizMasalHandler(w http.ResponseWriter, r *http.Request) {
 					"sekolah":         sekolah,
 					"kelas":           kelas,
 					"semester":        semester,
+					"tahun_ajaran":    tahunAjaran,
 					"sekolah_id":      riwayat.SekolahID,
 					"tahun_ajaran_id": taID,
 					"semester_id":     semID,
@@ -123,6 +126,7 @@ func GetNilaiTahfizMasalHandler(w http.ResponseWriter, r *http.Request) {
 			"sekolah":         sekolah,
 			"kelas":           kelas,
 			"semester":        semester,
+					"tahun_ajaran":    tahunAjaran,
 			"sekolah_id":      riwayat.SekolahID,
 			"tahun_ajaran_id": taID,
 			"semester_id":     semID,

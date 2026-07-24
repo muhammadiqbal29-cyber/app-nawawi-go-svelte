@@ -12,6 +12,9 @@
   let rombel = $derived($page.url.searchParams.get('rombel') || '__kosong__');
   let rombelText = $derived(rombel === '__kosong__' ? 'Tanpa Rombel' : `Rombel ${rombel}`);
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
+
 
   let loading = $state(false);
   let saving = $state(false);
@@ -33,6 +36,8 @@
     try {
       // 1. Ambil data rapor tahfiz v2 masal
       const params = new URLSearchParams({ rombel });
+      if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.set('semester_id', paramSemId);
       const resRapor = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/tahfiz-v2-masal?${params.toString()}`, {
         credentials: 'include'
       });
@@ -41,10 +46,12 @@
 
       // 2. Ambil catatan rapor yang sudah ada
       const paramsCatatan = new URLSearchParams({
-        jenis_rapor: 'tahfiz',
+        jenis_rapor: 'tahfiz_v2',
         sekolah_id: sekolahId,
         rombel
       });
+      if (paramTaId) paramsCatatan.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) paramsCatatan.set('semester_id', paramSemId);
       const resCatatan = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/catatan-rapor?${paramsCatatan.toString()}`, {
         credentials: 'include'
       });
@@ -63,11 +70,24 @@
 
       // Process data siswa
       siswaData = (raporData || []).map(item => {
+        const details = item.details || [];
+        let sumKelancaran = 0, sumTajwid = 0, sumMakharij = 0;
+        let count = 0;
+        
+        details.forEach(d => {
+          sumKelancaran += (d.skor_kelancaran || 0);
+          sumTajwid += (d.skor_tajwid || 0);
+          sumMakharij += (d.skor_makharijul_huruf || 0);
+          count++;
+        });
+
         return {
           siswa_id: item.siswa.id,
           nama: item.siswa.nama_lengkap,
           nisn: item.siswa.nisn,
-          rata_rata: 0,
+          avgKelancaran: count > 0 ? Math.round(sumKelancaran / count) : 0,
+          avgTajwid: count > 0 ? Math.round(sumTajwid / count) : 0,
+          avgMakharij: count > 0 ? Math.round(sumMakharij / count) : 0,
           catatan: map[item.siswa.id] || ''
         };
       }).sort((a, b) => a.nama.localeCompare(b.nama));
@@ -79,36 +99,99 @@
     }
   }
 
-  function generateAutoCatatan() {
-    siswaData = siswaData.map(s => {
-      let cat = s.catatan;
-      if (!cat) {
-        cat = 'Pencapaian yang baik dalam hafalan Al-Qur\'an. Terus semangat dan jaga murajaahnya.';
+  function scoreToPredicate(score) {
+    const rounded = Math.round(score);
+    if (rounded >= 5) return 'Mumtaz';
+    if (rounded === 4) return 'Jayyid Jiddan';
+    if (rounded === 3) return 'Jayyid';
+    if (rounded === 2) return 'Maqbul';
+    if (rounded <= 1) return "Dha'if";
+    return 'Semua Kriteria';
+  }
+
+  async function generateAutoCatatan() {
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/bank-catatan-tahfiz-v2?sekolah_id=${sekolahId}`, {
+        credentials: 'include'
+      });
+      let bankRules = [];
+      if (res.ok) {
+        bankRules = await res.json() || [];
+      } else {
+        throw new Error('Gagal memuat bank catatan');
       }
-      return { ...s, catatan: cat };
-    });
-    toastStore.show('Catatan otomatis berhasil di-generate', 'success');
+
+      siswaData = siswaData.map(s => {
+        const pKelancaran = scoreToPredicate(s.avgKelancaran);
+        const pTajwid = scoreToPredicate(s.avgTajwid);
+        const pMakharij = scoreToPredicate(s.avgMakharij);
+
+        // Cari rule yang paling cocok (skor exact match > skor Semua Kriteria)
+        let bestMatch = null;
+        let bestScore = -1;
+
+        for (const rule of bankRules) {
+          let matchScore = 0;
+          let isValid = true;
+
+          // Cek Kelancaran
+          if (rule.kelancaran === pKelancaran) matchScore += 1;
+          else if (rule.kelancaran !== 'Semua Kriteria') isValid = false;
+
+          // Cek Tajwid
+          if (rule.tajwid === pTajwid) matchScore += 1;
+          else if (rule.tajwid !== 'Semua Kriteria') isValid = false;
+
+          // Cek Makharij
+          if (rule.makharij === pMakharij) matchScore += 1;
+          else if (rule.makharij !== 'Semua Kriteria') isValid = false;
+
+          if (isValid && matchScore > bestScore) {
+            bestScore = matchScore;
+            bestMatch = rule;
+          }
+        }
+
+        const newCatatan = bestMatch 
+          ? bestMatch.teks_catatan 
+          : 'Pencapaian dalam hafalan Al-Qur\'an cukup baik. Terus semangat dan jaga murajaahnya.';
+
+        return { 
+          ...s, 
+          catatan: newCatatan 
+        };
+      });
+      toastStore.show('Catatan otomatis berhasil di-generate', 'success');
+    } catch (err) {
+      toastStore.show(err.message, 'error');
+    }
   }
 
   async function simpanSemua() {
     saving = true;
     try {
-      const promises = siswaData.map(s => {
-        return fetch(`${apiUrl}/api/guru/nilai-catatan`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sekolah_id: Number(sekolahId),
-            siswa_id: s.siswa_id,
-            catatan: s.catatan || ''
-          })
-        }).then(res => {
-          if (!res.ok) throw new Error(`Gagal menyimpan untuk siswa ID ${s.siswa_id}`);
-        });
+      const payload = {
+        tahun_ajaran_id: parseInt(paramTaId) || 0,
+        semester_id: parseInt(paramSemId) || 0,
+        sekolah_id: Number(sekolahId),
+        jenis_rapor: 'tahfiz_v2',
+        data: siswaData.map(s => ({
+          siswa_id: s.siswa_id,
+          catatan: s.catatan || ''
+        }))
+      };
+
+      const res = await fetch(`${apiUrl}/api/guru/catatan-rapor`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      await Promise.all(promises);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Gagal menyimpan catatan masal');
+      }
 
       toastStore.show('Catatan masal berhasil disimpan', 'success');
       setTimeout(() => {
@@ -123,7 +206,7 @@
 </script>
 
 <svelte:head>
-  <title>Catatan Masal Tahfiz V2 - {kelasLabel}</title>
+  <title>Catatan Masal Tahfiz  - {kelasLabel}</title>
 </svelte:head>
 
 <div class="page-container">
@@ -135,7 +218,7 @@
       >
         <Icon name="arrowLeft" size={16} /> Kembali
       </button>
-      <h1 class="page-title">Catatan Masal Ujian Tahfiz V2</h1>
+      <h1 class="page-title">Catatan Masal Ujian Tahfiz </h1>
       <p class="page-subtitle">{kelasLabel} · {rombelText} · {siswaData.length} siswa</p>
     </div>
     

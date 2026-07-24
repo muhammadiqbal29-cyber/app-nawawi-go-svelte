@@ -237,13 +237,23 @@ func recalculateAndSaveNilaiTahfizV2Header(tx *gorm.DB, header *models.NilaiTahf
 	if err := tx.Where("nilai_tahfiz_v2_id = ?", header.ID).Find(&details).Error; err != nil {
 		return err
 	}
-	calculateNilaiTahfizV2Header(header, details)
+
+	if header.JenisPenilaian == JenisPenilaianKelulusan {
+		var count int64
+		if err := tx.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND aktif = ?", header.SekolahID, true).Count(&count).Error; err == nil {
+			header.PembaginYangDigunakan = int(count)
+		}
+	}
+
+	kriteria := GetKriteriaPenilaian(header.SekolahID, header.JenisPenilaian)
+	calculateNilaiTahfizV2Header(header, details, kriteria)
 	return tx.Model(&models.NilaiTahfizV2{}).
 		Where("id = ?", header.ID).
 		Updates(map[string]interface{}{
-			"jumlah_materi": header.JumlahMateri,
-			"total_poin":    header.TotalPoin,
-			"nilai_akhir":   header.NilaiAkhir,
-			"predikat":      header.Predikat,
+			"jumlah_materi":           header.JumlahMateri,
+			"total_poin":              header.TotalPoin,
+			"nilai_akhir":             header.NilaiAkhir,
+			"predikat":                header.Predikat,
+			"pembagin_yang_digunakan": header.PembaginYangDigunakan,
 		}).Error
 }

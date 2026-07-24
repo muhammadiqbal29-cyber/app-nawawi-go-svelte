@@ -32,7 +32,7 @@
   let selectedSiswaKiri = new SvelteSet();
 
   // Derived filtered lists (ONLY AKTIF)
-  let siswaAktif = $derived(siswaList.filter((s) => s.status === 'Aktif'));
+  let siswaAktif = $derived(siswaList.filter((s) => s.status === 'Aktif' || s.status === 'Lulus' || s.status === 'Pindah'));
   let siswaTanpaKelas = $derived(siswaAktif.filter((s) => !s.kelas_id));
 
   // Kelas Asal Filter

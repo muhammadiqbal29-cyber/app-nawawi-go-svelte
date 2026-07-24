@@ -16,39 +16,22 @@ import (
 
 const jenisPenilaianKelulusan = "kelulusan"
 
-type KriteriaPenilaianItem struct {
-	Min  int    `json:"min"`
-	Max  int    `json:"max"`
-	Arab string `json:"arab"`
-	Indo string `json:"indo"`
-}
-
 type konfigurasiNilaiTahfizPayload struct {
-	Pembagi               int                     `json:"pembagi" validate:"required,gte=1"`
-	JenisPenilaian        string                  `json:"jenis_penilaian"`
-	TingkatLevelKelulusan []int                   `json:"tingkat_level_kelulusan"`
-	KriteriaPenilaian     []KriteriaPenilaianItem `json:"kriteria_penilaian"`
-	Aktif                 *bool                   `json:"aktif"`
+	Pembagi               int                            `json:"pembagi" validate:"required,gte=1"`
+	JenisPenilaian        string                         `json:"jenis_penilaian"`
+	TingkatLevelKelulusan []int                          `json:"tingkat_level_kelulusan"`
+	KriteriaPenilaian     []models.KriteriaPenilaianItem `json:"kriteria_penilaian"`
+	Aktif                 *bool                          `json:"aktif"`
 }
 
 type konfigurasiNilaiTahfizResponse struct {
-	ID                    int                     `json:"id"`
-	SekolahID             int                     `json:"sekolah_id"`
-	JenisPenilaian        string                  `json:"jenis_penilaian"`
-	Pembagi               int                     `json:"pembagi"`
-	TingkatLevelKelulusan []int                   `json:"tingkat_level_kelulusan"`
-	KriteriaPenilaian     []KriteriaPenilaianItem `json:"kriteria_penilaian"`
-	Aktif                 bool                    `json:"aktif"`
-}
-
-func getDefaultKriteria() []KriteriaPenilaianItem {
-	return []KriteriaPenilaianItem{
-		{Min: 90, Max: 100, Arab: "مُمْتَاز", Indo: "Istimewa"},
-		{Min: 80, Max: 89, Arab: "جَيِّد جِدًّا", Indo: "Sangat Baik"},
-		{Min: 70, Max: 79, Arab: "جَيِّد", Indo: "Baik"},
-		{Min: 60, Max: 69, Arab: "مَقْبُول", Indo: "Cukup"},
-		{Min: 0, Max: 59, Arab: "رَاسِب", Indo: "Mengulang"},
-	}
+	ID                    int                            `json:"id"`
+	SekolahID             int                            `json:"sekolah_id"`
+	JenisPenilaian        string                         `json:"jenis_penilaian"`
+	Pembagi               int                            `json:"pembagi"`
+	TingkatLevelKelulusan []int                          `json:"tingkat_level_kelulusan"`
+	KriteriaPenilaian     []models.KriteriaPenilaianItem `json:"kriteria_penilaian"`
+	Aktif                 bool                           `json:"aktif"`
 }
 
 func GetKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
@@ -58,19 +41,24 @@ func GetKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jenisPenilaian := r.URL.Query().Get("jenis_penilaian")
+	if jenisPenilaian == "" {
+		jenisPenilaian = jenisPenilaianKelulusan
+	}
+
 	var konfig models.KonfigurasiNilaiTahfiz
 	err = database.DB.Where(
 		"sekolah_id = ? AND jenis_penilaian = ?",
-		sekolahID, jenisPenilaianKelulusan,
+		sekolahID, jenisPenilaian,
 	).First(&konfig).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.JSON(w, http.StatusOK, konfigurasiNilaiTahfizResponse{
 				SekolahID:             sekolahID,
-				JenisPenilaian:        jenisPenilaianKelulusan,
+				JenisPenilaian:        jenisPenilaian,
 				Pembagi:               1,
 				TingkatLevelKelulusan: []int{},
-				KriteriaPenilaian:     getDefaultKriteria(),
+				KriteriaPenilaian:     models.GetDefaultKriteria(),
 				Aktif:                 true,
 			})
 			return
@@ -100,9 +88,9 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if payload.JenisPenilaian != "" && payload.JenisPenilaian != jenisPenilaianKelulusan {
-		response.Error(w, http.StatusBadRequest, "Jenis penilaian tidak valid", errors.New("jenis_penilaian invalid"))
-		return
+	jenisPenilaian := payload.JenisPenilaian
+	if jenisPenilaian == "" {
+		jenisPenilaian = jenisPenilaianKelulusan
 	}
 
 	aktif := true
@@ -113,7 +101,7 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 	var konfig models.KonfigurasiNilaiTahfiz
 	err = database.DB.Where(
 		"sekolah_id = ? AND jenis_penilaian = ?",
-		sekolahID, jenisPenilaianKelulusan,
+		sekolahID, jenisPenilaian,
 	).First(&konfig).Error
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -122,10 +110,10 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 		}
 		konfig = models.KonfigurasiNilaiTahfiz{
 			SekolahID:             sekolahID,
-			JenisPenilaian:        jenisPenilaianKelulusan,
+			JenisPenilaian:        jenisPenilaian,
 			Pembagi:               payload.Pembagi,
 			TingkatLevelKelulusan: encodeTingkatLevels(payload.TingkatLevelKelulusan),
-			KriteriaPenilaian:     encodeKriteria(payload.KriteriaPenilaian),
+			KriteriaPenilaian:     models.EncodeKriteria(payload.KriteriaPenilaian),
 			Aktif:                 aktif,
 		}
 		if err := database.DB.Create(&konfig).Error; err != nil {
@@ -139,7 +127,7 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 	konfig.Pembagi = payload.Pembagi
 	konfig.TingkatLevelKelulusan = encodeTingkatLevels(payload.TingkatLevelKelulusan)
 	if len(payload.KriteriaPenilaian) > 0 {
-		konfig.KriteriaPenilaian = encodeKriteria(payload.KriteriaPenilaian)
+		konfig.KriteriaPenilaian = models.EncodeKriteria(payload.KriteriaPenilaian)
 	}
 	konfig.Aktif = aktif
 	if err := database.DB.Save(&konfig).Error; err != nil {
@@ -162,7 +150,7 @@ func toKonfigurasiNilaiTahfizResponse(konfig models.KonfigurasiNilaiTahfiz) konf
 		JenisPenilaian:        konfig.JenisPenilaian,
 		Pembagi:               konfig.Pembagi,
 		TingkatLevelKelulusan: decodeTingkatLevels(konfig.TingkatLevelKelulusan),
-		KriteriaPenilaian:     decodeKriteria(konfig.KriteriaPenilaian),
+		KriteriaPenilaian:     models.DecodeKriteria(konfig.KriteriaPenilaian),
 		Aktif:                 konfig.Aktif,
 	}
 }
@@ -195,24 +183,3 @@ func decodeTingkatLevels(raw string) []int {
 	return levels
 }
 
-func encodeKriteria(kriteria []KriteriaPenilaianItem) string {
-	data, err := json.Marshal(kriteria)
-	if err != nil {
-		return "[]"
-	}
-	return string(data)
-}
-
-func decodeKriteria(raw string) []KriteriaPenilaianItem {
-	if raw == "" || raw == "[]" {
-		return getDefaultKriteria()
-	}
-	var kriteria []KriteriaPenilaianItem
-	if err := json.Unmarshal([]byte(raw), &kriteria); err != nil {
-		return getDefaultKriteria()
-	}
-	if len(kriteria) == 0 {
-		return getDefaultKriteria()
-	}
-	return kriteria
-}

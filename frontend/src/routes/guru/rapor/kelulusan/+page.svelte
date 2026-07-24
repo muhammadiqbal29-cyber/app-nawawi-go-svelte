@@ -1,9 +1,12 @@
 <script>
   import Icon from '$lib/components/ui/Icon.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
+  import { goto } from '$app/navigation';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
+  
+        
   let kelasList = $state([]);
   let selectedKelas = $state(null);
   let siswaList = $state([]);
@@ -16,7 +19,18 @@
   let error = $state('');
 
   $effect(() => {
-    if (guruState.activeSekolahId) {
+    // Read values synchronously for Svelte 5 reactivity tracking
+    const sekolahId = guruState.activeSekolahId;
+    const taId = guruState.activeTahunId;
+    const semId = guruState.activeSemesterId;
+    if (sekolahId && taId && semId) {
+      const isV2 = guruState.aksesMap[guruState.activeSekolahId]?.includes('input_tahfiz_v2');
+      if (isV2) {
+        const url = new URL(window.location.href);
+        const newPath = url.pathname.replace('/kelulusan', '/kelulusan-v2');
+        goto(`${newPath}${url.search}`);
+        return;
+      }
       loadKelas().then(() => {
         if (typeof window !== 'undefined') {
           const saved = sessionStorage.getItem('rapor_kelulusan_kelas');
@@ -33,11 +47,17 @@
     }
   });
 
+  
+  
+
   async function loadKelas() {
     if (!guruState.activeSekolahId) return;
     loadingKelas = true;
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`, {
+      let url = `${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas?jenis_penilaian=kelulusan`;
+    if (guruState.activeTahunId) url += `&tahun_ajaran_id=${guruState.activeTahunId}`;
+    if (guruState.activeSemesterId) url += `&semester_id=${guruState.activeSemesterId}`;
+    const res = await fetch(url, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat data kelas.');
@@ -57,6 +77,8 @@
     loadingSiswa = true;
     try {
       const params = new URLSearchParams({ rombel: kelas.rombel || '__kosong__' });
+      if (guruState.activeTahunId) params.set('tahun_ajaran_id', guruState.activeTahunId);
+      if (guruState.activeSemesterId) params.set('semester_id', guruState.activeSemesterId);
       const res = await fetch(`${apiUrl}/api/guru/kelas/${kelas.id}/siswa?${params.toString()}`, {
         credentials: 'include'
       });
@@ -98,6 +120,9 @@
       <p class="subtitle">Pilih kelas lalu pilih siswa untuk melihat rapor ujian kelulusan.</p>
     </div>
   </div>
+
+  
+  
 
   {#if error}
     <div class="alert-error">{error}</div>
@@ -146,6 +171,20 @@
           <span class="badge">{rombelLabel(selectedKelas.rombel)}</span>
         </div>
       </div>
+      <div style="display: flex; gap: 0.5rem; align-items: center;">
+        <a
+          href={`/guru/rapor/kelulusan/kelas/${selectedKelas.id}/catatan-masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}&kelas=${encodeURIComponent(kelasLabel(selectedKelas))}`}
+          class="btn-catatan-masal"
+        >
+          <Icon name="edit" size={16} /> Isi Catatan Masal
+        </a>
+        <a
+          href={`/guru/rapor/kelulusan-v2/kelas/${selectedKelas.id}/masal?rombel=${selectedKelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}`}
+          class="btn-print-masal"
+        >
+          <Icon name="printer" size={16} /> Cetak Rapor Masal
+        </a>
+      </div>
     </div>
     
     <div class="search-container" style="margin-bottom: 1.5rem;">
@@ -167,7 +206,7 @@
         {#each filteredSiswa as siswa (siswa.id)}
           <a
             class="siswa-card"
-            href="/guru/rapor/kelulusan/{siswa.id}?sekolah_id={guruState.activeSekolahId}"
+            href={`/guru/rapor/kelulusan/${siswa.id}?sekolah_id=${guruState.activeSekolahId}&tahun_ajaran_id=${guruState.activeTahunId}&semester_id=${guruState.activeSemesterId}&nama=${encodeURIComponent(siswa.nama_lengkap || '')}&nisn=${encodeURIComponent(siswa.nisn || '')}&kelas=${encodeURIComponent(selectedKelas?.nama_kelas || '')}`}
           >
             <div class="siswa-info">
               <span class="siswa-nama">{siswa.nama_lengkap}</span>
@@ -319,6 +358,42 @@
   .btn-back:hover {
     color: #4338ca;
   }
+  .btn-catatan-masal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #10b981;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-print-masal {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #0ea5e9;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-print-masal:hover {
+    background: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);
+  }
+  .btn-catatan-masal:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+  }
   .selected-kelas {
     display: flex;
     align-items: center;
@@ -406,4 +481,10 @@
     color: #dc2626;
     border: 1px solid #fecaca;
   }
+
+  
+  
+  
+  
+
 </style>

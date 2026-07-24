@@ -2,6 +2,7 @@ package catatanRapor
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -49,15 +50,17 @@ func GetCatatanRaporKelasHandler(w http.ResponseWriter, r *http.Request) {
 		semesterID, _ = strconv.Atoi(semesterIDStr)
 	}
 
-	if tahunAjaranID == 0 || semesterID == 0 {
+	if tahunAjaranID == 0 {
 		var activeTahun models.TahunAjaran
-		if err := database.DB.Preload("Semesters", "status_aktif = ?", true).Where("status = ?", "Active").First(&activeTahun).Error; err != nil {
-			response.Error(w, http.StatusInternalServerError, "Tahun ajaran aktif tidak ditemukan", err)
-			return
+		if err := database.DB.Where("status = ?", "Active").First(&activeTahun).Error; err == nil {
+			tahunAjaranID = activeTahun.ID
 		}
-		tahunAjaranID = activeTahun.ID
-		if len(activeTahun.Semesters) > 0 {
-			semesterID = activeTahun.Semesters[0].ID
+	}
+
+	if semesterID == 0 {
+		var activeSem models.Semester
+		if err := database.DB.Where("tahun_ajaran_id = ? AND status_aktif = ?", tahunAjaranID, true).First(&activeSem).Error; err == nil {
+			semesterID = activeSem.ID
 		}
 	}
 
@@ -134,15 +137,17 @@ func GetCatatanRaporSiswaHandler(w http.ResponseWriter, r *http.Request) {
 		semesterID, _ = strconv.Atoi(semesterIDStr)
 	}
 
-	if tahunAjaranID == 0 || semesterID == 0 {
+	if tahunAjaranID == 0 {
 		var activeTahun models.TahunAjaran
-		if err := database.DB.Preload("Semesters", "status_aktif = ?", true).Where("status = ?", "Active").First(&activeTahun).Error; err != nil {
-			response.Error(w, http.StatusInternalServerError, "Tahun ajaran aktif tidak ditemukan", err)
-			return
+		if err := database.DB.Where("status = ?", "Active").First(&activeTahun).Error; err == nil {
+			tahunAjaranID = activeTahun.ID
 		}
-		tahunAjaranID = activeTahun.ID
-		if len(activeTahun.Semesters) > 0 {
-			semesterID = activeTahun.Semesters[0].ID
+	}
+
+	if semesterID == 0 {
+		var activeSem models.Semester
+		if err := database.DB.Where("tahun_ajaran_id = ? AND status_aktif = ?", tahunAjaranID, true).First(&activeSem).Error; err == nil {
+			semesterID = activeSem.ID
 		}
 	}
 
@@ -198,15 +203,17 @@ func UpsertCatatanRaporHandler(w http.ResponseWriter, r *http.Request) {
 	tahunAjaranID := req.TahunAjaranID
 	semesterID := req.SemesterID
 
-	if tahunAjaranID == 0 || semesterID == 0 {
+	if tahunAjaranID == 0 {
 		var activeTahun models.TahunAjaran
-		if err := database.DB.Preload("Semesters", "status_aktif = ?", true).Where("status = ?", "Active").First(&activeTahun).Error; err != nil {
-			response.Error(w, http.StatusInternalServerError, "Tahun ajaran aktif tidak ditemukan", err)
-			return
+		if err := database.DB.Where("status = ?", "Active").First(&activeTahun).Error; err == nil {
+			tahunAjaranID = activeTahun.ID
 		}
-		tahunAjaranID = activeTahun.ID
-		if len(activeTahun.Semesters) > 0 {
-			semesterID = activeTahun.Semesters[0].ID
+	}
+
+	if semesterID == 0 {
+		var activeSem models.Semester
+		if err := database.DB.Where("tahun_ajaran_id = ? AND status_aktif = ?", tahunAjaranID, true).First(&activeSem).Error; err == nil {
+			semesterID = activeSem.ID
 		}
 	}
 
@@ -239,6 +246,44 @@ func UpsertCatatanRaporHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	// Sync catatan to respective report headers
+	for _, item := range req.Data {
+		switch req.JenisRapor {
+		case "tasmi":
+			tx.Model(&models.NilaiTasmi{}).
+				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
+					item.SiswaID, sekolahID, tahunAjaranID, semesterID).
+				Update("catatan", item.Catatan)
+			tx.Model(&models.NilaiTasmiV2{}).
+				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
+					item.SiswaID, sekolahID, tahunAjaranID, semesterID).
+				Update("catatan", item.Catatan)
+		case "kelulusan":
+			tx.Model(&models.NilaiTahfiz{}).
+				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",
+					item.SiswaID, sekolahID, tahunAjaranID, semesterID, "kelulusan").
+				Update("catatan", item.Catatan)
+			tx.Model(&models.NilaiTahfizV2{}).
+				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",
+					item.SiswaID, sekolahID, tahunAjaranID, semesterID, "kelulusan").
+				Update("catatan", item.Catatan)
+		case "tahfiz", "tahfiz_v2":
+			fmt.Printf("DEBUG SYNC TAHFIZ_V2: siswa_id=%d, sekolah_id=%d, ta=%d, sem=%d, catatan=%s\n", item.SiswaID, sekolahID, tahunAjaranID, semesterID, item.Catatan)
+			errTahfiz := tx.Model(&models.NilaiTahfiz{}).
+				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",
+					item.SiswaID, sekolahID, tahunAjaranID, semesterID, "semester").
+				Update("catatan", item.Catatan).Error
+			fmt.Printf("DEBUG SYNC TAHFIZ: err=%v\n", errTahfiz)
+
+			errTahfizV2 := tx.Model(&models.NilaiTahfizV2{}).
+				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",
+					item.SiswaID, sekolahID, tahunAjaranID, semesterID, "semester").
+				Update("catatan", item.Catatan).Error
+			fmt.Printf("DEBUG SYNC TAHFIZ V2: err=%v\n", errTahfizV2)
+		}
+	}
+
 	tx.Commit()
 
 	response.Success(w, "Catatan berhasil disimpan")

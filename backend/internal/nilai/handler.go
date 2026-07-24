@@ -12,6 +12,7 @@ import (
 	"siakad-nawawi-be/internal/response"
 	"siakad-nawawi-be/internal/tahunajaran"
 	"siakad-nawawi-be/internal/utils"
+	"sort"
 )
 
 // GetNilaiByKelasHandler mengambil semua nilai siswa di suatu kelas untuk TA dan semester tertentu
@@ -48,7 +49,7 @@ func GetNilaiByKelasHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT rk.siswa_id, s.nama_lengkap, s.nisn
 		FROM riwayat_kelas rk
 		JOIN siswas s ON s.id = rk.siswa_id
-		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ? AND rk.status_akhir = 'Aktif'
+		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ?
 	`
 	siswaArgs := []interface{}{kelasID, taID}
 	if rombel == "__kosong__" {
@@ -82,6 +83,51 @@ func GetNilaiByKelasHandler(w http.ResponseWriter, r *http.Request) {
 				key := strconv.Itoa(n.SiswaID) + "_" + n.MataPelajaran
 				nilaiMap[key] = n
 			}
+		}
+	} else if mapel == "Ujian Tasmi" || mapel == "Tasmi" {
+		var tasmi1 []models.NilaiTasmi
+		t1Query := database.DB.Preload("Details").Where("jenis_penilaian = ?", jenisPenilaian)
+		if len(siswaIDs) > 0 {
+			t1Query = t1Query.Where("siswa_id IN ?", siswaIDs)
+		}
+		t1Query.Find(&tasmi1)
+
+		var tasmi2 []models.NilaiTasmiV2
+		t2Query := database.DB.Preload("Details").Where("jenis_penilaian = ?", jenisPenilaian)
+		if len(siswaIDs) > 0 {
+			t2Query = t2Query.Where("siswa_id IN ?", siswaIDs)
+		}
+		t2Query.Find(&tasmi2)
+
+		type TasmiStatus struct {
+			TahapV1 []int `json:"tahap_v1"`
+			TahapV2 []int `json:"tahap_v2"`
+		}
+		statusMap := make(map[string]*TasmiStatus)
+
+		for _, t := range tasmi1 {
+			key := strconv.Itoa(t.SiswaID) + "_" + mapel
+			if statusMap[key] == nil {
+				statusMap[key] = &TasmiStatus{TahapV1: []int{}, TahapV2: []int{}}
+			}
+			if len(t.Details) > 0 {
+				statusMap[key].TahapV1 = append(statusMap[key].TahapV1, t.Tahap)
+			}
+		}
+		for _, t := range tasmi2 {
+			key := strconv.Itoa(t.SiswaID) + "_" + mapel
+			if statusMap[key] == nil {
+				statusMap[key] = &TasmiStatus{TahapV1: []int{}, TahapV2: []int{}}
+			}
+			if len(t.Details) > 0 {
+				statusMap[key].TahapV2 = append(statusMap[key].TahapV2, t.Tahap)
+			}
+		}
+
+		for k, v := range statusMap {
+			sort.Ints(v.TahapV1)
+			sort.Ints(v.TahapV2)
+			nilaiMap[k] = v
 		}
 	} else {
 		var nilaiList []models.Nilai
@@ -192,7 +238,8 @@ func CreateNilaiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := calculateNilaiTahfiz(&input); err != nil {
+	kriteria := GetKriteriaPenilaian(input.SekolahID, input.JenisPenilaian)
+	if err := calculateNilaiTahfiz(&input, kriteria); err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error(), err)
 		return
 	}
@@ -276,7 +323,8 @@ func UpdateNilaiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := calculateNilaiTahfiz(&existing); err != nil {
+	kriteria := GetKriteriaPenilaian(existing.SekolahID, existing.JenisPenilaian)
+	if err := calculateNilaiTahfiz(&existing, kriteria); err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error(), err)
 		return
 	}
@@ -330,8 +378,9 @@ func GetKelasBySekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 		`).
 		Joins("JOIN kelas AS k ON k.id = rk.kelas_id").
 		Where("k.sekolah_id = ?", sekolahID).
-		Where("rk.tahun_ajaran_id = ? AND rk.status_akhir = ?", taID, "Aktif").
-		Group("k.id, k.sekolah_id, k.tingkat, k.tingkat_level, k.nama_kelas, k.created_at, k.updated_at, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+		Where("rk.tahun_ajaran_id = ?", taID)
+
+	query = query.Group("k.id, k.sekolah_id, k.tingkat, k.tingkat_level, k.nama_kelas, k.created_at, k.updated_at, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
 		Order("k.tingkat_level ASC, k.nama_kelas ASC, rombel ASC")
 
 	if jenisPenilaian == JenisPenilaianKelulusan {

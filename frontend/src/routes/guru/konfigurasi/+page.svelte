@@ -4,6 +4,7 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import KeseharianKriteriaTab from './KeseharianKriteriaTab.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -68,6 +69,7 @@
 
   // --- State: Tab ---
   let activeTab = $state('tahfiz');
+  let activeSubTab = $state('keseharian');
   let tahfizActiveTab = $state('materi'); // 'materi', 'kelulusan', 'kriteria'
 
   // --- State: Mapel Diniyah ---
@@ -90,7 +92,22 @@
   let diniyahEditLoading = $state(false);
   let diniyahDeletingId = $state(null);
 
+  // --- State: Konfigurasi Diniyah ---
+  let diniyahActiveTab = $state('mapel'); // 'mapel', 'kriteria'
+  let diniyahKriteriaPenilaian = $state([]);
+  let diniyahKonfigurasiLoading = $state(false);
+  let diniyahKonfigurasiSaving = $state(false);
+  let diniyahKonfigurasiError = $state('');
+  let diniyahKonfigurasiSuccess = $state('');
+
   // --- State: Keseharian ---
+  
+  let keseharianKriteriaPenilaian = $state([]);
+  let keseharianKonfigurasiLoading = $state(false);
+  let keseharianKonfigurasiSaving = $state(false);
+  let keseharianKonfigurasiError = $state('');
+  let keseharianKonfigurasiSuccess = $state('');
+
   let indikators = $state([]);
   let loadingKeseharian = $state(false);
   let errorKeseharian = $state('');
@@ -150,6 +167,7 @@
       loadKelasKelulusanOptions();
       loadKonfigurasiNilaiTahfiz();
       loadDiniyah();
+      loadKonfigurasiNilaiDiniyah();
       loadIndikators();
       if (hasKeseharian) {
         loadPelanggaran();
@@ -565,6 +583,66 @@
     } finally {
       loadingDiniyah = false;
     }
+  }
+
+  async function loadKonfigurasiNilaiDiniyah() {
+    if (!selectedSekolah) return;
+    diniyahKonfigurasiLoading = true;
+    diniyahKonfigurasiError = '';
+    diniyahKonfigurasiSuccess = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/konfigurasi-nilai-diniyah`,
+        {
+          credentials: 'include'
+        }
+      );
+      if (!res.ok) throw new Error('Gagal memuat pengaturan kriteria penilaian diniyah');
+      const payload = await res.json();
+      diniyahKriteriaPenilaian = payload.kriteria_penilaian || [];
+    } catch (err) {
+      diniyahKonfigurasiError = err.message;
+    } finally {
+      diniyahKonfigurasiLoading = false;
+    }
+  }
+
+  async function simpanKonfigurasiNilaiDiniyah() {
+    diniyahKonfigurasiSaving = true;
+    diniyahKonfigurasiError = '';
+    diniyahKonfigurasiSuccess = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/konfigurasi-nilai-diniyah`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kriteria_penilaian: diniyahKriteriaPenilaian
+          })
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Gagal menyimpan pengaturan nilai diniyah');
+      }
+      const payload = await res.json();
+      diniyahKriteriaPenilaian = payload.kriteria_penilaian || diniyahKriteriaPenilaian;
+      diniyahKonfigurasiSuccess = 'Pengaturan kriteria penilaian diniyah berhasil disimpan.';
+    } catch (err) {
+      diniyahKonfigurasiError = err.message;
+    } finally {
+      diniyahKonfigurasiSaving = false;
+    }
+  }
+
+  function tambahKriteriaDiniyah() {
+    diniyahKriteriaPenilaian = [...diniyahKriteriaPenilaian, { min: 0, max: 0, arab: '', indo: '' }];
+  }
+
+  function hapusKriteriaDiniyah(index) {
+    diniyahKriteriaPenilaian = diniyahKriteriaPenilaian.filter((_, i) => i !== index);
   }
 
   async function translateDiniyahForm() {
@@ -1088,6 +1166,7 @@
       });
       if (!res.ok) throw new Error('Gagal menyimpan jenis iqob');
       await loadIqob();
+      await loadKonfigurasiKeseharian();
 
       iqobFormNama = '';
       iqobFormPoin = 0;
@@ -1281,21 +1360,7 @@
           class:active={activeTab === 'keseharian'}
           onclick={() => (activeTab = 'keseharian')}
         >
-          Indikator Keseharian
-        </button>
-        <button
-          class="tab-btn"
-          class:active={activeTab === 'pelanggaran'}
-          onclick={() => (activeTab = 'pelanggaran')}
-        >
-          Pelanggaran
-        </button>
-        <button
-          class="tab-btn"
-          class:active={activeTab === 'iqob'}
-          onclick={() => (activeTab = 'iqob')}
-        >
-          Iqob
+          Keseharian
         </button>
       {/if}
       {#if hasTahfiz || hasDiniyah || hasKeseharian}
@@ -1546,8 +1611,8 @@
         <section class="kelulusan-settings">
           <div class="settings-header">
             <div>
-              <h2 class="settings-title">Pengaturan Nilai Ujian Kelulusan</h2>
-              <p class="settings-subtitle">Rumus: (Total Poin x 4) / Pembagi</p>
+              <h2 class="settings-title">Pengaturan Ujian Kelulusan</h2>
+              <p class="settings-subtitle">Nilai akhir otomatis dihitung dari rata-rata seluruh materi yang dikonfigurasi pada sistem.</p>
             </div>
           </div>
 
@@ -1558,30 +1623,17 @@
             <div class="alert-success">{konfigurasiSuccess}</div>
           {/if}
 
-          <div class="settings-row">
-            <div class="form-group settings-input">
-              <label for="konfigurasi-pembagi">Pembagi nilai ujian kelulusan</label>
-              <input
-                id="konfigurasi-pembagi"
-                type="number"
-                min="1"
-                step="1"
-                bind:value={konfigurasiPembagi}
-                class="input"
-                disabled={loadingKonfigurasi || konfigurasiSaving}
-              />
-            </div>
-            <button
-              class="btn-primary"
-              onclick={simpanKonfigurasiNilaiTahfiz}
-              disabled={loadingKonfigurasi || konfigurasiSaving}
-            >
-              {konfigurasiSaving ? 'Menyimpan...' : 'Simpan'}
-            </button>
-          </div>
-
           <div class="settings-class-block">
-            <div class="settings-class-label">Tingkat kelas yang mengikuti ujian kelulusan</div>
+            <div class="settings-class-header">
+              <div class="settings-class-label">Tingkat kelas yang mengikuti ujian kelulusan</div>
+              <button
+                class="btn-primary"
+                onclick={simpanKonfigurasiNilaiTahfiz}
+                disabled={loadingKonfigurasi || konfigurasiSaving}
+              >
+                {konfigurasiSaving ? 'Menyimpan...' : 'Simpan'}
+              </button>
+            </div>
             {#if kelasKelulusanOptions.length === 0}
               <div class="settings-note">Belum ada kelas yang bisa dipilih untuk sekolah ini.</div>
             {:else}
@@ -1708,6 +1760,22 @@
         <!-- ======= END TAB TAHFIZ ======= -->
       {:else if activeTab === 'diniyah' && hasDiniyah}
         <!-- ======= TAB DINIYAH ======= -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.35rem; border-radius: 999px; max-width: 750px;">
+          <button
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {diniyahActiveTab === 'mapel' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            onclick={() => (diniyahActiveTab = 'mapel')}
+          >
+            Daftar Mapel
+          </button>
+          <button
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {diniyahActiveTab === 'kriteria' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            onclick={() => (diniyahActiveTab = 'kriteria')}
+          >
+            Kriteria Penilaian
+          </button>
+        </div>
+
+        {#if diniyahActiveTab === 'mapel'}
         <div class="toolbar">
           <span class="materi-count">
             {diniyahList.length} mapel terdaftar ({diniyahList.filter((m) => m.aktif).length} aktif)
@@ -1912,8 +1980,82 @@
             </table>
           </div>
         {/if}
+        {/if}
+
+        {#if diniyahActiveTab === 'kriteria'}
+        <section class="kelulusan-settings">
+          <div class="settings-header">
+            <div>
+              <h2 class="settings-title">Kriteria Penilaian Diniyah</h2>
+              <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Mumtaz)</p>
+            </div>
+          </div>
+
+          {#if diniyahKonfigurasiError}
+            <div class="alert-error">{diniyahKonfigurasiError}</div>
+          {/if}
+          {#if diniyahKonfigurasiSuccess}
+            <div class="alert-success">{diniyahKonfigurasiSuccess}</div>
+          {/if}
+
+          <div class="settings-kriteria-block" style="margin-top: 1rem;">
+            <div class="settings-kriteria-header">
+              <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
+              <button
+                class="btn-secondary btn-sm"
+                onclick={tambahKriteriaDiniyah}
+                disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+              >
+                + Tambah Kriteria
+              </button>
+            </div>
+
+            {#if diniyahKriteriaPenilaian.length === 0}
+              <div class="settings-note">Belum ada kriteria penilaian yang dikonfigurasi.</div>
+            {:else}
+              <div class="kriteria-list">
+                <div class="kriteria-header-row">
+                  <div>Batas Minimal</div>
+                  <div>Batas Maksimal</div>
+                  <div>Predikat (Arab)</div>
+                  <div>Predikat (Indonesia)</div>
+                  <div>Aksi</div>
+                </div>
+                {#each diniyahKriteriaPenilaian as k, i}
+                  <div class="kriteria-row">
+                    <input type="number" min="0" max="100" class="form-input" bind:value={k.min} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
+                    <input type="number" min="0" max="100" class="form-input" bind:value={k.max} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
+                    <input type="text" class="form-input arabic-text" dir="rtl" placeholder="مُمْتَاز" bind:value={k.arab} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
+                    <input type="text" class="form-input" placeholder="Istimewa" bind:value={k.indo} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
+                    <button class="btn-icon btn-icon-danger" onclick={() => hapusKriteriaDiniyah(i)} title="Hapus kriteria ini" disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}>
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            <div style="margin-top: 1rem; text-align: right;">
+              <button
+                class="btn-primary"
+                onclick={simpanKonfigurasiNilaiDiniyah}
+                disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+              >
+                {diniyahKonfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
+              </button>
+            </div>
+          </div>
+        </section>
+        {/if}
         <!-- ======= END TAB DINIYAH ======= -->
       {:else if activeTab === 'keseharian' && hasKeseharian}
+        <div class="tabs sub-tabs" style="margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0;">
+          <button class="tab-btn" class:active={activeSubTab === 'keseharian'} onclick={() => activeSubTab = 'keseharian'}>Indikator Keseharian</button>
+          <button class="tab-btn" class:active={activeSubTab === 'pelanggaran'} onclick={() => activeSubTab = 'pelanggaran'}>Pelanggaran</button>
+          <button class="tab-btn" class:active={activeSubTab === 'iqob'} onclick={() => activeSubTab = 'iqob'}>Iqob</button>
+          <button class="tab-btn" class:active={activeSubTab === 'kriteria'} onclick={() => activeSubTab = 'kriteria'}>Kriteria Penilaian</button>
+        </div>
+        {#if activeSubTab === 'keseharian'}
         <!-- ======= TAB KESEHARIAN ======= -->
         <div class="toolbar">
           <span class="materi-count">
@@ -2074,7 +2216,7 @@
           </div>
         {/if}
         <!-- ======= END TAB KESEHARIAN ======= -->
-      {:else if activeTab === 'pelanggaran' && hasKeseharian}
+      {:else if activeSubTab === 'pelanggaran'}
         <!-- ======= TAB PELANGGARAN ======= -->
         <div class="toolbar">
           <span class="materi-count">
@@ -2263,7 +2405,7 @@
           </div>
         {/if}
         <!-- ======= END TAB PELANGGARAN ======= -->
-      {:else if activeTab === 'iqob' && hasKeseharian}
+      {:else if activeSubTab === 'iqob'}
         <!-- ======= TAB IQOB ======= -->
         <div class="toolbar">
           <span class="materi-count">
@@ -2440,6 +2582,9 @@
             </table>
           </div>
         {/if}
+      {:else if activeSubTab === 'kriteria'}
+        <KeseharianKriteriaTab />
+      {/if}
       {:else if activeTab === 'kop_logo'}
         <!-- ======= TAB KOP & LOGO ======= -->
         <div class="card" style="padding: 2rem;">
@@ -2981,9 +3126,20 @@
   }
 
   .settings-class-block {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 1.25rem;
+    border: 1px solid #e2e8f0;
     margin-top: 1rem;
   }
+  
+  .settings-class-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
 
+  }
   .settings-class-label {
     margin-bottom: 0.5rem;
     font-size: 0.82rem;

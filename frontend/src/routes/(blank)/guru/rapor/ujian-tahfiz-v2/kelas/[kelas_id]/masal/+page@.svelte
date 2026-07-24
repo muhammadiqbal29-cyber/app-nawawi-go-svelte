@@ -10,6 +10,8 @@
   let kelasId = $derived($page.params.kelas_id);
   let rombel = $derived($page.url.searchParams.get('rombel') || '');
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
   let jenisPenilaian = 'semester';
 
   let loading = $state(true);
@@ -129,6 +131,8 @@
     if (sekolahId) params.append('sekolah_id', sekolahId);
     if (rombel && rombel !== '__kosong__') params.append('rombel', rombel);
     params.append('jenis_penilaian', jenisPenilaian);
+    if (paramTaId) params.append('tahun_ajaran_id', paramTaId);
+    if (paramSemId) params.append('semester_id', paramSemId);
 
     const res = await fetch(
       `${apiUrl}/api/guru/kelas/${kelasId}/tahfiz-v2-masal?${params.toString()}`,
@@ -138,7 +142,50 @@
     );
     if (!res.ok) throw new Error('Gagal memuat rapor tahfiz v2 masal.');
     const data = await res.json();
-    raporList = data || [];
+    
+    // Ambil catatan rapor untuk jenis_rapor = tahfiz_v2
+    const paramsCatatan = new URLSearchParams();
+    if (sekolahId) paramsCatatan.append('sekolah_id', sekolahId);
+    if (rombel && rombel !== '__kosong__') paramsCatatan.append('rombel', rombel);
+    paramsCatatan.append('jenis_rapor', 'tahfiz_v2');
+    if (paramTaId) paramsCatatan.append('tahun_ajaran_id', paramTaId);
+    if (paramSemId) paramsCatatan.append('semester_id', paramSemId);
+
+    let catatanMap = {};
+    try {
+      const resCat = await fetch(
+        `${apiUrl}/api/guru/kelas/${kelasId}/catatan-rapor?${paramsCatatan.toString()}`,
+        { credentials: 'include' }
+      );
+      if (resCat.ok) {
+        const catData = await resCat.json();
+        if (catData && Array.isArray(catData.catatan)) {
+          catData.catatan.forEach(c => {
+            catatanMap[c.siswa_id] = c.catatan;
+          });
+        }
+      }
+    } catch(e) {}
+
+    const sortedData = (data || []).sort((a, b) => {
+      const nameA = a.siswa?.nama_lengkap || '';
+      const nameB = b.siswa?.nama_lengkap || '';
+      return nameA.localeCompare(nameB);
+    });
+
+    raporList = sortedData.map(r => {
+      let currentCatatan = catatanMap[r.siswa?.id] || '';
+      if (!currentCatatan && r.nilai && r.nilai.catatan) {
+        currentCatatan = r.nilai.catatan; // fallback ke nilai.catatan
+      }
+      
+      if (r.nilai) {
+        r.nilai.catatan = currentCatatan;
+      } else {
+        r.nilai = { catatan: currentCatatan };
+      }
+      return r;
+    });
 
     customTanggalRapor = formatTanggal();
   }
@@ -179,33 +226,103 @@
   }
 
   let isDownloading = $state(false);
+  let dlProgress = $state(0);
+  let dlTotal = $state(0);
+  let dlCurrentName = $state('');
+  let dlStage = $state(''); // 'pdf' | 'zip' | 'done'
 
   async function downloadSemuaPDF() {
     isDownloading = true;
+    dlProgress = 0;
+    dlTotal = raporList.length;
+    dlCurrentName = '';
+    dlStage = 'pdf';
     try {
+      let activeTaName = 'TA';
+      try {
+        const taRes = await fetch(`${apiUrl}/api/guru/tahun-ajaran`, {credentials: 'include'});
+        if (taRes.ok) {
+          const resData = await taRes.json();
+          const tas = resData.data || resData;
+          const ta = tas.find(t => paramTaId ? t.id == paramTaId : t.status === 'Active');
+          if (ta && ta.nama_tahun) activeTaName = ta.nama_tahun.replace(/\//g, '-');
+        }
+      } catch(e) {}
+
       const html2pdf = (await import('html2pdf.js')).default;
-      for (const rapor of raporList) {
+      const JSZip = (await import('jszip')).default;
+      const { saveAs } = await import('file-saver');
+      
+      const zip = new JSZip();
+      let semCleanGlobal = 'Sem';
+
+      const noPrintEls = document.querySelectorAll('.no-print');
+      noPrintEls.forEach(el => { if (!el.classList.contains('dl-overlay')) el.style.display = 'none'; });
+
+      for (let idx = 0; idx < raporList.length; idx++) {
+        const rapor = raporList[idx];
+        dlProgress = idx + 1;
+        dlCurrentName = rapor.siswa.nama_lengkap;
+
         const elId = `rapor-container-${rapor.siswa.id}`;
         const element = document.getElementById(elId);
         if (element) {
+          const taClean = rapor.tahun_ajaran ? (rapor.tahun_ajaran.nama_tahun || '').replace(/\//g, '-') : activeTaName;
+          const semClean = rapor.semester ? (rapor.semester.tipe_semester || 'Sem') : 'Sem';
+          semCleanGlobal = semClean;
+          const namaClean = rapor.siswa.nama_lengkap.replace(/\s+/g, '_');
+
+          const origStyles = {
+            padding: element.style.padding,
+            margin: element.style.margin,
+            boxShadow: element.style.boxShadow,
+            width: element.style.width,
+            minHeight: element.style.minHeight,
+            height: element.style.height,
+          };
+          element.style.padding = '0';
+          element.style.margin = '0';
+          element.style.boxShadow = 'none';
+          element.style.width = '210mm';
+          element.style.minHeight = 'auto';
+          element.style.height = 'auto';
+
           const opt = {
-            margin: [10, 15],
-            filename: `Rapor_Tahfiz_V2_${rapor.siswa.nama_lengkap.replace(/\s+/g, '_')}.pdf`,
+            margin: 0,
+            filename: `${namaClean}_${semClean}_${taClean}.pdf`,
             image: { type: 'jpeg', quality: 1 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
 
-          await html2pdf().set(opt).from(element).save();
-          await new Promise((r) => setTimeout(r, 800));
+          const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+          zip.file(opt.filename, pdfBlob);
+
+          Object.assign(element.style, origStyles);
         }
       }
-      toastStore.show('Berhasil menyimpan semua file PDF per siswa!', 'info');
+
+      noPrintEls.forEach(el => el.style.display = '');
+
+      dlStage = 'zip';
+      dlCurrentName = 'Membuat file ZIP...';
+      
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipFilename = `Rapor_Masal_Tahfiz_V2_Kelas_${kelasId}_${semCleanGlobal}_${activeTaName}.zip`;
+      saveAs(zipBlob, zipFilename);
+
+      dlStage = 'done';
+      dlCurrentName = zipFilename;
+      await new Promise(r => setTimeout(r, 2000));
+
+      toastStore.show('Berhasil menyimpan semua file PDF dalam satu file ZIP!', 'info');
     } catch (err) {
       console.error(err);
-      toastStore.show('Terjadi kesalahan saat download PDF: ' + err.message, 'info');
+      toastStore.show('Terjadi kesalahan saat membuat ZIP PDF: ' + err.message, 'info');
     } finally {
       isDownloading = false;
+      dlStage = '';
+      document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
     }
   }
 </script>
@@ -231,7 +348,7 @@
         <Icon name="printer" size={16} /> Cetak Rapor (Print)
       </button>
       <button class="btn-download" onclick={downloadSemuaPDF} disabled={isDownloading}>
-        {isDownloading ? 'Memproses...' : '⬇️ Download PDF (Per Siswa)'}
+        {isDownloading ? '⏳ Memproses PDF...' : '📦 Download Semua PDF (.zip)'}
       </button>
     </div>
 
@@ -381,7 +498,7 @@
                   </tr>
                 {/each}
               </tbody>
-              <tfoot>
+              <tbody>
                 <tr class="tfoot-row">
                   <td colspan="5" class="tfoot-label">Total Poin Diperoleh</td>
                   <td class="tfoot-value">{totalPoin} / {maxPoin}</td>
@@ -390,7 +507,7 @@
                   <td colspan="5" class="tfoot-label">Rata-rata Nilai (Skala 100)</td>
                   <td class="tfoot-value">{averageScore}</td>
                 </tr>
-              </tfoot>
+              </tbody>
             </table>
           {:else}
             <div class="empty-state-message">
@@ -398,51 +515,54 @@
             </div>
           {/if}
 
-          <!-- Catatan -->
-          <div class="catatan-box">
-            <p style="font-weight: 700; margin-bottom: 4px;">CATATAN:</p>
-            <p style="white-space: pre-wrap;">{raporData.nilai?.catatan || '-'}</p>
-          </div>
-
-          <div class="report-footer">
-            <div class="note-box">
-              <p class="note-title">Kriteria Penilaian Rapor:</p>
-              <table>
-                <tbody>
-                  {#if kriteriaPenilaian && kriteriaPenilaian.length > 0}
-                    {#each kriteriaPenilaian as k (k.id || k.min)}
-                      <tr>
-                        <td>{k.min === 0 ? `< ${k.max + 1}` : `${k.min} - ${k.max}`}</td>
-                        <td>: {k.arab} ({k.indo})</td>
-                      </tr>
-                    {/each}
-                  {:else}
-                    <tr><td>90 - 100</td><td>: مُمْتَاز (Istimewa)</td></tr>
-                    <tr><td>80 - 89</td><td>: جَيِّد جِدًّا (Sangat Baik)</td></tr>
-                    <tr><td>70 - 79</td><td>: جَيِّد (Baik)</td></tr>
-                    <tr><td>60 - 69</td><td>: مَقْبُول (Cukup)</td></tr>
-                    <tr><td>&lt; 60</td><td>: رَاسِب (Mengulang)</td></tr>
-                  {/if}
-                </tbody>
-              </table>
+          <!-- Wrapper Footer Rapor supaya tidak terpotong -->
+          <div style="page-break-inside: avoid; break-inside: avoid;">
+            <!-- Catatan -->
+            <div class="catatan-box">
+              <p style="font-weight: 700; margin-bottom: 4px;">CATATAN:</p>
+              <p style="white-space: pre-wrap;">{raporData.nilai?.catatan || '-'}</p>
             </div>
-            <div class="signatures">
-              <div>
-                <p class="signature-label">Mengetahui,</p>
-                <p class="signature-title">Orang Tua / Wali Siswa</p>
-                <div class="signature-line">( {customOrangTua} )</div>
+
+            <div class="report-footer">
+              <div class="note-box">
+                <p class="note-title">Kriteria Penilaian Rapor:</p>
+                <table>
+                  <tbody>
+                    {#if kriteriaPenilaian && kriteriaPenilaian.length > 0}
+                      {#each kriteriaPenilaian as k (k.id || k.min)}
+                        <tr>
+                          <td>{k.min === 0 ? `< ${k.max + 1}` : `${k.min} - ${k.max}`}</td>
+                          <td>: {k.arab} ({k.indo})</td>
+                        </tr>
+                      {/each}
+                    {:else}
+                      <tr><td>90 - 100</td><td>: مُمْتَاز (Istimewa)</td></tr>
+                      <tr><td>80 - 89</td><td>: جَيِّد جِدًّا (Sangat Baik)</td></tr>
+                      <tr><td>70 - 79</td><td>: جَيِّد (Baik)</td></tr>
+                      <tr><td>60 - 69</td><td>: مَقْبُول (Cukup)</td></tr>
+                      <tr><td>&lt; 60</td><td>: رَاسِب (Mengulang)</td></tr>
+                    {/if}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <p>{customKota}, {customTanggalRapor}</p>
-                <p class="signature-title">Guru Pembimbing Tahfiz</p>
-                {#if ttdMusyrif}
-                  <div style="height: 3rem; margin-top: 0.5rem; display: flex; justify-content: center; align-items: center;">
-                    <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
-                  </div>
-                  <div class="signature-line" style="margin-top: 0.5rem;">( {customGuruPembimbing} )</div>
-                {:else}
-                  <div class="signature-line">( {customGuruPembimbing} )</div>
-                {/if}
+              <div class="signatures">
+                <div>
+                  <p class="signature-label">Mengetahui,</p>
+                  <p class="signature-title">Orang Tua / Wali Siswa</p>
+                  <div class="signature-line">( {customOrangTua} )</div>
+                </div>
+                <div>
+                  <p>{customKota}, {customTanggalRapor}</p>
+                  <p class="signature-title">Guru Pembimbing Tahfiz</p>
+                  {#if ttdMusyrif}
+                    <div style="height: 3rem; margin-top: 0.5rem; display: flex; justify-content: center; align-items: center;">
+                      <img src={ttdMusyrif} alt="Ttd Musyrif" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdMusyrifSize / 100}); transform-origin: center;" />
+                    </div>
+                    <div class="signature-line" style="margin-top: 0.5rem;">( {customGuruPembimbing} )</div>
+                  {:else}
+                    <div class="signature-line">( {customGuruPembimbing} )</div>
+                  {/if}
+                </div>
               </div>
             </div>
           </div>
@@ -454,6 +574,49 @@
     <div class="empty-state-message" style="margin-top: 100px;">Data rapor masal kosong.</div>
   {/if}
 </div>
+
+<!-- Download Progress Overlay -->
+{#if isDownloading}
+  <div class="dl-overlay no-print">
+    <div class="dl-modal">
+      <div class="dl-icon">
+        {#if dlStage === 'done'}
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        {:else}
+          <div class="dl-spinner"></div>
+        {/if}
+      </div>
+      <h3 class="dl-title">
+        {#if dlStage === 'done'}
+          Download Selesai! ✅
+        {:else if dlStage === 'zip'}
+          Membuat file ZIP...
+        {:else}
+          Menyiapkan PDF...
+        {/if}
+      </h3>
+      <p class="dl-subtitle">
+        {#if dlStage === 'pdf'}
+          Memproses rapor <strong>{dlCurrentName}</strong>
+        {:else if dlStage === 'zip'}
+          Menggabungkan {dlTotal} file PDF menjadi satu file ZIP
+        {:else if dlStage === 'done'}
+          File <strong>{dlCurrentName}</strong> berhasil diunduh
+        {/if}
+      </p>
+      {#if dlStage === 'pdf'}
+        <div class="dl-progress-wrap">
+          <div class="dl-progress-bar" style="width: {(dlProgress / dlTotal) * 100}%"></div>
+        </div>
+        <p class="dl-progress-text">{dlProgress} / {dlTotal} siswa ({Math.round((dlProgress / dlTotal) * 100)}%)</p>
+      {:else if dlStage === 'zip'}
+        <div class="dl-progress-wrap">
+          <div class="dl-progress-bar dl-progress-indeterminate"></div>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa&family=Cinzel:wght@600&family=Inter:wght@400;600;700&display=swap');
@@ -676,16 +839,20 @@
   }
 
   #tahfiz-table {
-    width: 100%;
+    width: 99.8%;
     border-collapse: collapse;
     font-size: 9.5pt;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border-top: 1px solid #000;
+    border-left: 1px solid #000;
+    
   }
 
   #tahfiz-table th,
   #tahfiz-table td {
-    border: 1px solid #000;
+    border: none;
+    border-bottom: 1px solid #000;
+    border-right: 1px solid #000;
     padding: 4px 6px;
     text-align: center;
     color: #000;
@@ -705,7 +872,9 @@
   }
 
   .tfoot-row td {
-    border: 1px solid #000;
+    border: none;
+    border-bottom: 1px solid #000;
+    border-right: 1px solid #000;
     padding: 5px 8px;
     font-weight: 700;
     background: #f9fafb;
@@ -823,7 +992,7 @@
     }
     .page {
       margin: 0;
-      padding: 1cm !important;
+      padding: 0 !important;
       box-shadow: none;
       width: 100%;
       min-height: auto !important;
@@ -848,6 +1017,90 @@
   }
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 1cm;
+  }
+
+  /* Download Progress Overlay */
+  .dl-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dl-modal {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem 3rem;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+    animation: dlSlideUp 0.3s ease-out;
+  }
+  @keyframes dlSlideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .dl-icon {
+    margin-bottom: 1.25rem;
+    display: flex;
+    justify-content: center;
+  }
+  .dl-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: dlSpin 0.8s linear infinite;
+  }
+  @keyframes dlSpin {
+    to { transform: rotate(360deg); }
+  }
+  .dl-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.5rem;
+  }
+  .dl-subtitle {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0 0 1.25rem;
+    line-height: 1.5;
+  }
+  .dl-subtitle strong {
+    color: #334155;
+  }
+  .dl-progress-wrap {
+    width: 100%;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .dl-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .dl-progress-indeterminate {
+    width: 40% !important;
+    animation: dlIndeterminate 1.5s ease-in-out infinite;
+  }
+  @keyframes dlIndeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
+  .dl-progress-text {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 0.75rem 0 0;
+    font-weight: 600;
   }
 </style>

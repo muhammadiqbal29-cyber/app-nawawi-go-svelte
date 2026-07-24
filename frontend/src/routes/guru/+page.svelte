@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
-  import RadialChart from '$lib/components/charts/RadialChart.svelte';
   import BarChart from '$lib/components/charts/BarChart.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
 
@@ -51,6 +50,32 @@
     mad: avgMad,
     tajwid: avgTajwid,
     makhraj: avgMakhraj
+  });
+
+  let isTahfizV2 = $derived(
+    guruState.activeSekolahId && guruState.aksesMap[guruState.activeSekolahId]?.includes('input_tahfiz_v2')
+  );
+
+  let globalAveragesArray = $derived([
+    !isTahfizV2 && { label: 'Hafalan (%)', value: avgHafalan },
+    { label: 'Kelancaran', value: avgLancar },
+    !isTahfizV2 && { label: 'Hukum Mad', value: avgMad },
+    { label: 'Tajwid', value: avgTajwid },
+    { label: 'Makhraj', value: avgMakhraj }
+  ].filter(Boolean));
+
+  let availableMetrics = $derived([
+    !isTahfizV2 && { value: 'hafalan', label: 'Hafalan (%)' },
+    { value: 'lancar', label: 'Kelancaran' },
+    !isTahfizV2 && { value: 'mad', label: 'Hukum Mad' },
+    { value: 'tajwid', label: 'Tajwid' },
+    { value: 'makhraj', label: 'Makhraj' }
+  ].filter(Boolean));
+
+  $effect(() => {
+    if (isTahfizV2 && (selectedMetric === 'hafalan' || selectedMetric === 'mad')) {
+      selectedMetric = 'lancar';
+    }
   });
 
   const metricConfig = {
@@ -191,17 +216,25 @@
   });
 
   $effect(() => {
-    if (selectedSekolah) {
-      loadDashboardData();
+    const sekolahId = guruState.activeSekolahId;
+    const taId = guruState.activeTahunId;
+    const semId = guruState.activeSemesterId;
+    if (sekolahId && taId && semId) {
+      loadDashboardData(taId, semId);
     }
   });
 
-  async function loadDashboardData() {
+  async function loadDashboardData(taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
     if (!selectedSekolah) return;
     loadingData = true;
     try {
+      const params = new URLSearchParams();
+      if (taId) params.append('tahun_ajaran_id', taId);
+      if (semId) params.append('semester_id', semId);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+
       const resTahfiz = await fetch(
-        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/tahfiz`,
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/tahfiz${queryStr}`,
         { credentials: 'include' }
       );
       if (resTahfiz.ok) {
@@ -209,7 +242,7 @@
       }
 
       const resDiniyah = await fetch(
-        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/diniyah`,
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/dashboard/diniyah${queryStr}`,
         { credentials: 'include' }
       );
       if (resDiniyah.ok) {
@@ -279,7 +312,12 @@
               <p>Pencapaian akumulatif dari {dataSantri.length} santri</p>
             </div>
 
-            <RadialChart averages={globalAverages} />
+            <BarChart 
+              data={globalAveragesArray} 
+              color="#0ea5e9"
+              max={100}
+              labelFormat={(v) => Math.round(v)}
+            />
           </div>
 
           <!-- Detail Charts -->
@@ -306,11 +344,9 @@
                     {/each}
                   </select>
                   <select bind:value={selectedMetric} class="metric-select">
-                    <option value="hafalan">Hafalan (%)</option>
-                    <option value="lancar">Kelancaran</option>
-                    <option value="mad">Hukum Mad</option>
-                    <option value="tajwid">Tajwid</option>
-                    <option value="makhraj">Makhraj</option>
+                    {#each availableMetrics as m}
+                      <option value={m.value}>{m.label}</option>
+                    {/each}
                   </select>
                 </div>
               </div>

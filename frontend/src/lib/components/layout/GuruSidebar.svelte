@@ -5,8 +5,7 @@
   let { isOpen = true, currentPath = '/guru', onLogout, fiturGuru = [], userRole = '' } = $props();
 
   // Fitur dari sekolah yang sedang aktif (fiturGuru di-passing dari layout)
-  let hasInput = $derived(fiturGuru.includes('input_tahfiz'));
-  let hasInputV2 = $derived(fiturGuru.includes('input_tahfiz_v2'));
+  let hasPaketAlquran = $derived(fiturGuru.includes('paket_alquran') || fiturGuru.includes('input_tahfiz') || fiturGuru.includes('input_tahfiz_v2'));
   let hasRapor = $derived(fiturGuru.includes('cetak_rapor'));
   let hasDiniyah = $derived(fiturGuru.includes('input_diniyah'));
   let hasKonfigurasiMateri = $derived(fiturGuru.includes('konfigurasi_materi'));
@@ -30,7 +29,7 @@
         </button>
       </li>
 
-      {#if hasInput || hasInputV2 || hasDiniyah || hasKeseharian}
+      {#if hasPaketAlquran || hasDiniyah || hasKeseharian}
         <li class:active={currentPath.startsWith('/guru/input-nilai')}>
           <button class="nav-link" onclick={() => goto('/guru/input-nilai')}>
             <Icon name="edit" size={20} class="icon" />
@@ -40,10 +39,10 @@
       {/if}
 
       {#if hasKonfigurasiMateri}
-        <li class:active={currentPath.startsWith('/guru/materi-tahfiz')}>
-          <button class="nav-link" onclick={() => goto('/guru/materi-tahfiz')}>
+        <li class:active={currentPath.startsWith('/guru/konfigurasi')}>
+          <button class="nav-link" onclick={() => goto('/guru/konfigurasi')}>
             <Icon name="settings" size={20} class="icon" />
-            <span class="label" class:hidden={!isOpen}>Konfigurasi Materi</span>
+            <span class="label" class:hidden={!isOpen}>Konfigurasi</span>
           </button>
         </li>
       {/if}

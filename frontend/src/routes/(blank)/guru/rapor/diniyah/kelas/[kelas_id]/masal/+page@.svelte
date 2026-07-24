@@ -10,6 +10,8 @@
   let kelasId = $derived($page.params.kelas_id);
   let rombel = $derived($page.url.searchParams.get('rombel') || '');
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
 
   // Local Signature Settings
   let ttdKepala = $state('');
@@ -55,11 +57,57 @@
   let customKoordinator = $state('AJI SYAFAAT');
   let customKepalaSekolah = $state('');
 
+  let logoX = $state(600);
+  let logoY = $state(20);
+  let logoSize = $state(80);
+  let dividerThickness = $state(3);
+  let customLogoUrl = $state('');
+  let kopLines = $state([]);
+
+  $effect(() => {
+    if (raporList.length > 0 && raporList[0].sekolah) {
+      const sekolah = raporList[0].sekolah;
+      customLogoUrl = sekolah.logo_base64 || '';
+      logoX = sekolah.logo_x || 600;
+      logoY = sekolah.logo_y || 20;
+      logoSize = sekolah.logo_size || 80;
+      dividerThickness = sekolah.divider_thickness || 3;
+      let localKop = [];
+      if (sekolah.kop_surat) {
+        try {
+          const parsed = JSON.parse(sekolah.kop_surat);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localKop = parsed;
+          }
+        } catch (e) {}
+      }
+      if (localKop.length === 0) {
+        localKop = [
+          {
+            text: sekolah.nama_sekolah || 'SMP ISLAM IMAM NAWAWI',
+            color: '#000000',
+            size: 18,
+            bold: true
+          },
+          {
+            text: sekolah.alamat || 'Jl. Tjilik Riwut KM 8',
+            color: '#000000',
+            size: 12,
+            bold: false
+          }
+        ];
+      }
+      kopLines = localKop;
+    }
+  });
+
   onMount(async () => {
     try {
       const params = new URLSearchParams();
       if (sekolahId) params.append('sekolah_id', sekolahId);
       if (rombel && rombel !== '__kosong__') params.append('rombel', rombel);
+      if (paramTaId) params.append('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.append('semester_id', paramSemId);
 
       const res = await fetch(
         `${apiUrl}/api/guru/kelas/${kelasId}/rapor-diniyah-masal?${params.toString()}`,
@@ -69,13 +117,20 @@
       );
       if (!res.ok) throw new Error('Gagal memuat rapor diniyah masal.');
       const data = await res.json();
-      raporList = data || [];
-      
-      const paramsCatatan = new URLSearchParams({
-        jenis_rapor: 'diniyah',
-        sekolah_id: sekolahId,
-        rombel: rombel && rombel !== '__kosong__' ? rombel : ''
+      const sortedData = (data || []).sort((a, b) => {
+        const nameA = a.siswa?.nama_lengkap || '';
+        const nameB = b.siswa?.nama_lengkap || '';
+        return nameA.localeCompare(nameB);
       });
+      raporList = sortedData;
+      
+      const paramsCatatan = new URLSearchParams();
+      paramsCatatan.append('jenis_rapor', 'diniyah');
+      if (sekolahId) paramsCatatan.append('sekolah_id', sekolahId);
+      if (rombel && rombel !== '__kosong__') paramsCatatan.append('rombel', rombel);
+      if (paramTaId) paramsCatatan.append('tahun_ajaran_id', paramTaId);
+      if (paramSemId) paramsCatatan.append('semester_id', paramSemId);
+
       const resCatatan = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/catatan-rapor?${paramsCatatan.toString()}`, {
         credentials: 'include'
       });
@@ -281,35 +336,104 @@
     return groups;
   }
   let isDownloading = $state(false);
+  let dlProgress = $state(0);
+  let dlTotal = $state(0);
+  let dlCurrentName = $state('');
+  let dlStage = $state('');
 
   async function downloadSemuaPDF() {
     isDownloading = true;
+    dlProgress = 0;
+    dlTotal = raporList.length;
+    dlCurrentName = '';
+    dlStage = 'pdf';
     try {
+      let activeTaName = 'TA';
+      try {
+        const taRes = await fetch(`${apiUrl}/api/guru/tahun-ajaran`, {credentials: 'include'});
+        if (taRes.ok) {
+          const resData = await taRes.json();
+          const tas = resData.data || resData;
+          const ta = tas.find(t => paramTaId ? t.id == paramTaId : t.status === 'Active');
+          if (ta && ta.nama_tahun) activeTaName = ta.nama_tahun.replace(/\//g, '-');
+        }
+      } catch(e) {}
+
       const html2pdf = (await import('html2pdf.js')).default;
-      for (const rapor of raporList) {
+      const JSZip = (await import('jszip')).default;
+      const { saveAs } = await import('file-saver');
+      
+      const zip = new JSZip();
+      let semCleanGlobal = 'Sem';
+
+      const noPrintEls = document.querySelectorAll('.no-print');
+      noPrintEls.forEach(el => { if (!el.classList.contains('dl-overlay')) el.style.display = 'none'; });
+
+      for (let idx = 0; idx < raporList.length; idx++) {
+        const rapor = raporList[idx];
+        dlProgress = idx + 1;
+        dlCurrentName = rapor.siswa.nama_lengkap;
         const elId = `rapor-container-${rapor.siswa.id}`;
         const element = document.getElementById(elId);
         if (element) {
-          // Buat elemen pembungkus smentara agar page-break dll tidak mengganggu
+          const taClean = rapor.tahun_ajaran ? (rapor.tahun_ajaran.nama_tahun || '').replace(/\//g, '-') : activeTaName;
+          const semClean = rapor.semester ? (rapor.semester.tipe_semester || 'Sem') : 'Sem';
+          semCleanGlobal = semClean;
+          const namaClean = rapor.siswa.nama_lengkap.replace(/\s+/g, '_');
+
+          const origStyles = {
+            padding: element.style.padding,
+            margin: element.style.margin,
+            boxShadow: element.style.boxShadow,
+            width: element.style.width,
+            maxWidth: element.style.maxWidth,
+            minHeight: element.style.minHeight,
+            height: element.style.height,
+          };
+          element.style.padding = '0';
+          element.style.margin = '0';
+          element.style.boxShadow = 'none';
+          element.style.width = '210mm';
+          element.style.maxWidth = 'none';
+          element.style.minHeight = 'auto';
+          element.style.height = 'auto';
+
           const opt = {
-            margin: [10, 15], // Atas Bawah 10, Kiri Kanan 15
-            filename: `Rapor_Diniyah_${rapor.siswa.nama_lengkap.replace(/\s+/g, '_')}.pdf`,
+            margin: 0,
+            filename: `${namaClean}_${semClean}_${taClean}.pdf`,
             image: { type: 'jpeg', quality: 1 },
-            html2canvas: { scale: 2, useCORS: true },
+            html2canvas: { scale: 2, useCORS: true, width: 794, windowWidth: 794 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
           };
 
-          await html2pdf().set(opt).from(element).save();
-          // Jeda sedikit agar browser tidak ngelag/ngeblock
-          await new Promise((r) => setTimeout(r, 800));
+          const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+          zip.file(opt.filename, pdfBlob);
+
+          Object.assign(element.style, origStyles);
         }
       }
-      toastStore.show('Berhasil menyimpan semua file PDF per siswa!', 'info');
+
+      noPrintEls.forEach(el => el.style.display = '');
+
+      dlStage = 'zip';
+      dlCurrentName = 'Membuat file ZIP...';
+      
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipFilename = `Rapor_Masal_Diniyah_Kelas_${kelasId}_${semCleanGlobal}_${activeTaName}.zip`;
+      saveAs(zipBlob, zipFilename);
+
+      dlStage = 'done';
+      dlCurrentName = zipFilename;
+      await new Promise(r => setTimeout(r, 2000));
+
+      toastStore.show('Berhasil menyimpan semua file PDF dalam satu file ZIP!', 'info');
     } catch (err) {
       console.error(err);
-      toastStore.show('Terjadi kesalahan saat download PDF: ' + err.message, 'info');
+      toastStore.show('Terjadi kesalahan saat membuat ZIP PDF: ' + err.message, 'info');
     } finally {
       isDownloading = false;
+      dlStage = '';
+      document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
     }
   }
 </script>
@@ -330,7 +454,7 @@
       </button>
       <button class="btn-print" onclick={() => window.print()}> 🖨️ Cetak Rapor (Print) </button>
       <button class="btn-download" onclick={downloadSemuaPDF} disabled={isDownloading}>
-        {isDownloading ? 'Memproses...' : '⬇️ Download PDF (Per Siswa)'}
+        {isDownloading ? '⏳ Memproses PDF...' : '📦 Download Semua PDF (.zip)'}
       </button>
     </div>
 
@@ -376,12 +500,28 @@
       <div class="a4-container" id="rapor-container-{rapor.siswa.id}">
         <!-- Header -->
         <div class="header-section">
-          <h1 class="header-sekolah">{rapor.sekolah?.nama_sekolah || 'SEKOLAH'}</h1>
-          <p class="header-address">{rapor.sekolah?.alamat || ''}</p>
-          <p class="header-contact">Email: {rapor.sekolah?.email || '-'} Telp. 0898 1567 898</p>
+          {#if customLogoUrl}
+            <img
+              src={customLogoUrl}
+              alt="Logo"
+              style="position:absolute; left: {logoX}px; top: {logoY}px; width: {logoSize}px; z-index: 50;"
+            />
+          {/if}
+          {#each kopLines as line}
+            <div
+              style="color: {line.color}; font-size: {line.size}px; font-weight: {line.bold
+                ? 'bold'
+                : 'normal'}; margin: {line.bold ? '4px 0' : '0'}; letter-spacing: 1px;"
+            >
+              {line.text}
+            </div>
+          {/each}
         </div>
 
-        <div class="header-line"></div>
+        <!-- Double Border Line -->
+        <div
+          style="border-top: {dividerThickness}px double black; border-bottom: none; height: 0; margin-bottom: 24px;"
+        ></div>
 
         <!-- Title -->
         <div class="title-section">
@@ -552,20 +692,70 @@
   {/if}
 </div>
 
+<!-- Download Progress Overlay -->
+{#if isDownloading}
+  <div class="dl-overlay no-print">
+    <div class="dl-modal">
+      <div class="dl-icon">
+        {#if dlStage === 'done'}
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        {:else}
+          <div class="dl-spinner"></div>
+        {/if}
+      </div>
+      <h3 class="dl-title">
+        {#if dlStage === 'done'}
+          Download Selesai! ✅
+        {:else if dlStage === 'zip'}
+          Membuat file ZIP...
+        {:else}
+          Menyiapkan PDF...
+        {/if}
+      </h3>
+      <p class="dl-subtitle">
+        {#if dlStage === 'pdf'}
+          Memproses rapor <strong>{dlCurrentName}</strong>
+        {:else if dlStage === 'zip'}
+          Menggabungkan {dlTotal} file PDF menjadi satu file ZIP
+        {:else if dlStage === 'done'}
+          File <strong>{dlCurrentName}</strong> berhasil diunduh
+        {/if}
+      </p>
+      {#if dlStage === 'pdf'}
+        <div class="dl-progress-wrap">
+          <div class="dl-progress-bar" style="width: {(dlProgress / dlTotal) * 100}%"></div>
+        </div>
+        <p class="dl-progress-text">{dlProgress} / {dlTotal} siswa ({Math.round((dlProgress / dlTotal) * 100)}%)</p>
+      {:else if dlStage === 'zip'}
+        <div class="dl-progress-wrap">
+          <div class="dl-progress-bar dl-progress-indeterminate"></div>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
 
-  :global(body) {
+  :global(html),
+    :global(body) {
     background-color: #f3f4f6;
   }
 
   .arabic {
     font-family: 'Amiri', 'Traditional Arabic', serif;
-    font-size: 18px !important;
-    line-height: 1.4 !important;
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+  }
+
+  :root {
+    --print-width: 210mm;
+    --print-height: 297mm;
   }
 
   @media print {
+    :global(html),
     :global(body) {
       background-color: white !important;
       margin: 0;
@@ -580,17 +770,22 @@
       padding: 0 !important;
       margin: 0 !important;
     }
+    .table-container {
+      overflow: visible !important;
+      overflow-x: visible !important;
+    }
     .a4-container {
       box-shadow: none !important;
       margin: 0 !important;
-      padding: 1cm 2cm 2cm 2cm !important;
+      padding: 0 !important;
       width: 100% !important;
       max-width: none !important;
     }
-    @page {
-      size: A4 portrait;
-      margin: 0;
-    }
+  }
+
+  @page {
+    size: A4;
+    margin: 1cm;
   }
 
   .page-wrapper {
@@ -693,22 +888,35 @@
 
   .a4-container {
     background: white;
+    position: relative;
     width: 100%;
     max-width: 210mm;
     min-height: auto !important;
     height: auto !important;
     margin: 0 auto;
-    padding: 1cm 2cm 2cm 2cm !important;
+    padding: 1cm !important;
+    box-sizing: border-box;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-    font-family: sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 14px;
     color: black;
   }
 
+  .report-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
   .header-section {
+    position: relative;
     text-align: center;
     margin-bottom: 16px;
   }
+
+  .report-title {
+    margin-bottom: 0.25rem;
+  }
+
   .header-sekolah {
     font-size: 24px;
     font-weight: 700;
@@ -770,11 +978,10 @@
   }
 
   .table-container {
-    overflow-x: auto;
   }
 
   .rapor-table {
-    width: 100%;
+    width: 99.8%;
     border-collapse: collapse;
     font-size: 12px;
   }
@@ -782,7 +989,7 @@
   .rapor-table th,
   .rapor-table td {
     border: 1px solid black;
-    padding: 4px 8px;
+    padding: 2px 4px;
     vertical-align: middle;
   }
 
@@ -795,22 +1002,22 @@
     width: 32px;
   }
   .col-mapel {
-    width: 180px;
+    width: 200px;
   }
   .col-angka {
     width: 60px;
   }
   .col-tulisan {
-    width: 160px;
+    width: 185px;
   }
   .col-tulisan-arab {
-    width: 160px;
+    width: 110px;
   }
   .col-angka-arab {
-    width: 60px;
+    width: 50px;
   }
   .col-mapel-arab {
-    width: 160px;
+    width: 135px;
   }
   .col-no-arab {
     width: 32px;
@@ -896,5 +1103,88 @@
     border-radius: 8px;
     max-width: 400px;
     margin: 100px auto;
+  }
+  /* Download Progress Overlay */
+  .dl-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dl-modal {
+    background: white;
+    border-radius: 20px;
+    padding: 2.5rem 3rem;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+    animation: dlSlideUp 0.3s ease-out;
+  }
+  @keyframes dlSlideUp {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .dl-icon {
+    margin-bottom: 1.25rem;
+    display: flex;
+    justify-content: center;
+  }
+  .dl-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: dlSpin 0.8s linear infinite;
+  }
+  @keyframes dlSpin {
+    to { transform: rotate(360deg); }
+  }
+  .dl-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.5rem;
+  }
+  .dl-subtitle {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin: 0 0 1.25rem;
+    line-height: 1.5;
+  }
+  .dl-subtitle strong {
+    color: #334155;
+  }
+  .dl-progress-wrap {
+    width: 100%;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .dl-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .dl-progress-indeterminate {
+    width: 40% !important;
+    animation: dlIndeterminate 1.5s ease-in-out infinite;
+  }
+  @keyframes dlIndeterminate {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
+  .dl-progress-text {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 0.75rem 0 0;
+    font-weight: 600;
   }
 </style>

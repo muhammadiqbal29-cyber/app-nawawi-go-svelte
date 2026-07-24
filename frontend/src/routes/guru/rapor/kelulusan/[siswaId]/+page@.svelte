@@ -4,9 +4,13 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { guruState } from '$lib/guruState.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-  let sekolahId = 1;
+  let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
+
 
   let siswaId = $derived($page.params.siswaId);
   let nama = $derived($page.url.searchParams.get('nama') || 'Siswa Tidak Ditemukan');
@@ -61,6 +65,17 @@
     };
     reader.readAsDataURL(file);
   }
+
+  $effect(() => {
+    if (guruState.activeSekolahId) {
+      const isV2 = guruState.aksesMap[guruState.activeSekolahId]?.includes('input_tahfiz_v2');
+      if (isV2) {
+        const url = new URL(window.location.href);
+        const newPath = url.pathname.replace('/kelulusan/', '/kelulusan-v2/');
+        goto(`${newPath}${url.search}`);
+      }
+    }
+  });
 
   onMount(async () => {
     ttdMusyrif = localStorage.getItem('ttdMusyrif_global') || '';
@@ -158,6 +173,8 @@
         jenis_penilaian: 'kelulusan',
         mata_pelajaran: 'Tahfiz'
       });
+      if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.set('semester_id', paramSemId);
       const res = await fetch(
         `${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz?${params.toString()}`,
         { credentials: 'include' }
@@ -352,8 +369,6 @@
                 <td>{row.total_poin || 0}</td>
               </tr>
             {/each}
-          </tbody>
-          <tfoot>
             <tr class="tfoot-row">
               <td colspan="7" class="tfoot-label">Total Poin Diperoleh</td>
               <td class="tfoot-value">{totalPoin} / {maxPoin}</td>
@@ -362,7 +377,7 @@
               <td colspan="7" class="tfoot-label">Rata-rata Nilai (Skala 100)</td>
               <td class="tfoot-value">{averageScore}</td>
             </tr>
-          </tfoot>
+          </tbody>
         </table>
       {:else}
         <div class="empty-state-message">
@@ -434,7 +449,7 @@
 
   @page {
     size: A4;
-    margin: 0;
+    margin: 1cm;
   }
 
   :root {
@@ -641,11 +656,11 @@
   }
 
   #tahfiz-table {
-    width: 100%;
+    width: 99.8%;
     border-collapse: collapse;
     font-size: 9.5pt;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    
   }
 
   #tahfiz-table th,
@@ -792,7 +807,7 @@
     }
     .page {
       margin: 0;
-      padding: 1cm !important;
+      padding: 0 !important;
       box-shadow: none;
       width: 100%;
       min-height: auto !important;

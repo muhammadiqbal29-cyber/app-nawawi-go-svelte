@@ -71,6 +71,15 @@ type KonfigurasiNilaiTahfiz struct {
 	UpdatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
+type KonfigurasiNilaiDiniyah struct {
+	ID                int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SekolahID         int       `gorm:"type:int(11);not null;index;uniqueIndex:idx_konfig_nilai_diniyah" json:"sekolah_id"`
+	KriteriaPenilaian string    `gorm:"type:text;not null" json:"-"`
+	Aktif             bool      `gorm:"type:tinyint(1);not null;default:1" json:"aktif"`
+	CreatedAt         time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt         time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
 type TahunAjaran struct {
 	ID         int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	TahunAwal  int       `gorm:"type:int;not null;uniqueIndex" json:"tahun_awal"`
@@ -228,6 +237,82 @@ type NilaiTahfizDetailV2 struct {
 	ID                  int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	NilaiTahfizV2ID     int       `gorm:"not null;index;uniqueIndex:idx_nilai_tahfiz_detail_v2" json:"nilai_tahfiz_v2_id"`
 	NamaMateri          string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_nilai_tahfiz_detail_v2" json:"nama_materi"`
+	Juz                 int       `gorm:"type:int;not null;default:0" json:"juz"`
+	Urutan              int       `gorm:"type:int;not null;default:0" json:"urutan"`
+	SkorKelancaran      *int      `gorm:"type:int;default:null" json:"skor_kelancaran"`
+	SkorTajwid          *int      `gorm:"type:int;default:null" json:"skor_tajwid"`
+	SkorMakharijulHuruf *int      `gorm:"type:int;default:null" json:"skor_makharijul_huruf"`
+	TotalPoin           int       `gorm:"type:int;not null;default:0" json:"total_poin"`
+	StatusSetor         string    `gorm:"type:varchar(30);not null;default:'draft'" json:"status_setor"`
+	CreatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+type NilaiTasmi struct {
+	ID                    int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SiswaID               int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_scope" json:"siswa_id"`
+	SekolahID             int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_scope" json:"sekolah_id"`
+	TahunAjaranID         int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_scope" json:"tahun_ajaran_id"`
+	SemesterID            int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_scope" json:"semester_id"`
+	JenisPenilaian        string    `gorm:"type:varchar(50);not null;default:'semester';uniqueIndex:idx_nilai_tasmi_scope" json:"jenis_penilaian"`
+	MataPelajaran         string    `gorm:"type:varchar(100);not null;default:'Tasmi';uniqueIndex:idx_nilai_tasmi_scope" json:"mata_pelajaran"`
+	Tahap                 int       `gorm:"type:int;not null;default:1;uniqueIndex:idx_nilai_tasmi_scope" json:"tahap"`
+	JuzYangDiujikan       string    `gorm:"type:varchar(255);not null" json:"juz_yang_diujikan"`
+	JumlahMateri          int       `gorm:"type:int;not null;default:0" json:"jumlah_materi"`
+	TotalPoin             int       `gorm:"type:int;not null;default:0" json:"total_poin"`
+	NilaiAkhir            float64   `gorm:"type:decimal(5,2);not null;default:0" json:"nilai_akhir"`
+	Predikat              string    `gorm:"type:varchar(20)" json:"predikat"`
+	Catatan               string    `gorm:"type:text" json:"catatan"`
+	PembaginYangDigunakan int       `gorm:"type:int;not null;default:0" json:"pembagi_yang_digunakan"`
+	CreatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+	Details []NilaiTasmiDetail `gorm:"foreignKey:NilaiTasmiID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"details,omitempty"`
+}
+
+type NilaiTasmiDetail struct {
+	ID                  int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	NilaiTasmiID        int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_detail" json:"nilai_tasmi_id"`
+	NamaMateri          string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_nilai_tasmi_detail" json:"nama_materi"`
+	Juz                 int       `gorm:"type:int;not null;default:0" json:"juz"`
+	Urutan              int       `gorm:"type:int;not null;default:0" json:"urutan"`
+	SkorHafalan         *int      `gorm:"type:int;default:null" json:"skor_hafalan"`
+	SkorKelancaran      *int      `gorm:"type:int;default:null" json:"skor_kelancaran"`
+	SkorMad             *int      `gorm:"type:int;default:null" json:"skor_mad"`
+	SkorTajwid          *int      `gorm:"type:int;default:null" json:"skor_tajwid"`
+	SkorMakharijulHuruf *int      `gorm:"type:int;default:null" json:"skor_makharijul_huruf"`
+	TotalPoin           int       `gorm:"type:int;not null;default:0" json:"total_poin"`
+	StatusSetor         string    `gorm:"type:varchar(30);not null;default:'draft'" json:"status_setor"`
+	CreatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+type NilaiTasmiV2 struct {
+	ID                    int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SiswaID               int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_v2_scope" json:"siswa_id"`
+	SekolahID             int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_v2_scope" json:"sekolah_id"`
+	TahunAjaranID         int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_v2_scope" json:"tahun_ajaran_id"`
+	SemesterID            int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_v2_scope" json:"semester_id"`
+	JenisPenilaian        string    `gorm:"type:varchar(50);not null;default:'semester';uniqueIndex:idx_nilai_tasmi_v2_scope" json:"jenis_penilaian"`
+	MataPelajaran         string    `gorm:"type:varchar(100);not null;default:'Tasmi';uniqueIndex:idx_nilai_tasmi_v2_scope" json:"mata_pelajaran"`
+	Tahap                 int       `gorm:"type:int;not null;default:1;uniqueIndex:idx_nilai_tasmi_v2_scope" json:"tahap"`
+	JuzYangDiujikan       string    `gorm:"type:varchar(255);not null" json:"juz_yang_diujikan"`
+	JumlahMateri          int       `gorm:"type:int;not null;default:0" json:"jumlah_materi"`
+	TotalPoin             int       `gorm:"type:int;not null;default:0" json:"total_poin"`
+	NilaiAkhir            float64   `gorm:"type:decimal(5,2);not null;default:0" json:"nilai_akhir"`
+	Predikat              string    `gorm:"type:varchar(20)" json:"predikat"`
+	Catatan               string    `gorm:"type:text" json:"catatan"`
+	PembaginYangDigunakan int       `gorm:"type:int;not null;default:0" json:"pembagi_yang_digunakan"`
+	CreatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt             time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+	Details []NilaiTasmiDetailV2 `gorm:"foreignKey:NilaiTasmiV2ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"details,omitempty"`
+}
+
+type NilaiTasmiDetailV2 struct {
+	ID                  int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	NilaiTasmiV2ID      int       `gorm:"not null;index;uniqueIndex:idx_nilai_tasmi_detail_v2" json:"nilai_tasmi_v2_id"`
+	NamaMateri          string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_nilai_tasmi_detail_v2" json:"nama_materi"`
 	Juz                 int       `gorm:"type:int;not null;default:0" json:"juz"`
 	Urutan              int       `gorm:"type:int;not null;default:0" json:"urutan"`
 	SkorKelancaran      *int      `gorm:"type:int;default:null" json:"skor_kelancaran"`
@@ -488,4 +573,43 @@ type CatatanRapor struct {
 	UpdatedAt     time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
 	Siswa Siswa `gorm:"foreignKey:SiswaID" json:"siswa,omitempty"`
+}
+
+type BankCatatanTahfizV2 struct {
+	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`
+	SekolahID   int    `gorm:"not null;index" json:"sekolah_id"`
+	Kelancaran  string `gorm:"type:varchar(50);not null" json:"kelancaran"`
+	Tajwid      string `gorm:"type:varchar(50);not null" json:"tajwid"`
+	Makharij    string `gorm:"type:varchar(50);not null" json:"makharij"`
+	TeksCatatan string `gorm:"type:text;not null" json:"teks_catatan"`
+	CreatedAt          time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt          time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+type BankCatatanDiniyah struct {
+	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SekolahID   int       `gorm:"not null;index" json:"sekolah_id"`
+	Predikat    string    `gorm:"type:varchar(20);not null" json:"predikat"`
+	TeksCatatan string    `gorm:"type:text;not null" json:"teks_catatan"`
+	CreatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+
+type KonfigurasiNilaiKeseharian struct {
+    ID                int       `gorm:"primaryKey;autoIncrement" json:"id"`
+    SekolahID         int       `gorm:"type:int(11);not null;index;uniqueIndex:idx_konfig_nilai_keseharian" json:"sekolah_id"`
+    KriteriaPenilaian string    `gorm:"type:text;not null" json:"-"`
+    Aktif             bool      `gorm:"type:tinyint(1);not null;default:1" json:"aktif"`
+    CreatedAt         time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+    UpdatedAt         time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+type BankCatatanKeseharian struct {
+    ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`
+    SekolahID   int       `gorm:"not null;index" json:"sekolah_id"`
+    Predikat    string    `gorm:"type:varchar(20);not null" json:"predikat"`
+    TeksCatatan string    `gorm:"type:text;not null" json:"teks_catatan"`
+    CreatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+    UpdatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }

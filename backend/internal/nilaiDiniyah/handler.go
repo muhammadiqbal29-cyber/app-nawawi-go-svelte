@@ -73,7 +73,7 @@ func GetNilaiDiniyahByKelasHandler(w http.ResponseWriter, r *http.Request) {
 		SELECT rk.siswa_id, s.nama_lengkap, s.nisn
 		FROM riwayat_kelas rk
 		JOIN siswas s ON s.id = rk.siswa_id
-		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ? AND rk.status_akhir = 'Aktif'
+		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ?
 	`
 	siswaArgs := []interface{}{kelasID, taID}
 	if rombel == "__kosong__" {
@@ -115,6 +115,7 @@ func GetNilaiDiniyahByKelasHandler(w http.ResponseWriter, r *http.Request) {
 	for _, n := range nilaiList {
 		nilaiResp = append(nilaiResp, toResponse(n))
 	}
+
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"siswa":           siswaList,
@@ -191,6 +192,7 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			response.Error(w, http.StatusInternalServerError, "Gagal mengupdate nilai diniyah", err)
 			return
 		}
+
 		response.JSON(w, http.StatusOK, toResponse(existing))
 		return
 	}
@@ -274,6 +276,7 @@ func GetRaporDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	response.JSON(w, http.StatusOK, data)
 }
 
@@ -329,7 +332,7 @@ func GetRaporDiniyahMasalHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get all students in this class/rombel
 	var riwayatList []models.RiwayatKelas
-	query := database.DB.Where("kelas_id = ? AND tahun_ajaran_id = ? AND status_akhir = 'Aktif'", kelasID, taID)
+	query := database.DB.Where("kelas_id = ? AND tahun_ajaran_id = ?", kelasID, taID)
 	if rombel != "" {
 		query = query.Where("rombel = ?", rombel)
 	} else {
@@ -351,6 +354,7 @@ func GetRaporDiniyahMasalHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
 
 	response.JSON(w, http.StatusOK, results)
 }
@@ -442,7 +446,7 @@ func DownloadTemplateNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request)
 		SELECT rk.siswa_id, s.nama_lengkap, s.nisn
 		FROM riwayat_kelas rk
 		JOIN siswas s ON s.id = rk.siswa_id
-		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ? AND rk.status_akhir = 'Aktif'
+		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ?
 	`
 	siswaArgs := []interface{}{kelasID, taID}
 	if rombel == "__kosong__" {

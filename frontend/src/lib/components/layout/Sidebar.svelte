@@ -59,6 +59,12 @@
           <span class="label" class:hidden={!isOpen}>Sistem Backup</span>
         </button>
       </li>
+      <li class:active={currentPath.startsWith('/admin/bank-catatan')}>
+        <button class="nav-link" onclick={() => goto('/admin/bank-catatan')}>
+          <Icon name="fileText" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Bank Catatan</span>
+        </button>
+      </li>
 
       <!-- Spacer to push Profil to bottom -->
       <div style="flex-grow: 1;"></div>

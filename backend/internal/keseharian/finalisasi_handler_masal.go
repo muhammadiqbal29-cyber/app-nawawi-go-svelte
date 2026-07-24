@@ -79,6 +79,8 @@ func GetRaporKeseharianMasalHandler(w http.ResponseWriter, r *http.Request) {
 
 		var semester models.Semester
 		database.DB.First(&semester, semID)
+		var tahunAjaran models.TahunAjaran
+		database.DB.First(&tahunAjaran, taID)
 
 		// Ambil iqob dari tabel baru
 		type IqobView struct {

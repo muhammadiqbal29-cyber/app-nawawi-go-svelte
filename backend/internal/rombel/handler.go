@@ -36,17 +36,23 @@ func GetSiswaDalamKelasHandler(w http.ResponseWriter, r *http.Request) {
 	kelasIDStr := vars["kelas_id"]
 	rombel := r.URL.Query().Get("rombel")
 
-	// Cari Tahun Ajaran aktif
-	var activeTa models.TahunAjaran
-	if err := database.DB.Where("status = ?", "Active").First(&activeTa).Error; err != nil {
-		response.Error(w, http.StatusBadRequest, "Tidak ada Tahun Ajaran aktif", err)
-		return
+	taIDStr := r.URL.Query().Get("tahun_ajaran_id")
+	var taID int
+	if taIDStr != "" {
+		taID, _ = strconv.Atoi(taIDStr)
+	} else {
+		var activeTa models.TahunAjaran
+		if err := database.DB.Where("status = ?", "Active").First(&activeTa).Error; err != nil {
+			response.Error(w, http.StatusBadRequest, "Tidak ada Tahun Ajaran aktif", err)
+			return
+		}
+		taID = activeTa.ID
 	}
 
 	query := database.DB.WithContext(r.Context()).Model(&models.Siswa{}).
 		Select("siswas.*, riwayat_kelas.sekolah_id, riwayat_kelas.kelas_id, riwayat_kelas.rombel, riwayat_kelas.kelas_asal").
 		Joins("JOIN riwayat_kelas ON riwayat_kelas.siswa_id = siswas.id").
-		Where("riwayat_kelas.kelas_id = ? AND riwayat_kelas.tahun_ajaran_id = ? AND siswas.status = 'Aktif'", kelasIDStr, activeTa.ID)
+		Where("riwayat_kelas.kelas_id = ? AND riwayat_kelas.tahun_ajaran_id = ?", kelasIDStr, taID)
 
 	if rombel != "" && rombel != "__kosong__" {
 		query = query.Where("riwayat_kelas.rombel = ?", rombel)

@@ -39,23 +39,25 @@
                     <p class="page-subtitle">Kelola nilai dan perkembangan siswa</p>
                 </div>
                 
-                <!-- Pilih Jenjang Sekolah -->
-                <div class="sekolah-selector">
-                    <label for="sekolah-select">Pilih Jenjang Sekolah</label>
-                    {#if isLoading}
-                        <div class="loading-state">Memuat daftar sekolah...</div>
-                    {:else if errorMessage}
-                        <div class="error-state">{errorMessage}</div>
-                    {:else if guruState.sekolahList.length === 0}
-                        <div class="error-state">Anda tidak memiliki akses ke sekolah mana pun.</div>
-                    {:else}
-                        <select id="sekolah-select" bind:value={guruState.activeSekolahId} class="select-input">
-                            {#each guruState.sekolahList as sek}
-                                <option value={sek.id}>{sek.nama}</option>
-                            {/each}
-                        </select>
-                    {/if}
-                </div>
+                <!-- Pilih Jenjang Sekolah (Sembunyikan jika hanya 1) -->
+                {#if isLoading || errorMessage || guruState.sekolahList.length !== 1}
+                    <div class="sekolah-selector">
+                        <label for="sekolah-select">Pilih Jenjang Sekolah</label>
+                        {#if isLoading}
+                            <div class="loading-state">Memuat daftar sekolah...</div>
+                        {:else if errorMessage}
+                            <div class="error-state">{errorMessage}</div>
+                        {:else if guruState.sekolahList.length === 0}
+                            <div class="error-state">Anda tidak memiliki akses ke sekolah mana pun.</div>
+                        {:else}
+                            <select id="sekolah-select" bind:value={guruState.activeSekolahId} class="select-input">
+                                {#each guruState.sekolahList as sek}
+                                    <option value={sek.id}>{sek.nama}</option>
+                                {/each}
+                            </select>
+                        {/if}
+                    </div>
+                {/if}
 
                 <!-- Menu List -->
                 <div class="menu-list" class:disabled-menu={guruState.activeSekolahId === 0}>

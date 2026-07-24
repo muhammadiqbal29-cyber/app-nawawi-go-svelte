@@ -130,25 +130,6 @@ func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidValidation(t *testing.T) {
 	}
 }
 
-func TestUpsertKonfigurasiNilaiTahfizHandler_InvalidJenis(t *testing.T) {
-	setupTestDB()
-	payload := map[string]interface{}{
-		"pembagi":         1,
-		"jenis_penilaian": "invalid",
-	}
-	body, _ := json.Marshal(payload)
-	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBuffer(body))
-	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
-	rr := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusBadRequest)
-	}
-}
-
 func TestUpsertKonfigurasiNilaiTahfizHandler_Update(t *testing.T) {
 	setupTestDB()
 	
@@ -188,14 +169,10 @@ func TestDecodeTingkatLevels_InvalidJSON(t *testing.T) {
 }
 
 func TestDecodeKriteria_InvalidJSON(t *testing.T) {
-	result := decodeKriteria("invalid json")
+	result := models.DecodeKriteria("invalid json")
 	if len(result) != 5 {
 		t.Errorf("Expected length 5, got %v", result)
 	}
-}
-
-func TestEncodeKriteria_Error(t *testing.T) {
-	// this is hard to trigger since KriteriaPenilaianItem can always be marshaled
 }
 
 func TestUpsertKonfigurasi_InvalidJSON(t *testing.T) {

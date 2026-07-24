@@ -12,6 +12,9 @@
   let rombel = $derived($page.url.searchParams.get('rombel') || '__kosong__');
   let rombelText = $derived(rombel === '__kosong__' ? 'Tanpa Rombel' : `Rombel ${rombel}`);
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
+
 
   let loading = $state(false);
   let saving = $state(false);
@@ -25,6 +28,10 @@
   );
   let catatanMap = $state({});
 
+  let kriteriaList = $state([]);
+  let bankCatatanList = $state([]);
+
+
   onMount(loadData);
 
   async function loadData() {
@@ -33,6 +40,8 @@
     try {
       // 1. Ambil data rapor keseharian masal
       const params = new URLSearchParams({ rombel });
+      if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.set('semester_id', paramSemId);
       const resRapor = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/keseharian-masal?${params.toString()}`, {
         credentials: 'include'
       });
@@ -45,6 +54,8 @@
         sekolah_id: sekolahId,
         rombel
       });
+      if (paramTaId) paramsCatatan.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) paramsCatatan.set('semester_id', paramSemId);
       const resCatatan = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/catatan-rapor?${paramsCatatan.toString()}`, {
         credentials: 'include'
       });
@@ -52,6 +63,18 @@
       if (resCatatan.ok) {
         const body = await resCatatan.json();
         existingCatatan = body.catatan || [];
+      }
+
+      
+      // 3. Ambil konfigurasi dan bank catatan keseharian
+      const resKonfig = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/konfigurasi-nilai-keseharian`, { credentials: 'include' });
+      if (resKonfig.ok) {
+        const body = await resKonfig.json();
+        kriteriaList = body.kriteria_penilaian || [];
+      }
+      const resBank = await fetch(`${apiUrl}/api/guru/bank-catatan-keseharian?sekolah_id=${sekolahId}`, { credentials: 'include' });
+      if (resBank.ok) {
+        bankCatatanList = await resBank.json() || [];
       }
 
       // Map catatan
@@ -63,11 +86,20 @@
 
       // Process data siswa
       siswaData = (raporData || []).map(item => {
+        let totalNilai = 0;
+        let count = 0;
+        if (item.rekaps && item.rekaps.length > 0) {
+          item.rekaps.forEach(r => {
+            totalNilai += r.nilai_akhir;
+            count++;
+          });
+        }
+        let avg = count > 0 ? totalNilai / count : 0;
         return {
           siswa_id: item.siswa.id,
           nama: item.siswa.nama_lengkap,
           nisn: item.siswa.nisn,
-          rata_rata: 0,
+          rata_rata: avg,
           catatan: map[item.siswa.id] || ''
         };
       }).sort((a, b) => a.nama.localeCompare(b.nama));
@@ -79,21 +111,47 @@
     }
   }
 
+
   function generateAutoCatatan() {
+    if (kriteriaList.length === 0 || bankCatatanList.length === 0) {
+      toastStore.show('Konfigurasi kriteria atau bank catatan masih kosong. Atur di menu Konfigurasi & Admin.', 'error');
+      return;
+    }
+
     siswaData = siswaData.map(s => {
-      let cat = s.catatan;
-      if (!cat) {
-        cat = 'Selalu menjaga kedisiplinan dan akhlak yang baik di asrama. Tingkatkan terus belajarnya.';
+      // s.rata_rata is already populated? 
+      // Wait, s.rata_rata was 0! We need to calculate rata_rata from item.details in loadData.
+      const avg = s.rata_rata || 0;
+      let matchingKriteria = kriteriaList.find(k => avg >= k.min && avg <= k.max);
+      
+      let newCatatan = s.catatan;
+      if (matchingKriteria) {
+        const predikatIndo = matchingKriteria.indo;
+        // Cari di bank catatan
+        const matchingBank = bankCatatanList.filter(b => b.predikat.toLowerCase() === predikatIndo.toLowerCase());
+        if (matchingBank.length > 0) {
+          // Ambil random jika ada lebih dari 1
+          const rand = Math.floor(Math.random() * matchingBank.length);
+          newCatatan = matchingBank[rand].teks_catatan;
+        }
       }
-      return { ...s, catatan: cat };
+
+      return { 
+        ...s, 
+        catatan: newCatatan
+      };
     });
-    toastStore.show('Catatan otomatis berhasil di-generate', 'success');
+    toastStore.show('Catatan otomatis berhasil di-generate berdasarkan rata-rata nilai', 'success');
   }
+
 
   async function simpanSemua() {
     saving = true;
     try {
       const payload = {
+        tahun_ajaran_id: parseInt(paramTaId) || 0,
+        semester_id: parseInt(paramSemId) || 0,
+
         sekolah_id: Number(sekolahId),
         jenis_rapor: 'keseharian',
         data: siswaData.map(s => ({
