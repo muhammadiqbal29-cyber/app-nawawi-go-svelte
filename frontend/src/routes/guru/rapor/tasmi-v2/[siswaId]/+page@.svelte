@@ -170,7 +170,38 @@
       }
       const body = await res.json();
       nilaiHeader = body.nilai || null;
-      details = body.details || [];
+      let rawDetails = body.details || [];
+
+      // Fetch materi to show all surahs for the selected juz
+      const materiRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, { credentials: 'include' });
+      if (materiRes.ok) {
+        const materiData = await materiRes.json();
+        if (nilaiHeader && nilaiHeader.juz_yang_diujikan) {
+           const selectedJuz = nilaiHeader.juz_yang_diujikan.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+           const filteredMateri = materiData.filter(m => selectedJuz.includes(m.juz));
+           
+           const detailMap = new Map(rawDetails.map(d => [d.nama_materi, d]));
+           
+           details = filteredMateri.map(m => {
+              if (detailMap.has(m.nama_materi)) {
+                 return detailMap.get(m.nama_materi);
+              }
+              return {
+                 nama_materi: m.nama_materi,
+                 juz: m.juz,
+                 urutan: m.urutan,
+                 skor_kelancaran: null,
+                 skor_tajwid: null,
+                 skor_makharijul_huruf: null,
+                 total_poin: 0
+              };
+           });
+        } else {
+           details = rawDetails;
+        }
+      } else {
+        details = rawDetails;
+      }
     } catch (err) {
       error = err.message || 'Gagal memuat data nilai tasmi v2.';
     }
