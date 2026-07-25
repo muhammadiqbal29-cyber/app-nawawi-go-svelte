@@ -453,7 +453,7 @@
                       <td>: {k.arab} ({k.indo})</td>
                     </tr>
                   {/each}
-                {#else}
+                {:else}
                   <tr><td>90 - 100</td><td>: مُمْتَاز (Istimewa)</td></tr>
                   <tr><td>80 - 89</td><td>: جَيِّد جِدًّا (Sangat Baik)</td></tr>
                   <tr><td>70 - 79</td><td>: جَيِّد (Baik)</td></tr>

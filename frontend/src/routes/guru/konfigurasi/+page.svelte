@@ -4,8 +4,7 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
-  import KeseharianKriteriaTab from './KeseharianKriteriaTab.svelte';
-
+  
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // --- Derived State: Sekolah Terpilih ---
@@ -2583,7 +2582,71 @@
           </div>
         {/if}
       {:else if activeSubTab === 'kriteria'}
-        <KeseharianKriteriaTab />
+
+        <section class="kelulusan-settings">
+          <div class="settings-header">
+            <div>
+              <h2 class="settings-title">Kriteria Penilaian Keseharian</h2>
+              <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Sangat Baik)</p>
+            </div>
+          </div>
+
+          {#if keseharianKonfigurasiError}
+            <div class="alert-error" style="margin-bottom: 1rem;">{keseharianKonfigurasiError}</div>
+          {/if}
+          {#if keseharianKonfigurasiSuccess}
+            <div class="alert-success" style="margin-bottom: 1rem;">{keseharianKonfigurasiSuccess}</div>
+          {/if}
+
+          <div class="settings-kriteria-block" style="margin-top: 1rem;">
+            <div class="settings-kriteria-header">
+              <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
+              <button
+                class="btn-secondary btn-sm"
+                onclick={tambahKeseharianKriteria}
+                disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+              >
+                + Tambah Kriteria
+              </button>
+            </div>
+
+            {#if keseharianKriteriaPenilaian.length === 0}
+              <div class="settings-note">Belum ada kriteria penilaian yang dikonfigurasi.</div>
+            {:else}
+              <div class="kriteria-list">
+                <div class="kriteria-header-row">
+                  <div>Batas Minimal</div>
+                  <div>Batas Maksimal</div>
+                  <div>Predikat Arab</div>
+                  <div>Predikat Indonesia</div>
+                  <div>Aksi</div>
+                </div>
+                {#each keseharianKriteriaPenilaian as k, i}
+                  <div class="kriteria-row">
+                    <input type="number" min="0" max="100" class="form-input" bind:value={k.min} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
+                    <input type="number" min="0" max="100" class="form-input" bind:value={k.max} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
+                    <input type="text" class="form-input arabic-text" dir="rtl" placeholder="مُمْتَاز" bind:value={k.arab} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
+                    <input type="text" class="form-input" placeholder="Sangat Baik" bind:value={k.indo} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
+                    <button class="btn-icon btn-icon-danger" onclick={() => hapusKeseharianKriteria(i)} title="Hapus kriteria ini" disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}>
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+              <button
+                class="btn-primary"
+                onclick={simpanKeseharianKonfigurasi}
+                disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+              >
+                {keseharianKonfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
+              </button>
+            </div>
+          </div>
+        </section>
+
       {/if}
       {:else if activeTab === 'kop_logo'}
         <!-- ======= TAB KOP & LOGO ======= -->
