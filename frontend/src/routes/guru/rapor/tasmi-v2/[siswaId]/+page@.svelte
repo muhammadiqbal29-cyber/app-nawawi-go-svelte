@@ -193,7 +193,7 @@
                  skor_kelancaran: null,
                  skor_tajwid: null,
                  skor_makharijul_huruf: null,
-                 total_poin: 0
+                 total_poin: null
               };
            });
         } else {
@@ -432,10 +432,10 @@
               <tr>
                 <td>{index + 1}</td>
                 <td class="text-left">{row.nama_materi}</td>
-                <td>{row.skor_kelancaran ?? 0}</td>
-                <td>{row.skor_tajwid ?? 0}</td>
-                <td>{row.skor_makharijul_huruf ?? 0}</td>
-                <td>{row.total_poin || 0}</td>
+                <td>{row.skor_kelancaran ?? '-'}</td>
+                <td>{row.skor_tajwid ?? '-'}</td>
+                <td>{row.skor_makharijul_huruf ?? '-'}</td>
+                <td>{row.total_poin ?? '-'}</td>
               </tr>
             {/each}
           </tbody>

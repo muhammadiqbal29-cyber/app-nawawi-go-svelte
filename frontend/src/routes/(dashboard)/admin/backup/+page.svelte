@@ -206,7 +206,7 @@
     <div class="card restore-card">
       <div class="card-header">
         <div class="icon-circle danger">
-          <Icon name="refreshCcw" size={24} />
+          <Icon name="refreshCw" size={24} />
         </div>
         <h2>Restore Database</h2>
       </div>

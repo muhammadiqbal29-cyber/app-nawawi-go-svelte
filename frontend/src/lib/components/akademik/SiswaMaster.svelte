@@ -355,6 +355,7 @@
             <th>Nama Lengkap</th>
             <th>L/P</th>
             <th>Status</th>
+            <th>{statusFilter === 'Lulus' ? 'Tahun Lulus' : 'Tahun Ajaran'}</th>
             <th>Aksi</th>
           </tr>
         </thead>
@@ -371,6 +372,7 @@
                   class:bg-gray={s.status !== 'Aktif'}>{s.status}</span
                 ></td
               >
+              <td>{s.tahun_ajaran || '-'}</td>
               <td>
                 <button
                   class="btn-icon text-blue"

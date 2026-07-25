@@ -34,7 +34,7 @@
     loading = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/admin/bank-catatan-keseharian`, {
+      const res = await fetch(`${apiUrl}/api/bank-catatan-keseharian`, {
         credentials: 'include'
       });
       if (res.ok) {
@@ -78,8 +78,8 @@
     saving = true;
     try {
       const url = isEditing 
-        ? `${apiUrl}/api/admin/bank-catatan-keseharian/${editId}` 
-        : `${apiUrl}/api/admin/bank-catatan-keseharian`;
+        ? `${apiUrl}/api/bank-catatan-keseharian/${editId}` 
+        : `${apiUrl}/api/bank-catatan-keseharian`;
       const method = isEditing ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -107,7 +107,7 @@
   async function deleteCatatan(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus catatan ini?')) return;
     try {
-      const res = await fetch(`${apiUrl}/api/admin/bank-catatan-keseharian/${id}`, {
+      const res = await fetch(`${apiUrl}/api/bank-catatan-keseharian/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -169,7 +169,7 @@
                         <Icon name="edit2" size={16} />
                       </button>
                       <button class="btn-icon text-error" title="Hapus" onclick={() => deleteCatatan(c.id)}>
-                        <Icon name="trash2" size={16} />
+                        <Icon name="trash" size={16} />
                       </button>
                     </div>
                   </td>
@@ -249,6 +249,7 @@
   .justify-center { justify-content: center; }
   .btn-icon { background: none; border: none; padding: 0.5rem; border-radius: 6px; cursor: pointer; color: var(--color-text-muted, #64748b); transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
   .btn-icon:hover { background: var(--color-surface-hover, #f1f5f9); color: var(--color-primary, #22c55e); }
+  .text-error { color: var(--color-error, #ef4444); }
   .text-error:hover { color: var(--color-error, #ef4444); background: #fef2f2; }
   .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
   .badge-primary { background: #dcfce7; color: #166534; }

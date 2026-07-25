@@ -288,6 +288,12 @@ func DeleteSiswaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Hapus data dependen terlebih dahulu karena tidak ada ON DELETE CASCADE
+	if err := database.DB.WithContext(r.Context()).Unscoped().Where("siswa_id = ?", id).Delete(&models.RiwayatKelas{}).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal menghapus riwayat kelas siswa", err)
+		return
+	}
+
 	if err := database.DB.WithContext(r.Context()).Unscoped().Delete(&siswa).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal menghapus siswa", err)
 		return

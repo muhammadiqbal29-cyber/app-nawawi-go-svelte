@@ -59,8 +59,27 @@
         try {
           if (data.akses_sekolah) {
             const parsedSekolah = JSON.parse(data.akses_sekolah);
-            aksesMap =
-              typeof parsedSekolah === 'object' && parsedSekolah !== null ? parsedSekolah : {};
+            if (typeof parsedSekolah === 'object' && parsedSekolah !== null && !Array.isArray(parsedSekolah)) {
+              // Bersihkan data lama: jika ada input_tahfiz/tasmi yang tersembunyi, ubah jadi paket_alquran
+              const migratedMap = {};
+              for (const [sekId, fiturs] of Object.entries(parsedSekolah)) {
+                let hasPaket = fiturs.includes('paket_alquran');
+                const newFiturs = fiturs.filter(f => {
+                  if (f.startsWith('input_tahfiz') || f.startsWith('input_tasmi')) {
+                    hasPaket = true;
+                    return false;
+                  }
+                  return true;
+                });
+                if (hasPaket && !newFiturs.includes('paket_alquran')) {
+                  newFiturs.push('paket_alquran');
+                }
+                migratedMap[sekId] = newFiturs;
+              }
+              aksesMap = migratedMap;
+            } else {
+              aksesMap = {};
+            }
           }
         } catch {
           aksesMap = {};

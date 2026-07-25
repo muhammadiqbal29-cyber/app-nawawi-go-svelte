@@ -6,24 +6,23 @@
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   
-  let sekolahList = [];
-  let selectedSekolahId = '';
+  // Bank catatan bersifat global, tidak terikat sekolah
   
-  let catatanList = [];
-  let loading = true;
-  let error = '';
+  let catatanList = $state([]);
+  let loading = $state(true);
+  let error = $state('');
 
-  let showModal = false;
-  let isEditing = false;
-  let editId = null;
-  let saving = false;
+  let showModal = $state(false);
+  let isEditing = $state(false);
+  let editId = $state(null);
+  let saving = $state(false);
 
-  let formData = {
+  let formData = $state({
     kelancaran: 'Semua Kriteria',
     tajwid: 'Semua Kriteria',
     makharij: 'Semua Kriteria',
     teks_catatan: ''
-  };
+  });
 
   const kriteriaOptions = [
     'Semua Kriteria',
@@ -35,37 +34,14 @@
   ];
 
   onMount(async () => {
-    await loadSekolah();
-    if (selectedSekolahId) {
-      await loadData();
-    }
+    await loadData();
   });
 
-  async function loadSekolah() {
-    try {
-      const res = await fetch(`${apiUrl}/api/sekolah`, { credentials: 'include' });
-      if (res.ok) {
-        const body = await res.json();
-        sekolahList = body.data || body || [];
-        if (sekolahList.length > 0) {
-          selectedSekolahId = sekolahList[0].id;
-        }
-      }
-    } catch (e) {}
-  }
-
-  async function handleSekolahChange() {
-    if (selectedSekolahId) {
-      await loadData();
-    }
-  }
-
   async function loadData() {
-    if (!selectedSekolahId) return;
     loading = true;
     error = '';
     try {
-      const res = await fetch(`${apiUrl}/api/bank-catatan-tahfiz-v2?sekolah_id=${selectedSekolahId}`, {
+      const res = await fetch(`${apiUrl}/api/bank-catatan-tahfiz-v2`, {
         credentials: 'include'
       });
       if (res.ok) {
@@ -213,7 +189,7 @@
                         <Icon name="edit2" size={16} />
                       </button>
                       <button class="btn-icon text-error" title="Hapus" onclick={() => deleteCatatan(c.id)}>
-                        <Icon name="trash2" size={16} />
+                        <Icon name="trash" size={16} />
                       </button>
                     </div>
                   </td>
@@ -387,6 +363,7 @@
     color: var(--color-primary, #22c55e);
   }
 
+  .text-error { color: var(--color-error, #ef4444); }
   .text-error:hover {
     color: var(--color-error, #ef4444);
     background: #fef2f2;

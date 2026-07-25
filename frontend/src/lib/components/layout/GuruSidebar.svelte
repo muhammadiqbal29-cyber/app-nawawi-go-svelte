@@ -2,7 +2,7 @@
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/ui/Icon.svelte';
 
-  let { isOpen = true, currentPath = '/guru', onLogout, fiturGuru = [], userRole = '' } = $props();
+  let { isOpen = true, currentPath = '/guru', onLogout, fiturGuru = [], userRole = '', onClose = () => {} } = $props();
 
   // Fitur dari sekolah yang sedang aktif (fiturGuru di-passing dari layout)
   let hasPaketAlquran = $derived(fiturGuru.includes('paket_alquran') || fiturGuru.includes('input_tahfiz') || fiturGuru.includes('input_tahfiz_v2'));
@@ -10,6 +10,13 @@
   let hasDiniyah = $derived(fiturGuru.includes('input_diniyah'));
   let hasKonfigurasiMateri = $derived(fiturGuru.includes('konfigurasi_materi'));
   let hasKeseharian = $derived(fiturGuru.includes('rapor_keseharian'));
+
+  function navigate(path) {
+    goto(path);
+    if (window.innerWidth <= 768) {
+      onClose();
+    }
+  }
 </script>
 
 <aside class="sidebar" class:closed={!isOpen}>
@@ -23,7 +30,7 @@
   <nav class="sidebar-nav">
     <ul>
       <li class:active={currentPath === '/guru'}>
-        <button class="nav-link" onclick={() => goto('/guru')}>
+        <button class="nav-link" onclick={() => navigate('/guru')}>
           <Icon name="grid" size={20} class="icon" />
           <span class="label" class:hidden={!isOpen}>Beranda</span>
         </button>
@@ -31,7 +38,7 @@
 
       {#if hasPaketAlquran || hasDiniyah || hasKeseharian}
         <li class:active={currentPath.startsWith('/guru/input-nilai')}>
-          <button class="nav-link" onclick={() => goto('/guru/input-nilai')}>
+          <button class="nav-link" onclick={() => navigate('/guru/input-nilai')}>
             <Icon name="edit" size={20} class="icon" />
             <span class="label" class:hidden={!isOpen}>Input Nilai</span>
           </button>
@@ -40,7 +47,7 @@
 
       {#if hasKonfigurasiMateri}
         <li class:active={currentPath.startsWith('/guru/konfigurasi')}>
-          <button class="nav-link" onclick={() => goto('/guru/konfigurasi')}>
+          <button class="nav-link" onclick={() => navigate('/guru/konfigurasi')}>
             <Icon name="settings" size={20} class="icon" />
             <span class="label" class:hidden={!isOpen}>Konfigurasi</span>
           </button>
@@ -49,7 +56,7 @@
 
       {#if hasRapor}
         <li class:active={currentPath.startsWith('/guru/rapor')}>
-          <button class="nav-link" onclick={() => goto('/guru/rapor')}>
+          <button class="nav-link" onclick={() => navigate('/guru/rapor')}>
             <Icon name="fileText" size={20} class="icon" />
             <span class="label" class:hidden={!isOpen}>Rapor</span>
           </button>
@@ -60,7 +67,7 @@
       <div style="flex-grow: 1;"></div>
 
       <li class:active={currentPath.startsWith('/guru/profil')}>
-        <button class="nav-link" onclick={() => goto('/guru/profil')}>
+        <button class="nav-link" onclick={() => navigate('/guru/profil')}>
           <Icon name="user" size={20} class="icon" />
           <span class="label" class:hidden={!isOpen}>Profil Saya</span>
         </button>
@@ -223,7 +230,19 @@
 
   @media (max-width: 768px) {
     .sidebar {
-      display: none;
+      width: 260px;
+      transform: translateX(0);
+      z-index: 101; /* Above header and overlay */
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+    .sidebar.closed {
+      transform: translateX(-100%);
+      width: 260px;
+    }
+    .label, .brand {
+      opacity: 1 !important;
+      display: inline-block !important;
+      pointer-events: auto !important;
     }
   }
 </style>

@@ -126,6 +126,8 @@ func main() {
 
 	// Endpoint publik
 	r.HandleFunc("/api/login", middleware.RateLimiter(auth.LoginHandler)).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/auth/google/login", auth.GoogleLoginHandler).Methods("GET")
+	r.HandleFunc("/api/auth/google/callback", auth.GoogleCallbackHandler).Methods("GET")
 	r.HandleFunc("/api/logout", auth.LogoutHandler).Methods("POST", "OPTIONS")
 
 	// Subrouter untuk /api

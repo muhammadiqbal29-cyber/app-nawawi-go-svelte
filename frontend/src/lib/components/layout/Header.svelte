@@ -250,14 +250,18 @@
   }
 
   @media (max-width: 768px) {
-    .toggle-btn {
-      display: none;
-    }
     .user-info {
       display: none;
     }
     .header {
-      padding: 0 1.5rem;
+      padding: 0 1rem;
+    }
+    .header-right {
+      gap: 0.5rem;
+    }
+    .active-jenjang-badge {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.7rem;
     }
   }
 </style>

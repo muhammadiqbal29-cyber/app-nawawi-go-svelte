@@ -13,18 +13,10 @@ import (
 )
 
 func GetAllHandler(w http.ResponseWriter, r *http.Request) {
-	sekolahID, ok := r.Context().Value("sekolah_id").(int)
-	if !ok {
-		sekolahIDStr := r.URL.Query().Get("sekolah_id")
-		if sekolahIDStr == "" {
-			response.Error(w, http.StatusBadRequest, "sekolah_id diperlukan", nil)
-			return
-		}
-		sekolahID, _ = strconv.Atoi(sekolahIDStr)
-	}
+
 
 	var data []models.BankCatatanDiniyah
-	if err := database.DB.Where("sekolah_id = ?", sekolahID).Find(&data).Error; err != nil {
+	if err := database.DB.Find(&data).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data bank catatan", err)
 		return
 	}
@@ -33,15 +25,7 @@ func GetAllHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateHandler(w http.ResponseWriter, r *http.Request) {
-	sekolahID, ok := r.Context().Value("sekolah_id").(int)
-	if !ok {
-		sekolahIDStr := r.URL.Query().Get("sekolah_id")
-		if sekolahIDStr == "" {
-			response.Error(w, http.StatusUnauthorized, "Tidak memiliki akses (sekolah_id)", nil)
-			return
-		}
-		sekolahID, _ = strconv.Atoi(sekolahIDStr)
-	}
+
 
 	var payload struct {
 		Predikat    string `json:"predikat"`
@@ -54,7 +38,7 @@ func CreateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newData := models.BankCatatanDiniyah{
-		SekolahID:   sekolahID,
+		
 		Predikat:    payload.Predikat,
 		TeksCatatan: payload.TeksCatatan,
 	}
@@ -78,15 +62,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sekolahID, ok := r.Context().Value("sekolah_id").(int)
-	if !ok {
-		sekolahIDStr := r.URL.Query().Get("sekolah_id")
-		if sekolahIDStr == "" {
-			response.Error(w, http.StatusUnauthorized, "Tidak memiliki akses (sekolah_id)", nil)
-			return
-		}
-		sekolahID, _ = strconv.Atoi(sekolahIDStr)
-	}
+
 
 	var payload struct {
 		Predikat    string `json:"predikat"`
@@ -99,7 +75,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var data models.BankCatatanDiniyah
-	if err := database.DB.Where("id = ? AND sekolah_id = ?", id, sekolahID).First(&data).Error; err != nil {
+	if err := database.DB.Where("id = ?", id).First(&data).Error; err != nil {
 		response.Error(w, http.StatusNotFound, "Data tidak ditemukan", err)
 		return
 	}
@@ -126,17 +102,9 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sekolahID, ok := r.Context().Value("sekolah_id").(int)
-	if !ok {
-		sekolahIDStr := r.URL.Query().Get("sekolah_id")
-		if sekolahIDStr == "" {
-			response.Error(w, http.StatusUnauthorized, "Tidak memiliki akses (sekolah_id)", nil)
-			return
-		}
-		sekolahID, _ = strconv.Atoi(sekolahIDStr)
-	}
 
-	if err := database.DB.Where("id = ? AND sekolah_id = ?", id, sekolahID).Delete(&models.BankCatatanDiniyah{}).Error; err != nil {
+
+	if err := database.DB.Where("id = ?", id).Delete(&models.BankCatatanDiniyah{}).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal menghapus data", err)
 		return
 	}

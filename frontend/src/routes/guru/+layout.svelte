@@ -210,7 +210,13 @@
 </script>
 
 <div class="layout-wrapper" class:sidebar-closed={!sidebarOpen}>
-  <GuruSidebar isOpen={sidebarOpen} {currentPath} {onLogout} {fiturGuru} userRole={auth.role} />
+  <GuruSidebar isOpen={sidebarOpen} onClose={() => sidebarOpen = false} {currentPath} {onLogout} {fiturGuru} userRole={auth.role} />
+  
+  {#if sidebarOpen}
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="mobile-overlay" onclick={() => sidebarOpen = false}></div>
+  {/if}
 
   <div class="main-content">
     <Header
@@ -256,6 +262,9 @@
     padding: 2rem;
     flex: 1;
   }
+  .mobile-overlay {
+    display: none;
+  }
   @media (max-width: 768px) {
     .layout-wrapper {
       padding-left: 0;
@@ -265,6 +274,16 @@
     }
     .content-area {
       padding: 1rem;
+    }
+    .mobile-overlay {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 99;
     }
   }
 </style>

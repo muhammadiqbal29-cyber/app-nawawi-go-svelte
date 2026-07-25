@@ -577,7 +577,6 @@ type CatatanRapor struct {
 
 type BankCatatanTahfizV2 struct {
 	ID          int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	SekolahID   int    `gorm:"not null;index" json:"sekolah_id"`
 	Kelancaran  string `gorm:"type:varchar(50);not null" json:"kelancaran"`
 	Tajwid      string `gorm:"type:varchar(50);not null" json:"tajwid"`
 	Makharij    string `gorm:"type:varchar(50);not null" json:"makharij"`
@@ -588,7 +587,6 @@ type BankCatatanTahfizV2 struct {
 
 type BankCatatanDiniyah struct {
 	ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`
-	SekolahID   int       `gorm:"not null;index" json:"sekolah_id"`
 	Predikat    string    `gorm:"type:varchar(20);not null" json:"predikat"`
 	TeksCatatan string    `gorm:"type:text;not null" json:"teks_catatan"`
 	CreatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
@@ -607,7 +605,6 @@ type KonfigurasiNilaiKeseharian struct {
 
 type BankCatatanKeseharian struct {
     ID          int       `gorm:"primaryKey;autoIncrement" json:"id"`
-    SekolahID   int       `gorm:"not null;index" json:"sekolah_id"`
     Predikat    string    `gorm:"type:varchar(20);not null" json:"predikat"`
     TeksCatatan string    `gorm:"type:text;not null" json:"teks_catatan"`
     CreatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`

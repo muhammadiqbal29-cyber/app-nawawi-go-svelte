@@ -10,6 +10,11 @@ import (
 
 // InitScheduler menginisialisasi Cron Job untuk menjalankan backup setiap 3 jam
 func InitScheduler() {
+	if os.Getenv("APP_ENV") != "production" {
+		slog.Info("Melewati inisialisasi Scheduler Backup Otomatis karena APP_ENV bukan production")
+		return
+	}
+
 	c := cron.New()
 
 	// Backup setiap 3 jam (menit 0, jam habis dibagi 3)
