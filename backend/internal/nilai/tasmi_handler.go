@@ -429,8 +429,8 @@ func GetRiwayatTasmiBySiswaHandler(w http.ResponseWriter, r *http.Request) {
 	err = database.DB.Preload("Details", func(db *gorm.DB) *gorm.DB {
 		return db.Order("urutan ASC, id ASC")
 	}).Where(
-		"siswa_id = ? AND sekolah_id = ? AND jenis_penilaian = ?",
-		siswaID, sekolahID, "semester",
+		"siswa_id = ? AND sekolah_id = ? AND jenis_penilaian = ? AND mata_pelajaran = ?",
+		siswaID, sekolahID, "semester", "Ujian Tasmi",
 	).Order("tahun_ajaran_id DESC, semester_id DESC, tahap DESC").Find(&headers).Error
 
 	if err != nil {

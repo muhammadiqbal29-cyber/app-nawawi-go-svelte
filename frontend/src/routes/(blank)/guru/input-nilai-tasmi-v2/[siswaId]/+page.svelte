@@ -6,7 +6,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-  const mataPelajaran = 'Tahfiz';
+  const mataPelajaran = 'Ujian Tasmi';
 
   let siswaId = $derived($page.params.siswaId);
   let namaSiswa = $derived($page.url.searchParams.get('nama') || `Siswa #${siswaId}`);

@@ -12,6 +12,8 @@
   let rombel = $derived($page.url.searchParams.get('rombel') || '__kosong__');
   let rombelText = $derived(rombel === '__kosong__' ? 'Tanpa Rombel' : `Rombel ${rombel}`);
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '1');
+  let paramTaId = $derived($page.url.searchParams.get('tahun_ajaran_id') || '');
+  let paramSemId = $derived($page.url.searchParams.get('semester_id') || '');
 
   let loading = $state(false);
   let saving = $state(false);
@@ -49,6 +51,8 @@
     try {
       // 1. Ambil data rapor diniyah masal untuk kalkulasi rata-rata
       const params = new URLSearchParams({ rombel });
+      if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+      if (paramSemId) params.set('semester_id', paramSemId);
       const resRapor = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/rapor-diniyah-masal?${params.toString()}`, {
         credentials: 'include'
       });

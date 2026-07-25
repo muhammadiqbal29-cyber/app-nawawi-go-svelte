@@ -27,6 +27,7 @@ func GetRekapKeseharianHandler(w http.ResponseWriter, r *http.Request) {
 
 	indikatorIDStr := r.URL.Query().Get("indikator_id")
 	sekolahIDStr := r.URL.Query().Get("sekolah_id")
+	rombel := r.URL.Query().Get("rombel")
 
 	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
 	if err != nil {
@@ -46,9 +47,19 @@ func GetRekapKeseharianHandler(w http.ResponseWriter, r *http.Request) {
 		FROM riwayat_kelas rk
 		JOIN siswas s ON s.id = rk.siswa_id
 		WHERE rk.kelas_id = ? AND rk.tahun_ajaran_id = ?
-		ORDER BY s.nama_lengkap ASC
 	`
-	if err := database.DB.Raw(siswaQuery, kelasID, taID).Scan(&siswaList).Error; err != nil {
+	siswaArgs := []interface{}{kelasID, taID}
+
+	if rombel != "" && rombel != "__kosong__" {
+		siswaQuery += " AND rk.rombel = ?"
+		siswaArgs = append(siswaArgs, rombel)
+	} else if rombel == "__kosong__" {
+		siswaQuery += " AND (rk.rombel = '' OR rk.rombel IS NULL)"
+	}
+
+	siswaQuery += " ORDER BY s.nama_lengkap ASC"
+
+	if err := database.DB.Raw(siswaQuery, siswaArgs...).Scan(&siswaList).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal memuat daftar siswa", err)
 		return
 	}

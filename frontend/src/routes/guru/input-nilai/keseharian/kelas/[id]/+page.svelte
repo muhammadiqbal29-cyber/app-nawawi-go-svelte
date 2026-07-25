@@ -86,6 +86,7 @@
   let plgFormJenisId = $state('');
   let plgFormTanggal = $state(new Date().toISOString().split('T')[0]);
   let plgFormPoin = $state(0);
+  let plgFormIqob = $state('');
   
   let plgSearchQuery = $state('');
   let plgShowDropdown = $state(true);
@@ -204,6 +205,8 @@
       url.searchParams.append('indikator_id', selectedIndikator);
       if (guruState.activeTahunId) url.searchParams.append('tahun_ajaran_id', guruState.activeTahunId);
       if (guruState.activeSemesterId) url.searchParams.append('semester_id', guruState.activeSemesterId);
+      if (rombel && rombel !== '__kosong__') url.searchParams.append('rombel', rombel);
+      else if (rombel === '__kosong__') url.searchParams.append('rombel', '__kosong__');
 
       const res = await fetch(url.toString(), { credentials: 'include' });
       if (!res.ok) throw new Error('Gagal memuat rekap keseharian.');
