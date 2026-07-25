@@ -60,8 +60,10 @@
   <div class="tabs-header">
     {#each tabs as tab (tab.id)}
       <a href={tab.href} class="tab-link" class:active={currentPath.startsWith(tab.href)}>
-        <Icon name={tab.icon} size={16} />
-        {tab.label}
+        <div class="icon-wrapper">
+          <Icon name={tab.icon} size={18} />
+        </div>
+        <span>{tab.label}</span>
       </a>
     {/each}
   </div>
@@ -85,6 +87,18 @@
     border-bottom: 2px solid var(--color-border, #e2e8f0);
     margin-bottom: 1.5rem;
     overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+
+  .tabs-header::-webkit-scrollbar {
+    display: none; /* Safari/Chrome */
+  }
+
+  .icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .tab-link {
@@ -117,5 +131,62 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+
+  @media (max-width: 768px) {
+    .tabs-header {
+      border-bottom: none;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      gap: 10px;
+    }
+    
+    .tab-link {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 12px 6px 10px;
+      border-radius: 18px;
+      background: var(--color-surface, #fff);
+      border: 1px solid var(--color-border, #e2e8f0);
+      margin-bottom: 0;
+    }
+
+    .tab-link:hover {
+      background: var(--color-surface, #fff);
+      border-radius: 18px;
+    }
+
+    .tab-link.active {
+      background: var(--color-primary, #22c55e); /* Use primary green for consistency */
+      border-color: var(--color-primary, #22c55e);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px -12px rgba(34, 197, 94, 0.4); /* Green shadow */
+    }
+    
+    /* Simulate the tile */
+    .icon-wrapper {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: #e6f7ec; /* Very soft green */
+      color: var(--color-primary, #22c55e);
+      transition: all 0.2s;
+    }
+    
+    .tab-link.active .icon-wrapper {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+
+    /* Override span inside tab-link for mobile */
+    .tab-link span {
+      font-size: 11.5px;
+      font-weight: 700;
+    }
   }
 </style>

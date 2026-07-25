@@ -677,4 +677,32 @@
     font-size: 0.9rem;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
+  @media (max-width: 768px) {
+    .beranda-guru {
+      padding: 0 0.5rem;
+    }
+    .global-chart-box, .chart-card, .diniyah-chart-card {
+      padding: 1rem;
+    }
+    .chart-header-row {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .filter-group {
+      width: 100%;
+      flex-direction: column;
+    }
+    .metric-select {
+      width: 100%;
+    }
+    .tabs {
+      overflow-x: auto;
+      white-space: nowrap;
+      padding-bottom: 0.5rem;
+    }
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+  }
 </style>

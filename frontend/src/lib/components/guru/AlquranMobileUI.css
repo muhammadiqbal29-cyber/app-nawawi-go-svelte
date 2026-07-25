@@ -1,0 +1,307 @@
+.desktop-only { display: block; }
+.mobile-app-ui { display: none; }
+
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-app-ui { 
+    display: flex; 
+    flex-direction: column;
+    /* Redefine root vars for this section to match template */
+    --primary: #12A150;
+    --primary-dark: #0B7C3D;
+    --primary-soft: #E6F7EC;
+    --amber: #B5860B;
+    --amber-soft: #FBF1D6;
+    --bg: #F6F8F7;
+    --card: #FFFFFF;
+    --text: #181B1A;
+    --muted: #7C8681;
+    --border: #EBEFEC;
+    --shadow: 0 10px 30px -12px rgba(18, 161, 80, .18);
+  }
+
+  :global(body) {
+    background: var(--bg) !important;
+  }
+  
+  .sheet-page {
+    padding: 16px !important;
+  }
+
+  /* mobile header */
+  .mobile-app-header {
+      padding: 0 0 12px;
+      flex-shrink: 0;
+  }
+
+  .mobile-app-header .app-header-top {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+  }
+
+  .mobile-app-header .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 13px 8px 10px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 12.5px;
+      color: var(--text);
+      text-decoration: none;
+  }
+
+  .mobile-app-header .page-title {
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 20px;
+      color: var(--text);
+      margin-top: 12px;
+      letter-spacing: -.01em;
+  }
+
+  .mobile-app-header .student-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+  }
+
+  .mobile-app-header .student-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: linear-gradient(155deg, var(--primary), var(--primary-dark));
+      color: #fff;
+      font-family: inherit;
+      font-weight: 800;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+  }
+
+  .mobile-app-header .student-sub {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.4;
+  }
+
+  .mobile-app-header .student-sub b {
+      color: var(--text);
+      font-weight: 600;
+  }
+
+  .mobile-app-header .stat-card {
+      margin-top: 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 13px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+  }
+
+  .mobile-app-header .stat-item {
+      flex: 1;
+      text-align: center;
+  }
+
+  .mobile-app-header .stat-item + .stat-item {
+      border-left: 1px solid var(--border);
+  }
+
+  .mobile-app-header .stat-num {
+      font-weight: 800;
+      font-size: 15.5px;
+      color: var(--text);
+  }
+
+  .mobile-app-header .stat-label {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-top: 2px;
+  }
+
+  .mobile-app-header .stat-live {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+  }
+
+  .mobile-app-header .live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 0 0 rgba(18, 161, 80, .5);
+  }
+  
+  .mobile-app-header .live-dot.active {
+      animation: pulse 1.8s infinite;
+  }
+
+  @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(18, 161, 80, .45); }
+      70% { box-shadow: 0 0 0 6px rgba(18, 161, 80, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(18, 161, 80, 0); }
+  }
+
+  .mobile-app-header .stat-live-label {
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--primary-dark);
+  }
+
+  /* cards */
+  .mobile-cards-view {
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 26px;
+  }
+
+  .surah-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      margin-top: 12px;
+      overflow: hidden;
+  }
+
+  .surah-card .surah-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px 10px;
+  }
+
+  .surah-card .surah-no {
+      width: 26px;
+      height: 26px;
+      border-radius: 9px;
+      flex-shrink: 0;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+
+  .surah-card .surah-name {
+      font-weight: 700;
+      font-size: 14.5px;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+  }
+
+  .surah-card .juz-badge {
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 3px 9px;
+      border-radius: 999px;
+      flex-shrink: 0;
+  }
+
+  .surah-card .score-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 0 14px 12px;
+  }
+
+  .surah-card .score-field label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+  }
+
+  .surah-card .score-field input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 9px 0;
+      text-align: center;
+      font-weight: 700;
+      font-size: 14.5px;
+      color: var(--text);
+      background: var(--bg);
+      -moz-appearance: textfield;
+      position: relative;
+      z-index: 10;
+      pointer-events: auto !important;
+      user-select: auto !important;
+      -webkit-user-select: auto !important;
+      touch-action: manipulation;
+  }
+
+  .surah-card .score-field input:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+  }
+
+  .surah-card .score-field input::-webkit-outer-spin-button,
+  .surah-card .score-field input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+  }
+
+  .surah-card .surah-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--amber-soft);
+      border-top: 1px solid var(--border);
+  }
+
+  .surah-card .footer-label {
+      font-size: 11px;
+      color: var(--amber);
+      font-weight: 600;
+  }
+
+  .surah-card .footer-total {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+  }
+
+  .surah-card .total-num {
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--text);
+  }
+
+  .surah-card .total-tag {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      transition: opacity 0.3s ease;
+  }
+
+  .surah-card .total-tag svg {
+      width: 11px;
+      height: 11px;
+  }
+}

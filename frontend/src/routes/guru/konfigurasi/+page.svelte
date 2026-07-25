@@ -1321,7 +1321,6 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Konfigurasi Materi</h1>
-      <p class="page-subtitle">Kelola daftar materi tahfiz dan mapel diniyah per sekolah.</p>
     </div>
   </div>
 

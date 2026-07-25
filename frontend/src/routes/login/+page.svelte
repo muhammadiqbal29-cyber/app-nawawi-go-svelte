@@ -590,7 +590,7 @@
 
     .brand-panel {
       width: 100%;
-      padding: 20px 20px 60px 20px;
+      padding: 15px 15px 40px 15px;
       border-radius: 0;
       flex: 0 0 auto;
     }
@@ -601,11 +601,11 @@
     }
 
     .logo-container {
-      margin: 15px 0;
+      margin: 10px 0;
     }
 
     .welcome-text {
-      font-size: 1rem;
+      font-size: 0.95rem;
       margin-top: 5px;
     }
 
@@ -640,7 +640,7 @@
 
     .form-panel {
       width: 100%;
-      padding: 60px 25px 20px 25px;
+      padding: 40px 20px 20px 20px;
       border-radius: 0;
       flex: 1;
       justify-content: flex-start;
@@ -648,12 +648,31 @@
 
     .form-title {
       text-align: center;
-      font-size: 1.2rem;
-      margin-bottom: 20px;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
     }
 
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
+    }
+
+    .form-label {
+      margin-bottom: 3px;
+      font-size: 0.7rem;
+    }
+
+    .form-input {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      font-size: 0.85rem;
+    }
+
+    .divider {
+      margin: 1rem 0;
     }
 
     .button-group {

@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import '$lib/components/guru/AlquranMobileUI.css';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const mataPelajaran = 'Tahfiz';
@@ -231,23 +232,59 @@
 </svelte:head>
 
 <main class="sheet-page">
-  <div class="back-button-wrapper">
-    <button type="button" class="back-button" onclick={() => goto(backUrl)}>
-      <Icon name="arrowLeft" size={16} /> Kembali
-    </button>
+  <div class="desktop-only">
+    <div class="back-button-wrapper">
+      <button type="button" class="back-button" onclick={() => goto(backUrl)}>
+        <Icon name="arrowLeft" size={16} /> Kembali
+      </button>
+    </div>
+
+    <section class="sheet-header">
+      <div>
+        <h1>{pageTitle}</h1>
+        <p>{namaSiswa} · {kelas}</p>
+      </div>
+      <div class="meta-box">
+        <span>Juz 30</span>
+        <strong>{lastSavedSummary?.jumlah_materi ?? submittedRows.length} Materi Disetor</strong>
+        <small>{loading ? 'Memuat...' : 'Autosave aktif'}</small>
+      </div>
+    </section>
   </div>
 
-  <section class="sheet-header">
-    <div>
-      <h1>{pageTitle}</h1>
-      <p>{namaSiswa} · {kelas}</p>
-    </div>
-    <div class="meta-box">
-      <span>Juz 30</span>
-      <strong>{lastSavedSummary?.jumlah_materi ?? submittedRows.length} Materi Disetor</strong>
-      <small>{loading ? 'Memuat...' : 'Autosave aktif'}</small>
-    </div>
-  </section>
+  <!-- Mobile Header -->
+  <div class="mobile-app-ui mobile-app-header">
+     <div class="app-header-top">
+         <a class="back-btn" href={backUrl}>
+             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                 <path d="M8 2L3.5 6.5L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+             </svg>
+             Kembali
+         </a>
+         <div class="page-title">{pageTitle}</div>
+     </div>
+     <div class="student-row">
+         <div class="student-avatar">{namaSiswa.charAt(0)}</div>
+         <div class="student-sub"><b>{namaSiswa}</b> · {kelasLabel} - {rombel === '__kosong__' || !rombel ? 'Tanpa Rombel' : 'Rombel ' + rombel}</div>
+     </div>
+     <div class="stat-card">
+         <div class="stat-item">
+             <div class="stat-num">Juz 30</div>
+             <div class="stat-label">Target juz</div>
+         </div>
+         <div class="stat-item">
+             <div class="stat-num">{lastSavedSummary?.jumlah_materi ?? submittedRows.length}</div>
+             <div class="stat-label">Materi disetor</div>
+         </div>
+         <div class="stat-item stat-live">
+             <div class="live-dot" class:active={loading || rows.some(r => r.saveStatus === 'Menunggu...' || r.saveStatus === 'Menyimpan...')}></div>
+             <div>
+                 <div class="stat-live-label">Autosave</div>
+                 <div class="stat-label" style="margin-top:0;">{loading ? 'proses' : 'aktif'}</div>
+             </div>
+         </div>
+     </div>
+  </div>
 
   {#if loadError}
     <div class="sheet-alert">{loadError}</div>
@@ -262,7 +299,7 @@
       <p>Hubungi admin untuk menambahkan daftar materi sebelum input nilai dapat dilakukan.</p>
     </div>
   {:else}
-    <section class="sheet-wrap" aria-label="Tabel ujian tahfiz">
+    <section class="sheet-wrap desktop-only" aria-label="Tabel ujian tahfiz">
       <table class="excel-table">
         <thead>
           <tr>
@@ -364,6 +401,54 @@
           </tr>
         </tfoot>
       </table>
+    </section>
+
+    <!-- Mobile Cards -->
+    <section class="mobile-app-ui mobile-cards-view">
+       {#each rows as row, index (row.namaMateri)}
+          <div class="surah-card">
+              <div class="surah-top">
+                <div class="surah-no">{index + 1}</div>
+                <div class="surah-name">{row.namaMateri}</div>
+                <div class="juz-badge">Juz {row.juz > 0 ? row.juz : '—'}</div>
+              </div>
+              <div class="score-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="score-field">
+                  <label>Hafalan</label>
+                  <input type="number" min="0" max="5" bind:value={row.hafalan} oninput={(e) => handleScoreInput(e, index, 'hafalan')} />
+                </div>
+                <div class="score-field">
+                  <label>Kelancaran</label>
+                  <input type="number" min="0" max="5" bind:value={row.kelancaran} oninput={(e) => handleScoreInput(e, index, 'kelancaran')} />
+                </div>
+                <div class="score-field">
+                  <label>Mad</label>
+                  <input type="number" min="0" max="5" bind:value={row.mad} oninput={(e) => handleScoreInput(e, index, 'mad')} />
+                </div>
+                <div class="score-field">
+                  <label>Tajwid</label>
+                  <input type="number" min="0" max="5" bind:value={row.tajwid} oninput={(e) => handleScoreInput(e, index, 'tajwid')} />
+                </div>
+                <div class="score-field" style="grid-column: 1 / -1;">
+                  <label>Makharijul Huruf</label>
+                  <input type="number" min="0" max="5" bind:value={row.makharijulHuruf} oninput={(e) => handleScoreInput(e, index, 'makharijulHuruf')} />
+                </div>
+              </div>
+              <div class="surah-footer">
+                <span class="footer-label">Total skor</span>
+                <div class="footer-total">
+                  <span class="total-num" data-total>{total(row) !== '' ? total(row) : 0}</span>
+                  <span class="total-tag" style:opacity={row.saveStatus === 'Menunggu...' || row.saveStatus === 'Menyimpan...' ? '0.35' : '1'}>
+                    {#if row.saveStatus === 'Tersimpan'}
+                      <svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2L4.8 8.5L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Tersimpan
+                    {:else if row.saveStatus}
+                      {row.saveStatus}
+                    {/if}
+                  </span>
+                </div>
+              </div>
+          </div>
+       {/each}
     </section>
   {/if}
 </main>

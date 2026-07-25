@@ -4,6 +4,7 @@
   import { auth } from '$lib/auth.svelte.js';
   import GuruSidebar from '$lib/components/layout/GuruSidebar.svelte';
   import Header from '$lib/components/layout/Header.svelte';
+  import BottomNav from '$lib/components/layout/BottomNav.svelte';
   import JenjangModal from '$lib/components/guru/JenjangModal.svelte';
   import TahunModal from '$lib/components/guru/TahunModal.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
@@ -239,6 +240,7 @@
 
 <JenjangModal />
 <TahunModal />
+<BottomNav {currentPath} {fiturGuru} />
 
 <style>
   .layout-wrapper {
@@ -266,24 +268,20 @@
     display: none;
   }
   @media (max-width: 768px) {
-    .layout-wrapper {
-      padding-left: 0;
-    }
-    .sidebar-closed {
-      padding-left: 0;
+    .layout-wrapper,
+    .layout-wrapper.sidebar-closed {
+      padding-left: 0 !important;
     }
     .content-area {
       padding: 1rem;
+      padding-bottom: 100px; /* Space for BottomNav */
+    }
+    /* Sembunyikan GuruSidebar di mobile secara paksa untuk diganti BottomNav */
+    :global(.sidebar) {
+      display: none !important;
     }
     .mobile-overlay {
-      display: block;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.5);
-      z-index: 99;
+      display: none !important; /* Hamburger is gone, no overlay needed */
     }
   }
 </style>

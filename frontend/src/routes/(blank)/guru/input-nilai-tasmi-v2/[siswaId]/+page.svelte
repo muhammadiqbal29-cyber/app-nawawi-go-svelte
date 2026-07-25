@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import '$lib/components/guru/AlquranMobileUI.css';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   const mataPelajaran = 'Ujian Tasmi';
@@ -336,34 +337,77 @@
 </svelte:head>
 
 <main class="sheet-page">
-  <div class="back-button-wrapper">
-    <button type="button" class="back-button" onclick={() => goto(backUrl)}>
-      <Icon name="arrowLeft" size={16} /> Kembali
-    </button>
+  <div class="desktop-only">
+    <div class="back-button-wrapper">
+      <button type="button" class="back-button" onclick={() => goto(backUrl)}>
+        <Icon name="arrowLeft" size={16} /> Kembali
+      </button>
+    </div>
+
+    <section class="sheet-header">
+      <div>
+        <h1>{pageTitle}</h1>
+        <p>{namaSiswa} · {kelas}</p>
+      </div>
+      
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <label style="font-weight: 600; font-size: 0.9rem; color: #475569;">Tahap Ujian:</label>
+        <select bind:value={tahap} onchange={handleTahapChange} class="form-input" style="width: auto; padding: 0.25rem 0.5rem;">
+          <option value={1}>Tahap 1</option>
+          <option value={2}>Tahap 2</option>
+          <option value={3}>Tahap 3</option>
+          <option value={4}>Tahap 4</option>
+          <option value={5}>Tahap 5</option>
+        </select>
+      </div>
+      <div class="meta-box">
+        <span>Juz {selectedJuz.join(', ') || '-'}</span>
+        <strong>{lastSavedSummary?.jumlah_materi ?? submittedRows.length} Materi Disetor</strong>
+        <small>{loading ? 'Memuat...' : 'Autosave aktif'}</small>
+      </div>
+    </section>
   </div>
 
-  <section class="sheet-header">
-    <div>
-      <h1>{pageTitle}</h1>
-      <p>{namaSiswa} · {kelas}</p>
-    </div>
-    
-    <div style="display: flex; gap: 1rem; align-items: center;">
-      <label style="font-weight: 600; font-size: 0.9rem; color: #475569;">Tahap Ujian:</label>
-      <select bind:value={tahap} onchange={handleTahapChange} class="form-input" style="width: auto; padding: 0.25rem 0.5rem;">
-        <option value={1}>Tahap 1</option>
-        <option value={2}>Tahap 2</option>
-        <option value={3}>Tahap 3</option>
-        <option value={4}>Tahap 4</option>
-        <option value={5}>Tahap 5</option>
-      </select>
-    </div>
-    <div class="meta-box">
-      <span>Juz {selectedJuz.join(', ') || '-'}</span>
-      <strong>{lastSavedSummary?.jumlah_materi ?? submittedRows.length} Materi Disetor</strong>
-      <small>{loading ? 'Memuat...' : 'Autosave aktif'}</small>
-    </div>
-  </section>
+  <!-- Mobile Header -->
+  <div class="mobile-app-ui mobile-app-header">
+     <div class="app-header-top" style="flex-direction: row; justify-content: space-between; align-items: center; width: 100%;">
+         <a class="back-btn" href={backUrl}>
+             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                 <path d="M8 2L3.5 6.5L8 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+             </svg>
+             Kembali
+         </a>
+         <select bind:value={tahap} onchange={handleTahapChange} style="padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); font-weight: 700; font-size: 12px; background: var(--card); color: var(--text);">
+           <option value={1}>Tahap 1</option>
+           <option value={2}>Tahap 2</option>
+           <option value={3}>Tahap 3</option>
+           <option value={4}>Tahap 4</option>
+           <option value={5}>Tahap 5</option>
+         </select>
+     </div>
+     <div class="page-title" style="margin-top: 12px;">{pageTitle}</div>
+     <div class="student-row">
+         <div class="student-avatar">{namaSiswa.charAt(0)}</div>
+         <div class="student-sub"><b>{namaSiswa}</b> · {kelasLabel} - {rombel === '__kosong__' || !rombel ? 'Tanpa Rombel' : 'Rombel ' + rombel}</div>
+     </div>
+     <div class="stat-card">
+         <div class="stat-item">
+             <div class="stat-num">Juz {selectedJuz.join(', ')}</div>
+             <div class="stat-label">Target juz</div>
+         </div>
+         <div class="stat-item">
+             <div class="stat-num">{lastSavedSummary?.jumlah_materi ?? submittedRows.length}</div>
+             <div class="stat-label">Materi disetor</div>
+         </div>
+         <div class="stat-item stat-live">
+             <div class="live-dot" class:active={loading || rows.some(r => r.saveStatus === 'Menunggu...' || r.saveStatus === 'Menyimpan...')}></div>
+             <div>
+                 <div class="stat-live-label">Autosave</div>
+                 <div class="stat-label" style="margin-top:0;">{loading ? 'proses' : 'aktif'}</div>
+             </div>
+         </div>
+     </div>
+  </div>
 
   {#if loadError}
     <div class="sheet-alert">{loadError}</div>
@@ -400,7 +444,7 @@
       </div>
     </div>
   {:else}
-    <section class="sheet-wrap" aria-label="Tabel ujian tasmi">
+    <section class="sheet-wrap desktop-only" aria-label="Tabel ujian tasmi">
       <div class="juz-edit-bar">
         <span>Juz yang diujikan: <strong>{selectedJuz.join(', ')}</strong></span>
         <button class="btn-edit-juz" onclick={() => showJuzSelection = true}>Ubah Juz</button>
@@ -482,6 +526,51 @@
           </tr>
         </tfoot>
       </table>
+    </section>
+
+    <!-- Mobile Cards -->
+    <section class="mobile-app-ui mobile-cards-view">
+       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+         <span style="font-size: 12px; color: var(--muted); font-weight: 600;">Juz yang diujikan: <strong>{selectedJuz.join(', ')}</strong></span>
+         <button onclick={() => showJuzSelection = true} style="background: none; border: none; color: var(--blue); font-weight: 700; font-size: 12.5px; padding: 4px;">Ubah</button>
+       </div>
+
+       {#each rows as row, index (row.namaMateri)}
+          <div class="surah-card">
+              <div class="surah-top">
+                <div class="surah-no">{index + 1}</div>
+                <div class="surah-name">{row.namaMateri}</div>
+                <div class="juz-badge">Juz {row.juz > 0 ? row.juz : '—'}</div>
+              </div>
+              <div class="score-grid">
+                <div class="score-field">
+                  <label>Kelancaran</label>
+                  <input type="number" min="0" max="100" bind:value={row.kelancaran} oninput={(e) => handleScoreInput(e, index, 'kelancaran')} />
+                </div>
+                <div class="score-field">
+                  <label>Tajwid</label>
+                  <input type="number" min="0" max="100" bind:value={row.tajwid} oninput={(e) => handleScoreInput(e, index, 'tajwid')} />
+                </div>
+                <div class="score-field">
+                  <label>Makharijul</label>
+                  <input type="number" min="0" max="100" bind:value={row.makharijulHuruf} oninput={(e) => handleScoreInput(e, index, 'makharijulHuruf')} />
+                </div>
+              </div>
+              <div class="surah-footer">
+                <span class="footer-label">Total skor</span>
+                <div class="footer-total">
+                  <span class="total-num" data-total>{total(row) !== '' ? total(row) : 0}</span>
+                  <span class="total-tag" style:opacity={row.saveStatus === 'Menunggu...' || row.saveStatus === 'Menyimpan...' ? '0.35' : '1'}>
+                    {#if row.saveStatus === 'Tersimpan'}
+                      <svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2L4.8 8.5L9.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Tersimpan
+                    {:else if row.saveStatus}
+                      {row.saveStatus}
+                    {/if}
+                  </span>
+                </div>
+              </div>
+          </div>
+       {/each}
     </section>
   {/if}
 </main>

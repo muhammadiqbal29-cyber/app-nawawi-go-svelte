@@ -29,6 +29,7 @@
   let error = $state('');
   let savingCell = $state('');
   let uhColumnCount = $state(4);
+  let expandedSiswaId = $state(null);
 
   const KKM = 65;
 
@@ -246,10 +247,12 @@
     nilaiMap = { ...nilaiMap };
   }
 
-  function onSelectMapel(e) {
-    const id = Number(e.target.value);
-    selectedMapel = mapelList.find((m) => m.id === id) || null;
-    if (selectedMapel) loadNilai();
+  let showMapelDropdown = $state(false);
+
+  function selectMapelItem(m) {
+    selectedMapel = m;
+    showMapelDropdown = false;
+    loadNilai();
   }
 
   function formatDecimal(val) {
@@ -375,14 +378,25 @@
       {:else if mapelList.length === 0}
         <span class="text-muted">Belum ada mapel diniyah dikonfigurasi admin.</span>
       {:else}
-        <select id="select-mapel" class="select-mapel" onchange={onSelectMapel}>
-          {#each mapelList as m (m.id)}
-            <option value={m.id} selected={selectedMapel?.id === m.id}>
-              {m.nama_mapel}
-              {m.nama_mapel_arab ? `(${m.nama_mapel_arab})` : ''}
-            </option>
-          {/each}
-        </select>
+        <div class="custom-select-wrapper">
+          <button class="custom-select-btn" onclick={() => showMapelDropdown = !showMapelDropdown}>
+            <span class="truncate">
+              {selectedMapel ? `${selectedMapel.nama_mapel} ${selectedMapel.nama_mapel_arab ? `(${selectedMapel.nama_mapel_arab})` : ''}` : 'Pilih Mapel'}
+            </span>
+            <Icon name={showMapelDropdown ? 'chevronUp' : 'chevronDown'} size={16} />
+          </button>
+          
+          {#if showMapelDropdown}
+            <div class="dropdown-overlay" onclick={() => showMapelDropdown = false} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && (showMapelDropdown = false)}></div>
+            <div class="custom-select-dropdown">
+              {#each mapelList as m (m.id)}
+                <button class="custom-select-item" class:active={selectedMapel?.id === m.id} onclick={() => selectMapelItem(m)}>
+                  {m.nama_mapel} {m.nama_mapel_arab ? `(${m.nama_mapel_arab})` : ''}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
 
@@ -402,7 +416,7 @@
   {#if loadingNilai}
     <div class="table-loading">Memuat data nilai...</div>
   {:else if selectedMapel && siswaList.length > 0}
-    <div class="table-wrapper">
+    <div class="table-wrapper desktop-only">
       <table class="nilai-table">
         <thead>
           <tr>
@@ -518,7 +532,131 @@
       </table>
     </div>
 
-    <div class="legend">
+    <!-- Mobile Card View -->
+    <div class="mobile-only mobile-student-list">
+      {#each filteredSiswa as siswa, idx (siswa.siswa_id)}
+        {@const data = getSiswaData(siswa.siswa_id)}
+        <div class="m-card" class:saving={savingCell === String(siswa.siswa_id)}>
+          <div class="m-card-header" onclick={() => expandedSiswaId = expandedSiswaId === siswa.siswa_id ? null : siswa.siswa_id} role="button" tabindex="0" onkeydown={(e) => { if(e.key === 'Enter' || e.key === ' ') { expandedSiswaId = expandedSiswaId === siswa.siswa_id ? null : siswa.siswa_id; e.preventDefault(); } }}>
+            <div class="m-avatar">{siswa.nama_lengkap.charAt(0)}</div>
+            <div class="m-info">
+              <h3>{siswa.nama_lengkap}</h3>
+              <p>NISN: {siswa.nisn}</p>
+            </div>
+            <div class="m-nr">
+              <span class="m-nr-val">{formatDecimal(data.nilai_rapor)}</span>
+              <span class="m-nr-lbl">Nilai Rapor</span>
+            </div>
+            <div class="m-chevron">
+              <Icon name={expandedSiswaId === siswa.siswa_id ? 'chevronUp' : 'chevronDown'} size={20} color="#94a3b8" />
+            </div>
+          </div>
+          
+          {#if expandedSiswaId === siswa.siswa_id}
+            <div class="m-card-body">
+            <!-- UH Inputs -->
+            <div class="m-section">
+              <div class="m-sec-header">
+                <h4>Ulangan Harian</h4>
+                <span class="m-calc-badge">Rata: {formatDecimal(data.rata_uh)}</span>
+              </div>
+              <div class="m-grid-inputs">
+                {#each Array(uhColumnCount) as _, i (i)}
+                  <div class="m-input-box">
+                    <label>UH {i + 1}</label>
+                    <input
+                      type="number"
+                      class="input-cell"
+                      min="0"
+                      max="100"
+                      data-field="uh"
+                      data-idx={i}
+                      value={getUhScore(siswa.siswa_id, i) || ''}
+                      onblur={(e) => {
+                        updateUh(siswa.siswa_id, i, e.target.value);
+                        saveNilai(siswa.siswa_id);
+                      }}
+                      onchange={(e) => updateUh(siswa.siswa_id, i, e.target.value)}
+                    />
+                  </div>
+                {/each}
+              </div>
+            </div>
+
+            <!-- PTS Inputs -->
+            <div class="m-section">
+              <div class="m-sec-header">
+                <h4>Penilaian Tengah Semester</h4>
+                <span class="m-calc-badge">NA PTS: {data.na_pts || '-'}</span>
+              </div>
+              <div class="m-grid-inputs">
+                <div class="m-input-box">
+                  <label>Murni</label>
+                  <input
+                    type="number"
+                    class="input-cell"
+                    min="0"
+                    max="100"
+                    data-field="murni_pts"
+                    value={data.murni_pts || ''}
+                    onblur={(e) => {
+                      updateField(siswa.siswa_id, 'murni_pts', e.target.value);
+                      saveNilai(siswa.siswa_id);
+                    }}
+                    onchange={(e) => updateField(siswa.siswa_id, 'murni_pts', e.target.value)}
+                  />
+                </div>
+                <div class="m-input-box">
+                  <label>Remidi</label>
+                  <input
+                    type="number"
+                    class="input-cell input-remidi"
+                    min="0"
+                    max="100"
+                    data-field="remidi_pts"
+                    placeholder="-"
+                    value={data.remidi_pts ?? ''}
+                    onblur={(e) => {
+                      updateField(siswa.siswa_id, 'remidi_pts', e.target.value);
+                      saveNilai(siswa.siswa_id);
+                    }}
+                    onchange={(e) => updateField(siswa.siswa_id, 'remidi_pts', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- PAS Input -->
+            <div class="m-section">
+              <div class="m-sec-header">
+                <h4>Penilaian Akhir Semester</h4>
+              </div>
+              <div class="m-grid-inputs">
+                <div class="m-input-box">
+                  <label>PAS</label>
+                  <input
+                    type="number"
+                    class="input-cell"
+                    min="0"
+                    max="100"
+                    data-field="pas"
+                    value={data.pas || ''}
+                    onblur={(e) => {
+                      updateField(siswa.siswa_id, 'pas', e.target.value);
+                      saveNilai(siswa.siswa_id);
+                    }}
+                    onchange={(e) => updateField(siswa.siswa_id, 'pas', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+
+    <div class="legend desktop-only">
       <p>
         <strong>Keterangan:</strong> UH = Ulangan Harian, M = Murni PTS, R = Remidi PTS, NA PTS = Nilai
         Akhir PTS, PAS = Penilaian Akhir Semester, NR = Nilai Rapor
@@ -542,7 +680,9 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding-bottom: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
   }
 
   .page-header {
@@ -606,14 +746,75 @@
     white-space: nowrap;
   }
 
-  .select-mapel {
-    padding: 0.5rem 0.75rem;
+  .custom-select-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+  }
+  .custom-select-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0.65rem 1rem;
+    background: #f8fafc;
     border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    cursor: pointer;
+    text-align: left;
+  }
+  .custom-select-dropdown {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    max-height: 250px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+  }
+  .custom-select-item {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    background: transparent;
+    border: none;
     border-radius: 8px;
     font-family: inherit;
     font-size: 0.9rem;
-    min-width: 220px;
-    background: #f8fafc;
+    color: #334155;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .custom-select-item:hover {
+    background: #f1f5f9;
+  }
+  .custom-select-item.active {
+    background: #ecfdf5;
+    color: #059669;
+    font-weight: 700;
+  }
+  .dropdown-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+  }
+  .truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .toolbar-right {
@@ -799,6 +1000,208 @@
     color: #d97706;
   }
 
+  /* Mobile View Styles */
+  .desktop-only { display: block; }
+  .mobile-only { display: none; }
+
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+    
+    .page-container {
+      padding: 1rem;
+    }
+
+    .toolbar {
+      flex-direction: column;
+      align-items: stretch;
+      border: none;
+      padding: 0;
+      background: transparent;
+    }
+    
+    .toolbar-left, .toolbar-right {
+      width: 100%;
+    }
+    
+    .custom-select-wrapper {
+      max-width: 100%;
+    }
+
+    .search-bar {
+      width: 100%;
+      background: #fff;
+    }
+    .search-input {
+      width: 100%;
+    }
+
+    .uh-info {
+      display: none;
+    }
+
+    .mobile-student-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding-top: 0.5rem;
+    }
+
+    .m-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 1.25rem;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      transition: opacity 0.2s;
+    }
+    .m-card.saving {
+      opacity: 0.6;
+    }
+
+    .m-card-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #f1f5f9;
+      background: #f8fafc;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .m-chevron {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: -0.25rem;
+    }
+
+    .m-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(155deg, #12A150, #0B7C3D);
+      color: white;
+      font-weight: 800;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .m-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .m-info h3 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1rem;
+      font-weight: 800;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .m-info p {
+      margin: 0;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .m-nr {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .m-nr-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #0B7C3D;
+    }
+    .m-nr-lbl {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .m-card-body {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .m-section {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.85rem;
+      padding: 1rem;
+    }
+
+    .m-sec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px dashed #cbd5e1;
+    }
+    .m-sec-header h4 {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #334155;
+      font-weight: 700;
+    }
+    .m-calc-badge {
+      font-size: 0.75rem;
+      font-weight: 800;
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 0.2rem 0.5rem;
+      border-radius: 99px;
+    }
+
+    .m-grid-inputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .m-input-box {
+      flex: 1;
+      min-width: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .m-input-box label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+    .m-input-box .input-cell {
+      width: 100%;
+      max-width: none;
+      height: 38px;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .m-input-box .input-cell:focus {
+      border-color: #12A150;
+      box-shadow: 0 0 0 3px rgba(18, 161, 80, 0.15);
+    }
+  }
+
   tr.saving {
     background: #fefce8;
   }
@@ -868,4 +1271,70 @@
       justify-content: flex-end;
     }
   }
+
+  /* --- Mobile Card Layout Injected --- */
+  @media (max-width: 768px) {
+    .table-container {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+    .data-table, .data-table tbody, .data-table tr, .data-table td {
+      display: block;
+      width: 100%;
+    }
+    .data-table thead {
+      display: none;
+    }
+    .data-table tr {
+      margin-bottom: 1.25rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    .data-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #f1f5f9;
+      text-align: left !important;
+    }
+    .data-table td:last-child {
+      border-bottom: none;
+      background-color: #f8fafc;
+    }
+    .siswa-nama {
+      font-size: 1.1rem;
+      color: #0f172a;
+    }
+    .page-header-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .action-buttons {
+      width: 100%;
+      flex-direction: column;
+      margin-top: 1rem;
+    }
+    .btn-action-primary, .btn-action-secondary {
+      width: 100%;
+      justify-content: center;
+    }
+    .search-bar {
+      width: 100%;
+    }
+    textarea, input[type="number"], .form-input {
+      width: 100% !important;
+      min-width: 0 !important;
+    }
+    .student-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .student-info-group {
+      margin-bottom: 0.5rem;
+    }
+  }
 </style>
+

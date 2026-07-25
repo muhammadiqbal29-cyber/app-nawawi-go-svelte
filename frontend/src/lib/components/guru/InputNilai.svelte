@@ -128,46 +128,47 @@
 </script>
 
 <div class="page-container">
-  <div class="page-header-actions">
-    <div>
-      <h1 class="page-title">{currentTab === 'tasmi' ? (isV2 ? 'Input Nilai Tasmi ' : 'Input Nilai Tasmi ') : (isV2 ? 'Input Nilai Tahfiz ' : 'Input Nilai ')}</h1>
-      <p class="page-subtitle">Pilih kelas terlebih dahulu, lalu pilih siswa yang akan dinilai.</p>
+  <div class="sticky-header">
+    <div class="page-header-actions">
+      <div>
+        <h1 class="page-title">{currentTab === 'tasmi' ? (isV2 ? 'Input Nilai Tasmi ' : 'Input Nilai Tasmi ') : (isV2 ? 'Input Nilai Tahfiz ' : 'Input Nilai ')}</h1>
+      </div>
     </div>
-  </div>
 
-  {#if error}
-    <div class="alert-error">{error}</div>
-  {/if}
+    {#if error}
+      <div class="alert-error">{error}</div>
+    {/if}
 
-  <div class="tabs-header card-tabs">
-    <button
-      class="tab-btn"
-      class:active={currentTab === 'tahfiz'}
-      onclick={() => changeTab('tahfiz')}
-    >
-      Ujian Tahfiz
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === 'kelulusan'}
-      onclick={() => changeTab('kelulusan')}
-    >
-      Ujian Kelulusan
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === 'tahsin'}
-      onclick={() => changeTab('tahsin')}
-    >
-      Penilaian Tahsin
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === 'tasmi'}
-      onclick={() => changeTab('tasmi')}
-    >
-      Ujian Tasmi'
-    </button>
+    <div class="tabs-header card-tabs">
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'tahfiz'}
+        onclick={() => changeTab('tahfiz')}
+      >
+        Ujian Tahfiz
+      </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'kelulusan'}
+        onclick={() => changeTab('kelulusan')}
+      >
+        Ujian Kelulusan
+      </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'tahsin'}
+        onclick={() => changeTab('tahsin')}
+      >
+        Penilaian Tahsin
+      </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'tasmi'}
+        onclick={() => changeTab('tasmi')}
+      >
+        Ujian Tasmi'
+      </button>
+    </div>
   </div>
 
 
@@ -177,7 +178,6 @@
       <div class="section-heading">
         <div>
           <h2>Pilih Kelas</h2>
-          <p>Klik card rombel untuk membuka daftar siswa di halaman baru.</p>
         </div>
         <div class="selected-info">
           {#if loadingKelas}
@@ -194,8 +194,8 @@
         <div class="kelas-grid" aria-label="Daftar kelas">
           {#each kelasList as kelas (kelas.id + kelas.rombel)}
             <a href={cardHref(kelas)} class="kelas-card">
-              <div class="kelas-icon">
-                <Icon name="users" size={20} />
+              <div class="kelas-icon tingkat-{kelas.tingkat}">
+                {kelas.tingkat || 'X'}
               </div>
               <div class="kelas-card-text">
                 <span class="kelas-name">{kelasLabel(kelas)}</span>
@@ -258,12 +258,11 @@
   .card-tabs {
     display: inline-flex;
     align-self: flex-start;
-    background-color: var(--color-surface, #fff);
-    border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 12px;
+    background-color: #f1f5f9;
+    border-radius: 999px;
     padding: 0.35rem;
-    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
     margin-bottom: 1.5rem;
+    border: 1px solid #e2e8f0;
   }
 
   .tab-btn {
@@ -273,15 +272,17 @@
     border: none;
     background: transparent;
     color: var(--color-text-muted, #64748b);
-    border-radius: 8px;
+    border-radius: 999px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     font-family: inherit;
+    white-space: nowrap;
   }
 
   .tab-btn.active {
-    background-color: var(--color-primary, #4f46e5);
-    color: white;
+    background-color: white;
+    color: var(--color-primary, #4f46e5);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 
   .kelas-section {
@@ -330,40 +331,55 @@
   .kelas-card {
     min-height: 88px;
     display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 18px;
+    grid-template-columns: 48px minmax(0, 1fr) 18px;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
     width: 100%;
-    padding: 0.85rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    background: #f8fafc;
+    padding: 1.25rem;
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     color: inherit;
     font-family: inherit;
     text-align: left;
     cursor: pointer;
     text-decoration: none;
-    transition:
-      border-color 0.2s ease,
-      box-shadow 0.2s ease,
-      background-color 0.2s ease;
+    transition: all 0.3s ease;
   }
 
   .kelas-card:hover {
-    border-color: #c7d2fe;
-    background: #fff;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+    border-color: #e0e7ff;
+    box-shadow: 0 10px 25px rgba(79, 70, 229, 0.08);
+    transform: translateY(-2px);
   }
 
   .kelas-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: #e0f2fe;
-    color: #0369a1;
+    background: #f0f9ff;
+    color: #0284c7;
+    font-weight: 800;
+    font-size: 15px;
+  }
+  
+  .kelas-icon.tingkat-VII, .kelas-icon.tingkat-7 {
+    background: #e6f7ec;
+    color: #0b7c3d;
+  }
+  
+  .kelas-icon.tingkat-VIII, .kelas-icon.tingkat-8 {
+    background: #eaf2fe;
+    color: #2f80ed;
+  }
+  
+  .kelas-icon.tingkat-IX, .kelas-icon.tingkat-9 {
+    background: #fef2e6;
+    color: #f2994a;
   }
 
   .kelas-card-text {
@@ -437,6 +453,14 @@
   }
 
   @media (max-width: 720px) {
+    .sticky-header {
+      position: sticky;
+      top: 75px; /* Offset to stick below Header.svelte */
+      z-index: 40;
+      background: transparent;
+      padding: 0;
+      margin: 0 0 1rem 0;
+    }
     .page-header-actions,
     .section-heading {
       flex-direction: column;
@@ -455,6 +479,33 @@
       display: flex;
       width: 100%;
       overflow-x: auto;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
+      
+      background: transparent;
+      border: none;
+      padding: 0;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .card-tabs::-webkit-scrollbar {
+      display: none; /* Safari/Chrome */
+    }
+    
+    .tab-btn {
+      padding: 9px 14px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      background: var(--color-surface, #fff);
+      border: 1px solid var(--color-border, #e2e8f0);
+      box-shadow: none;
+    }
+    
+    .tab-btn.active {
+      background: var(--color-text-main, #1e293b);
+      border-color: var(--color-text-main, #1e293b);
+      color: #fff;
+      box-shadow: none;
     }
   }
 

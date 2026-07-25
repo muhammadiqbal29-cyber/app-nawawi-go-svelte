@@ -17,72 +17,96 @@
 </script>
 
 <header class="header">
-  <div class="header-left">
-    <button class="toggle-btn" onclick={onToggleSidebar} aria-label="Toggle Sidebar">
-      <Icon name="bars" size={24} />
-    </button>
-    <h1 class="page-title">{title}</h1>
+  <div class="app-header-top">
+    <div class="header-left">
+      <button class="toggle-btn" onclick={onToggleSidebar} aria-label="Toggle Sidebar">
+        <Icon name="bars" size={24} />
+      </button>
+      <h1 class="page-title">{title}</h1>
+    </div>
+
+    <div class="header-right">
+      {#if userRole === 'guru'}
+        <button
+          class="active-jenjang-badge desktop-badge {!activeJenjang ? 'pulse' : ''}"
+          onclick={onGantiJenjang}
+          aria-label="Ganti Jenjang"
+        >
+          <Icon name="grid" size={14} />
+          <span>{activeJenjang ? `Jenjang: ${activeJenjang}` : 'Pilih Jenjang'}</span>
+          <Icon name="chevronDown" size={14} />
+        </button>
+      {/if}
+      {#if activeTahun}
+        <button
+          class="active-jenjang-badge desktop-badge {!activeTahun ? 'pulse' : ''}"
+          onclick={onGantiTahun}
+          aria-label="Ganti Tahun Ajaran"
+          style="background-color: #dcfce7; color: #15803d; border-color: transparent;"
+        >
+          <Icon name="calendar" size={14} />
+          <span>{activeTahun}</span>
+          <Icon name="chevronDown" size={14} />
+        </button>
+      {/if}
+      
+      <!-- svelte-ignore a11y-click-events-have-key-events -->
+      <!-- svelte-ignore a11y-interactive-supports-focus -->
+      <div class="user-profile" onclick={() => (showDropdown = !showDropdown)} role="button">
+        <div class="avatar">{userName.charAt(0).toUpperCase()}</div>
+        <div class="user-info">
+          <span class="user-name">{userName}</span>
+          <span class="user-role">{userRole}</span>
+        </div>
+        <Icon name="chevronDown" size={14} class="dropdown-arrow desktop-only" />
+      </div>
+
+      {#if showDropdown}
+        <div class="dropdown-menu" role="menu">
+          <button class="dropdown-item logout" onclick={onLogout} role="menuitem">
+            <Icon name="logOut" size={16} />
+            <span>Keluar</span>
+          </button>
+        </div>
+        <div class="dropdown-backdrop" onclick={() => (showDropdown = false)}></div>
+      {/if}
+    </div>
   </div>
 
-  <div class="header-right">
+  <div class="chip-row mobile-only">
     {#if userRole === 'guru'}
-      <button
-        class="active-jenjang-badge {!activeJenjang ? 'pulse' : ''}"
-        onclick={onGantiJenjang}
-        aria-label="Ganti Jenjang"
-      >
-        <Icon name="grid" size={14} />
-        <span>{activeJenjang ? `Jenjang: ${activeJenjang}` : 'Pilih Jenjang'}</span>
-        <Icon name="chevronDown" size={14} />
+      <button class="filter-chip a" onclick={onGantiJenjang}>
+        <Icon name="grid" size={12} />
+        {activeJenjang ? activeJenjang : 'Pilih Jenjang'}
       </button>
     {/if}
     {#if activeTahun}
-      <button
-        class="active-jenjang-badge {!activeTahun ? 'pulse' : ''}"
-        onclick={onGantiTahun}
-        aria-label="Ganti Tahun Ajaran"
-        style="background-color: #dcfce7; color: #15803d; border-color: transparent;"
-      >
-        <Icon name="calendar" size={14} />
-        <span>{activeTahun}</span>
-        <Icon name="chevronDown" size={14} />
+      <button class="filter-chip b" onclick={onGantiTahun}>
+        <Icon name="calendar" size={12} />
+        {activeTahun}
       </button>
-    {/if}
-    <!-- svelte-ignore a11y-click-events-have-key-events -->
-    <!-- svelte-ignore a11y-interactive-supports-focus -->
-    <div class="user-profile" onclick={() => (showDropdown = !showDropdown)} role="button">
-      <div class="avatar">{userName.charAt(0).toUpperCase()}</div>
-      <div class="user-info">
-        <span class="user-name">{userName}</span>
-        <span class="user-role">{userRole}</span>
-      </div>
-      <Icon name="chevronDown" size={14} class="dropdown-arrow" />
-    </div>
-
-    {#if showDropdown}
-      <div class="dropdown-menu" role="menu">
-        <button class="dropdown-item logout" onclick={onLogout} role="menuitem">
-          <Icon name="logOut" size={16} />
-          <span>Keluar</span>
-        </button>
-      </div>
-      <div class="dropdown-backdrop" onclick={() => (showDropdown = false)}></div>
     {/if}
   </div>
 </header>
 
 <style>
   .header {
-    height: var(--header-height, 70px);
     background-color: var(--color-surface, #ffffff);
     border-bottom: 1px solid var(--color-border, #e2e8f0);
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     padding: 0 2rem;
     position: sticky;
     top: 0;
     z-index: 50;
+  }
+
+  .app-header-top {
+    height: var(--header-height, 70px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
   }
 
   .header-left {
@@ -110,22 +134,17 @@
 
   .page-title {
     font-size: 1.25rem;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--color-text-main, #1e293b);
     margin: 0;
+    letter-spacing: -0.01em;
   }
 
-  .active-year-badge {
-    background-color: var(--color-primary-light, #dcfce7);
-    color: var(--color-primary-dark, #15803d);
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
+  .desktop-badge {
+    display: flex;
   }
 
   .active-jenjang-badge {
-    display: flex;
     align-items: center;
     gap: 0.5rem;
     background-color: #eef2ff;
@@ -166,16 +185,16 @@
   }
 
   .avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: rgba(34, 197, 94, 0.1);
-    color: var(--color-primary, #22c55e);
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: linear-gradient(155deg, var(--color-primary, #22c55e), #15803d);
+    color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-weight: 700;
-    font-size: 1.2rem;
+    font-weight: 800;
+    font-size: 1.1rem;
   }
 
   .user-info {
@@ -249,19 +268,78 @@
     background: #fef2f2;
   }
 
+  .mobile-only {
+    display: none;
+  }
+
   @media (max-width: 768px) {
+    .desktop-only {
+      display: none !important;
+    }
+    .desktop-badge {
+      display: none !important;
+    }
+    .mobile-only {
+      display: flex;
+    }
     .user-info {
       display: none;
     }
     .header {
-      padding: 0 1rem;
+      padding: 0.5rem 1rem;
+      border-bottom: none;
+      background: rgba(248, 250, 252, 0.9);
+      backdrop-filter: blur(8px);
     }
-    .header-right {
-      gap: 0.5rem;
+    .app-header-top {
+      height: auto;
+      padding-bottom: 0.5rem;
     }
-    .active-jenjang-badge {
-      padding: 0.25rem 0.5rem;
-      font-size: 0.7rem;
+    .toggle-btn {
+      display: none !important;
+    }
+    .page-title {
+      font-size: 1.2rem;
+      max-width: none;
+    }
+    .header-left {
+      gap: 0.75rem;
+    }
+    
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .chip-row::-webkit-scrollbar {
+      display: none;
+    }
+    .filter-chip {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      border: none;
+      cursor: pointer;
+    }
+    .filter-chip.a {
+      background: #eef2ff;
+      color: #4f46e5;
+    }
+    .filter-chip.b {
+      background: var(--color-surface, #fff);
+      color: var(--color-text-main, #1e293b);
+      border: 1px solid var(--color-border, #e2e8f0);
     }
   }
 </style>
