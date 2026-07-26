@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { toastStore } from '$lib/toast.svelte.js';
+  import '$lib/components/guru/AlquranMobileUI.css';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   let profilData = $state(null);
@@ -97,7 +98,7 @@
   }
 </script>
 
-<div class="page-container">
+<div class="page-container desktop-only">
   <div class="header">
     <div class="title-group">
       <div class="icon-wrapper">
@@ -206,6 +207,114 @@
           </ul>
         </div>
       </div>
+    </div>
+  {/if}
+</div>
+
+<!-- TAMPILAN MOBILE: PROFIL -->
+<div class="mobile-app-ui sheet-page" style="padding-top: 0 !important; margin-bottom: 80px;">
+  <div class="mobile-app-header">
+    <h1 class="page-title">Profil Saya</h1>
+  </div>
+
+  {#if loading}
+    <div class="empty-state" style="border: none;">Memuat data...</div>
+  {:else if error}
+    <div class="empty-state" style="border: none; color: red;">{error}</div>
+  {:else if profilData}
+    <div class="mobile-cards-view" style="padding-bottom: 0;">
+      
+      <!-- Info Card -->
+      <div class="surah-card" style="margin-top: 0;">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);">
+          <div class="surah-no" style="background: #e0e7ff; color: #4f46e5;"><Icon name="user" size={14}/></div>
+          <div class="surah-name">Informasi Pribadi</div>
+        </div>
+        <div style="padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--muted);">Nama</span>
+            <span style="font-size: 14px; font-weight: 800; color: var(--text);">{profilData.nama_lengkap}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--muted);">NIK/NIP</span>
+            <span style="font-size: 14px; font-weight: 800; color: var(--text);">{profilData.nik || '-'}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--muted);">Email</span>
+            <span style="font-size: 14px; font-weight: 800; color: var(--text);">{profilData.user?.email || '-'}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--muted);">No HP</span>
+            <span style="font-size: 14px; font-weight: 800; color: var(--text);">{profilData.no_hp || '-'}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jadwal Card -->
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);">
+          <div class="surah-no" style="background: #e0f2fe; color: #0284c7;"><Icon name="clock" size={14}/></div>
+          <div class="surah-name">Jadwal Kerja</div>
+        </div>
+        <div style="padding: 12px 14px; display: flex; justify-content: space-around; text-align: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px;">Masuk</div>
+            <div style="font-size: 16px; font-weight: 800; color: var(--text);">{profilData.jam_masuk || '-'}</div>
+          </div>
+          <div style="width: 1px; background: var(--border);"></div>
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px;">Pulang</div>
+            <div style="font-size: 16px; font-weight: 800; color: var(--text);">{profilData.jam_pulang || '-'}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Fitur Card -->
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);">
+          <div class="surah-no" style="background: #dcfce7; color: #16a34a;"><Icon name="checkSquare" size={14}/></div>
+          <div class="surah-name">Hak Akses Anda</div>
+        </div>
+        <div style="padding: 12px 14px;">
+          {#each getFiturNames(profilData.akses_fitur) as fitur}
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <Icon name="check" size={14} color="#16a34a" />
+              <span style="font-size: 13px; font-weight: 600; color: var(--text);">{fiturLabels[fitur] || fitur}</span>
+            </div>
+          {:else}
+            <div style="font-size: 13px; color: var(--muted); text-align: center;">Belum ada hak akses khusus.</div>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Ganti Password Card -->
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);">
+          <div class="surah-no" style="background: #fee2e2; color: #ef4444;"><Icon name="lock" size={14}/></div>
+          <div class="surah-name">Ganti Password</div>
+        </div>
+        <div style="padding: 12px 14px;">
+          {#if passwordError}
+            <div style="font-size: 12px; color: #ef4444; margin-bottom: 8px;">{passwordError}</div>
+          {/if}
+          {#if passwordSuccess}
+            <div style="font-size: 12px; color: #16a34a; margin-bottom: 8px;">{passwordSuccess}</div>
+          {/if}
+
+          <input type="password" bind:value={passwordLama} placeholder="Password Lama" style="width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 13px; outline: none; background: var(--bg);" />
+          <input type="password" bind:value={passwordBaru} placeholder="Password Baru" style="width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 13px; outline: none; background: var(--bg);" />
+          <input type="password" bind:value={passwordKonfirmasi} placeholder="Konfirmasi Password Baru" style="width: 100%; border: 1.5px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 13px; outline: none; background: var(--bg);" />
+          
+          <button onclick={updatePassword} disabled={passwordLoading} style="width: 100%; background: #4f46e5; color: white; border: none; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            {#if passwordLoading}
+              <Icon name="loader" size={14} class="spin" /> Menyimpan...
+            {:else}
+              Simpan Password
+            {/if}
+          </button>
+        </div>
+      </div>
+
     </div>
   {/if}
 </div>

@@ -3,6 +3,7 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import BarChart from '$lib/components/charts/BarChart.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
+  import '$lib/components/guru/AlquranMobileUI.css';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -53,7 +54,9 @@
   });
 
   let isTahfizV2 = $derived(
-    guruState.activeSekolahId && guruState.aksesMap[guruState.activeSekolahId]?.includes('input_tahfiz_v2')
+    guruState.activeSekolahId && 
+    (guruState.aksesMap[guruState.activeSekolahId]?.includes('input_tahfiz_v2') || 
+     guruState.aksesMap[guruState.activeSekolahId]?.includes('paket_alquran'))
   );
 
   let globalAveragesArray = $derived([
@@ -256,7 +259,7 @@
   }
 </script>
 
-<div class="beranda-guru">
+<div class="beranda-guru desktop-only">
   {#if !selectedSekolah}
     <div class="empty-state">
       <Icon name="grid" size={48} />
@@ -416,6 +419,96 @@
           </div>
         {/if}
       {/if}
+    {/if}
+  {/if}
+</div>
+
+<!-- TAMPILAN MOBILE: BERANDA GURU -->
+<div class="mobile-app-ui sheet-page" style="padding-top: 0 !important; margin-bottom: 80px;">
+  <div class="mobile-app-header">
+    <h1 class="page-title">Beranda Guru</h1>
+    <div class="student-row" style="margin-top: 8px;">
+      <div class="student-avatar" style="background: linear-gradient(135deg, #10b981, #047857);">
+        {#if selectedSekolah}
+          {selectedSekolah.nama_sekolah.charAt(0)}
+        {:else}
+          -
+        {/if}
+      </div>
+      <div class="student-sub">
+        {#if selectedSekolah}
+          <b>{selectedSekolah.nama_sekolah}</b><br>Tahun Ajaran Aktif
+        {:else}
+          Pilih Jenjang Sekolah di Pojok Kanan Atas
+        {/if}
+      </div>
+    </div>
+    
+    {#if selectedSekolah && !loadingData}
+    <div class="stat-card">
+      <div class="stat-item">
+        <div class="stat-num">{dataSantri.length}</div>
+        <div class="stat-label">Santri Tahfiz</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">{dataDiniyah.length}</div>
+        <div class="stat-label">Santri Diniyah</div>
+      </div>
+    </div>
+    {/if}
+  </div>
+
+  {#if selectedSekolah}
+    {#if loadingData}
+      <div class="empty-state" style="margin-top: 1rem; border: none;">
+        Memuat data dashboard...
+      </div>
+    {:else}
+      <div class="mobile-cards-view" style="padding-bottom: 0;">
+        <div class="surah-card" style="margin-top: 0;">
+          <div class="surah-top" style="border-bottom: 1px solid var(--border);">
+            <div class="surah-no" style="background: #e0f2fe; color: #0284c7;"><Icon name="book" size={14}/></div>
+            <div class="surah-name">Statistik Tahfiz (Global)</div>
+          </div>
+          <div style="padding: 12px 14px;">
+            {#if dataSantri.length === 0}
+              <div style="font-size: 13px; color: var(--muted); text-align: center;">Belum ada data nilai tahfiz.</div>
+            {:else}
+              {#each globalAveragesArray as avg}
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--muted);">{avg.label}</span>
+                  <span style="font-size: 14px; font-weight: 800; color: var(--text);">{Math.round(avg.value)}</span>
+                </div>
+                <div style="width: 100%; background: var(--border); height: 6px; border-radius: 4px; margin-bottom: 12px; overflow: hidden;">
+                  <div style="height: 100%; background: var(--primary); border-radius: 4px; width: {Math.round(avg.value)}%;"></div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        <div class="surah-card">
+          <div class="surah-top" style="border-bottom: 1px solid var(--border);">
+            <div class="surah-no" style="background: #dcfce7; color: #16a34a;"><Icon name="bookOpen" size={14}/></div>
+            <div class="surah-name">Statistik Diniyah</div>
+          </div>
+          <div style="padding: 12px 14px;">
+            {#if dataDiniyah.length === 0}
+              <div style="font-size: 13px; color: var(--muted); text-align: center;">Belum ada data nilai diniyah.</div>
+            {:else}
+              {#each diniyahChartData() as dChart (dChart.label)}
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--muted);">{dChart.label}</span>
+                  <span style="font-size: 14px; font-weight: 800; color: var(--text);">{Math.round(dChart.value)}</span>
+                </div>
+                <div style="width: 100%; background: var(--border); height: 6px; border-radius: 4px; margin-bottom: 12px; overflow: hidden;">
+                  <div style="height: 100%; background: #10b981; border-radius: 4px; width: {Math.round(dChart.value)}%;"></div>
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+      </div>
     {/if}
   {/if}
 </div>

@@ -10,6 +10,7 @@ import (
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
+	"siakad-nawawi-be/internal/cache"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -127,11 +128,20 @@ func UpdateSekolahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheKey := "sekolah_" + id
+	cache.Instance.Delete(cacheKey)
+
 	response.Success(w, "Berhasil diupdate")
 }
 func GetSekolahByIDHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
+
+	cacheKey := "sekolah_" + id
+	if cachedData, found := cache.Instance.Get(cacheKey); found {
+		response.JSON(w, http.StatusOK, cachedData)
+		return
+	}
 
 	var sekolah models.Sekolah
 	if err := database.DB.WithContext(r.Context()).First(&sekolah, id).Error; err != nil {
@@ -142,6 +152,8 @@ func GetSekolahByIDHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data sekolah", err)
 		return
 	}
+
+	cache.Instance.SetDefault(cacheKey, sekolah)
 
 	response.JSON(w, http.StatusOK, sekolah)
 }

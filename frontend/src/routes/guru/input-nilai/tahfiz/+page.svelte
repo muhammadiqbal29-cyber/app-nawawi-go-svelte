@@ -2,12 +2,22 @@
   import InputNilai from '$lib/components/guru/InputNilai.svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
+  import { goto } from '$app/navigation';
 
   let hasAccess = $derived(
     guruState.activeSekolahId &&
       guruState.aksesMap[guruState.activeSekolahId] &&
       (guruState.aksesMap[guruState.activeSekolahId].includes('input_tahfiz') || guruState.aksesMap[guruState.activeSekolahId].includes('paket_alquran'))
   );
+
+  $effect(() => {
+    if (guruState.activeSekolahId && !hasAccess) {
+      const akses = guruState.aksesMap[guruState.activeSekolahId] || [];
+      if (akses.includes('input_tahfiz_v2')) {
+        goto('/guru/input-nilai/tahfiz-v2', { replaceState: true });
+      }
+    }
+  });
 </script>
 
 {#if !guruState.activeSekolahId}

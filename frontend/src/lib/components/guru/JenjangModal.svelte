@@ -1,6 +1,9 @@
 <script>
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { get } from 'svelte/store';
 
   function selectSekolah(sekolah) {
     guruState.activeSekolahId = sekolah.id;
@@ -10,11 +13,21 @@
       localStorage.setItem('siakad_active_sekolah_id', sekolah.id);
       localStorage.setItem('siakad_active_sekolah_name', sekolah.nama_sekolah);
     }
+
+    // Jika user sedang berada di halaman detail yang terikat pada sekolah_id lama di URL
+    const currentPage = get(page);
+    const urlSekolahId = currentPage.url.searchParams.get('sekolah_id');
+    if (urlSekolahId && urlSekolahId !== String(sekolah.id)) {
+      // Redirect ke dashboard agar tidak nyangkut di kelas/siswa dari jenjang sebelumnya
+      goto('/guru');
+    }
   }
 </script>
 
 {#if guruState.showJenjangModal}
-  <div class="modal-backdrop">
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="modal-backdrop" onclick={(e) => { if (e.target === e.currentTarget) guruState.showJenjangModal = false; }}>
     <div class="modal-card">
       <div class="modal-header">
         <div class="icon-circle">

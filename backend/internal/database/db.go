@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -24,9 +26,21 @@ func InitDB() {
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local&multiStatements=true", dbUser, dbPass, dbHost, dbPort, dbName)
 
+	gormConfig := &gorm.Config{
+		Logger: gormlogger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags),
+			gormlogger.Config{
+				SlowThreshold:             200 * time.Millisecond,
+				LogLevel:                  gormlogger.Warn,
+				IgnoreRecordNotFoundError: true,
+				Colorful:                  false,
+			},
+		),
+	}
+
 	var err error
 	for i := 1; i <= 10; i++ {
-		DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		DB, err = gorm.Open(mysql.Open(dsn), gormConfig)
 		if err == nil {
 			break
 		}

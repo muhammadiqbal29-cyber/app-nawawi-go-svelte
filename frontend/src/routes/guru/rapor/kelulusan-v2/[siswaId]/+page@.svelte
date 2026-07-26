@@ -244,6 +244,10 @@
     goto(`/guru/rapor/kelulusan-v2?${params.toString()}`);
   }
 </script>
+<svelte:head>
+  <meta name="viewport" content="width=850, user-scalable=yes">
+</svelte:head>
+
 
 <div class="no-print controls">
   <button class="btn-secondary" onclick={goBack}>
@@ -852,10 +856,5 @@
     }
   }
 
-  @media screen and (max-width: 900px) {
-    .page {
-      margin-left: 1rem;
-      margin-right: 1rem;
-    }
-  }
+  
 </style>

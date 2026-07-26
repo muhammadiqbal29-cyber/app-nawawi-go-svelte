@@ -1009,12 +1009,7 @@
     }
   }
 
-  @media screen and (max-width: 900px) {
-    .page {
-      margin-left: 1rem;
-      margin-right: 1rem;
-    }
-  }
+  
   @page {
     size: A4 portrait;
     margin: 1cm;

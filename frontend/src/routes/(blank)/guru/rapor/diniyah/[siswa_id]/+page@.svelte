@@ -876,4 +876,5 @@
     max-width: 400px;
     margin: 100px auto;
   }
+
 </style>

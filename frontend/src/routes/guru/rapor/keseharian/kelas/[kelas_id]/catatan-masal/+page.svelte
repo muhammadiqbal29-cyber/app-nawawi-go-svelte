@@ -581,6 +581,27 @@
     .student-info-group {
       margin-bottom: 0.5rem;
     }
+    
+    .selected-header {
+      flex-direction: column;
+      align-items: stretch !important;
+      gap: 1rem;
+      padding: 1rem !important;
+    }
+    .selected-header > div {
+      flex-direction: column;
+      align-items: stretch !important;
+      gap: 0.75rem !important;
+      width: 100%;
+    }
+    .selected-kelas {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn-back, .btn-catatan-masal, .btn-print-masal {
+      width: 100%;
+      justify-content: center;
+    }
   }
 </style>
 

@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NYTimes/gziphandler"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"siakad-nawawi-be/internal/auth"
@@ -362,8 +363,9 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/dashboard/diniyah", guru.GetDashboardDiniyahHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/rapor-logo", sekolah.UpdateRaporLogoHandler).Methods("PUT")
 	
-	// Terapkan CORS
+	// Terapkan CORS dan Gzip Compression
 	handler := HandleCORS(r)
+	handler = gziphandler.GzipHandler(handler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -4,7 +4,8 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
-  
+  import '$lib/components/guru/AlquranMobileUI.css';
+
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   // --- Derived State: Sekolah Terpilih ---
@@ -100,7 +101,7 @@
   let diniyahKonfigurasiSuccess = $state('');
 
   // --- State: Keseharian ---
-  
+
   let keseharianKriteriaPenilaian = $state([]);
   let keseharianKonfigurasiLoading = $state(false);
   let keseharianKonfigurasiSaving = $state(false);
@@ -637,7 +638,10 @@
   }
 
   function tambahKriteriaDiniyah() {
-    diniyahKriteriaPenilaian = [...diniyahKriteriaPenilaian, { min: 0, max: 0, arab: '', indo: '' }];
+    diniyahKriteriaPenilaian = [
+      ...diniyahKriteriaPenilaian,
+      { min: 0, max: 0, arab: '', indo: '' }
+    ];
   }
 
   function hapusKriteriaDiniyah(index) {
@@ -1317,7 +1321,7 @@
   <title>Konfigurasi Materi - SIAKAD</title>
 </svelte:head>
 
-<div class="page-container">
+<div class="page-container desktop-only">
   <!-- Pilih Sekolah via Layout -->
   {#if !selectedSekolah}
     <div class="empty-state">
@@ -1390,21 +1394,24 @@
         <!-- ======= TAB TAHFIZ (konten lama) ======= -->
 
         <!-- Sub-tabs for Tahfiz -->
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.35rem; border-radius: 999px; max-width: 750px;">
+        <div class="card-tabs">
           <button
-            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {tahfizActiveTab === 'materi' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            class="card-tab-btn"
+            class:active={tahfizActiveTab === 'materi'}
             onclick={() => (tahfizActiveTab = 'materi')}
           >
             Daftar Materi Hafalan
           </button>
           <button
-            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {tahfizActiveTab === 'kelulusan' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            class="card-tab-btn"
+            class:active={tahfizActiveTab === 'kelulusan'}
             onclick={() => (tahfizActiveTab = 'kelulusan')}
           >
             Konfigurasi Nilai Kelulusan
           </button>
           <button
-            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {tahfizActiveTab === 'kriteria' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            class="card-tab-btn"
+            class:active={tahfizActiveTab === 'kriteria'}
             onclick={() => (tahfizActiveTab = 'kriteria')}
           >
             Kriteria Penilaian
@@ -1412,365 +1419,380 @@
         </div>
 
         {#if tahfizActiveTab === 'materi'}
-        <!-- Toolbar -->
-        <div class="toolbar">
-          <span class="materi-count">
-            {materiList.length} materi terdaftar ({materiList.filter((m) => m.aktif).length} aktif)
-          </span>
-          <div class="toolbar-actions" style="display: flex; gap: 8px;">
-            <button class="btn-secondary" onclick={handleDownloadTemplateTahfiz}>
-              <Icon name="download" size={16} />
-              Template
-            </button>
-            <button
-              class="btn-secondary"
-              onclick={() => fileInputTahfiz.click()}
-              disabled={loadingImportTahfiz}
-            >
-              <Icon name="import" size={16} />
-              {loadingImportTahfiz ? 'Mengimport...' : 'Import'}
-            </button>
-            <input
-              type="file"
-              accept=".xlsx"
-              bind:this={fileInputTahfiz}
-              onchange={handleImportTahfiz}
-              style="display: none;"
-            />
-            <button class="btn-primary" onclick={() => (showForm = !showForm)}>
-              <Icon name="plus" size={16} />
-              Tambah Materi
-            </button>
-          </div>
-        </div>
-
-        <!-- Form tambah -->
-        {#if showForm}
-          <div class="form-card">
-            <h3 class="form-title">Tambah Materi Baru</h3>
-            {#if formError}
-              <div class="alert-error">{formError}</div>
-            {/if}
-            <div class="form-row">
-              <div class="form-group form-group-wide">
-                <label for="form-nama">Nama Materi <span class="required">*</span></label>
-                <input
-                  id="form-nama"
-                  type="text"
-                  placeholder="contoh: An-Naba, Halaman 201-205"
-                  bind:value={formNama}
-                  class="input"
-                />
-              </div>
-              <div class="form-group">
-                <label for="form-juz">Juz</label>
-                <input
-                  id="form-juz"
-                  type="number"
-                  min="0"
-                  max="30"
-                  placeholder="0"
-                  bind:value={formJuz}
-                  class="input"
-                />
-              </div>
-              <div class="form-group">
-                <label for="form-urutan">Urutan</label>
-                <input
-                  id="form-urutan"
-                  type="number"
-                  min="1"
-                  placeholder="Otomatis"
-                  bind:value={formUrutan}
-                  class="input"
-                />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="btn-secondary" onclick={batalForm} disabled={formLoading}>Batal</button
+          <!-- Toolbar -->
+          <div class="toolbar">
+            <span class="materi-count">
+              {materiList.length} materi terdaftar ({materiList.filter((m) => m.aktif).length} aktif)
+            </span>
+            <div class="toolbar-actions" style="display: flex; gap: 8px;">
+              <button class="btn-secondary" onclick={handleDownloadTemplateTahfiz}>
+                <Icon name="download" size={16} />
+                Template
+              </button>
+              <button
+                class="btn-secondary"
+                onclick={() => fileInputTahfiz.click()}
+                disabled={loadingImportTahfiz}
               >
-              <button class="btn-primary" onclick={tambahMateri} disabled={formLoading}>
-                {formLoading ? 'Menyimpan...' : 'Simpan Materi'}
+                <Icon name="import" size={16} />
+                {loadingImportTahfiz ? 'Mengimport...' : 'Import'}
+              </button>
+              <input
+                type="file"
+                accept=".xlsx"
+                bind:this={fileInputTahfiz}
+                onchange={handleImportTahfiz}
+                style="display: none;"
+              />
+              <button class="btn-primary" onclick={() => (showForm = !showForm)}>
+                <Icon name="plus" size={16} />
+                Tambah Materi
               </button>
             </div>
           </div>
-        {/if}
 
-        {#if errorMateri}
-          <div class="alert-error">{errorMateri}</div>
-        {/if}
+          <!-- Form tambah -->
+          {#if showForm}
+            <div class="form-card">
+              <h3 class="form-title">Tambah Materi Baru</h3>
+              {#if formError}
+                <div class="alert-error">{formError}</div>
+              {/if}
+              <div class="form-row">
+                <div class="form-group form-group-wide">
+                  <label for="form-nama">Nama Materi <span class="required">*</span></label>
+                  <input
+                    id="form-nama"
+                    type="text"
+                    placeholder="contoh: An-Naba, Halaman 201-205"
+                    bind:value={formNama}
+                    class="input"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="form-juz">Juz</label>
+                  <input
+                    id="form-juz"
+                    type="number"
+                    min="0"
+                    max="30"
+                    placeholder="0"
+                    bind:value={formJuz}
+                    class="input"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="form-urutan">Urutan</label>
+                  <input
+                    id="form-urutan"
+                    type="number"
+                    min="1"
+                    placeholder="Otomatis"
+                    bind:value={formUrutan}
+                    class="input"
+                  />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="btn-secondary" onclick={batalForm} disabled={formLoading}
+                  >Batal</button
+                >
+                <button class="btn-primary" onclick={tambahMateri} disabled={formLoading}>
+                  {formLoading ? 'Menyimpan...' : 'Simpan Materi'}
+                </button>
+              </div>
+            </div>
+          {/if}
 
-        <!-- Tabel materi -->
-        {#if loadingMateri}
-          <div class="card-loading">Memuat daftar materi...</div>
-        {:else if materiList.length === 0}
-          <div class="empty-state">
-            <Icon name="list" size={48} />
-            <h3>Belum ada materi</h3>
-            <p>Tambahkan materi tahfiz agar guru dapat mulai menginput nilai.</p>
-            <button class="btn-primary" onclick={() => (showForm = true)}>
-              <Icon name="plus" size={16} /> Tambah Materi Pertama
-            </button>
-          </div>
-        {:else}
-          <div class="table-wrapper">
-            <table class="materi-table">
-              <thead>
-                <tr>
-                  <th class="col-urutan">Urutan</th>
-                  <th class="col-nama">Nama Materi</th>
-                  <th class="col-juz">Juz</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-aksi">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each materiList as materi (materi.id)}
-                  <tr class:row-nonaktif={!materi.aktif}>
-                    {#if editingId === materi.id}
-                      <!-- Edit mode -->
-                      <td>
-                        <input
-                          type="number"
-                          min="1"
-                          bind:value={editUrutan}
-                          class="input-inline"
-                          placeholder="—"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          bind:value={editNama}
-                          class="input-inline input-wide"
-                          placeholder="Nama materi"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min="0"
-                          max="30"
-                          bind:value={editJuz}
-                          class="input-inline"
-                          placeholder="0"
-                        />
-                      </td>
-                      <td>—</td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-save"
-                          onclick={() => simpanEdit(materi)}
-                          disabled={editLoading}
-                        >
-                          {editLoading ? '...' : 'Simpan'}
-                        </button>
-                        <button class="btn-cancel" onclick={cancelEdit}>Batal</button>
-                      </td>
-                    {:else}
-                      <!-- Tampil normal -->
-                      <td class="text-center text-muted">{materi.urutan || '—'}</td>
-                      <td class="nama-cell">
-                        <span class:text-muted={!materi.aktif}>{materi.nama_materi}</span>
-                      </td>
-                      <td class="text-center">
-                        {materi.juz > 0 ? `Juz ${materi.juz}` : '—'}
-                      </td>
-                      <td class="text-center">
-                        <button
-                          class="toggle-btn"
-                          class:aktif={materi.aktif}
-                          class:nonaktif={!materi.aktif}
-                          onclick={() => toggleAktif(materi)}
-                          title={materi.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
-                        >
-                          {materi.aktif ? 'Aktif' : 'Nonaktif'}
-                        </button>
-                      </td>
-                      <td class="aksi-cell">
-                        <button class="btn-icon" title="Edit" onclick={() => startEdit(materi)}>
-                          <Icon name="edit2" size={15} />
-                        </button>
-                        <button
-                          class="btn-icon btn-icon-danger"
-                          title="Hapus"
-                          onclick={() => hapusMateri(materi.id)}
-                          disabled={deletingId === materi.id}
-                        >
-                          <Icon name="trash" size={15} />
-                        </button>
-                      </td>
-                    {/if}
+          {#if errorMateri}
+            <div class="alert-error">{errorMateri}</div>
+          {/if}
+
+          <!-- Tabel materi -->
+          {#if loadingMateri}
+            <div class="card-loading">Memuat daftar materi...</div>
+          {:else if materiList.length === 0}
+            <div class="empty-state">
+              <Icon name="list" size={48} />
+              <h3>Belum ada materi</h3>
+              <p>Tambahkan materi tahfiz agar guru dapat mulai menginput nilai.</p>
+              <button class="btn-primary" onclick={() => (showForm = true)}>
+                <Icon name="plus" size={16} /> Tambah Materi Pertama
+              </button>
+            </div>
+          {:else}
+            <div class="table-wrapper">
+              <table class="materi-table">
+                <thead>
+                  <tr>
+                    <th class="col-urutan">Urutan</th>
+                    <th class="col-nama">Nama Materi</th>
+                    <th class="col-juz">Juz</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
                   </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
+                </thead>
+                <tbody>
+                  {#each materiList as materi (materi.id)}
+                    <tr class:row-nonaktif={!materi.aktif}>
+                      {#if editingId === materi.id}
+                        <!-- Edit mode -->
+                        <td>
+                          <input
+                            type="number"
+                            min="1"
+                            bind:value={editUrutan}
+                            class="input-inline"
+                            placeholder="—"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            bind:value={editNama}
+                            class="input-inline input-wide"
+                            placeholder="Nama materi"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            max="30"
+                            bind:value={editJuz}
+                            class="input-inline"
+                            placeholder="0"
+                          />
+                        </td>
+                        <td>—</td>
+                        <td class="aksi-cell">
+                          <button
+                            class="btn-save"
+                            onclick={() => simpanEdit(materi)}
+                            disabled={editLoading}
+                          >
+                            {editLoading ? '...' : 'Simpan'}
+                          </button>
+                          <button class="btn-cancel" onclick={cancelEdit}>Batal</button>
+                        </td>
+                      {:else}
+                        <!-- Tampil normal -->
+                        <td class="text-center text-muted">{materi.urutan || '—'}</td>
+                        <td class="nama-cell">
+                          <span class:text-muted={!materi.aktif}>{materi.nama_materi}</span>
+                        </td>
+                        <td class="text-center">
+                          {materi.juz > 0 ? `Juz ${materi.juz}` : '—'}
+                        </td>
+                        <td class="text-center">
+                          <button
+                            class="toggle-btn"
+                            class:aktif={materi.aktif}
+                            class:nonaktif={!materi.aktif}
+                            onclick={() => toggleAktif(materi)}
+                            title={materi.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                          >
+                            {materi.aktif ? 'Aktif' : 'Nonaktif'}
+                          </button>
+                        </td>
+                        <td class="aksi-cell">
+                          <button class="btn-icon" title="Edit" onclick={() => startEdit(materi)}>
+                            <Icon name="edit2" size={15} />
+                          </button>
+                          <button
+                            class="btn-icon btn-icon-danger"
+                            title="Hapus"
+                            onclick={() => hapusMateri(materi.id)}
+                            disabled={deletingId === materi.id}
+                          >
+                            <Icon name="trash" size={15} />
+                          </button>
+                        </td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
         {/if}
 
         {#if tahfizActiveTab === 'kelulusan'}
-        <section class="kelulusan-settings">
-          <div class="settings-header">
-            <div>
-              <h2 class="settings-title">Pengaturan Ujian Kelulusan</h2>
-              <p class="settings-subtitle">Nilai akhir otomatis dihitung dari rata-rata seluruh materi yang dikonfigurasi pada sistem.</p>
+          <section class="kelulusan-settings">
+            <div class="settings-header">
+              <div>
+                <h2 class="settings-title">Pengaturan Ujian Kelulusan</h2>
+                <p class="settings-subtitle">
+                  Nilai akhir otomatis dihitung dari rata-rata seluruh materi yang dikonfigurasi
+                  pada sistem.
+                </p>
+              </div>
             </div>
-          </div>
 
-          {#if konfigurasiError}
-            <div class="alert-error">{konfigurasiError}</div>
-          {/if}
-          {#if konfigurasiSuccess}
-            <div class="alert-success">{konfigurasiSuccess}</div>
-          {/if}
+            {#if konfigurasiError}
+              <div class="alert-error">{konfigurasiError}</div>
+            {/if}
+            {#if konfigurasiSuccess}
+              <div class="alert-success">{konfigurasiSuccess}</div>
+            {/if}
 
-          <div class="settings-class-block">
-            <div class="settings-class-header">
-              <div class="settings-class-label">Tingkat kelas yang mengikuti ujian kelulusan</div>
+            <div class="settings-class-block">
+              <div class="settings-class-header">
+                <div class="settings-class-label">Tingkat kelas yang mengikuti ujian kelulusan</div>
+                <button
+                  class="btn-primary"
+                  onclick={simpanKonfigurasiNilaiTahfiz}
+                  disabled={loadingKonfigurasi || konfigurasiSaving}
+                >
+                  {konfigurasiSaving ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+              {#if kelasKelulusanOptions.length === 0}
+                <div class="settings-note">
+                  Belum ada kelas yang bisa dipilih untuk sekolah ini.
+                </div>
+              {:else}
+                <div class="level-options">
+                  {#each kelasKelulusanOptions as option (option.level)}
+                    <label class="level-option">
+                      <input
+                        type="checkbox"
+                        checked={selectedTingkatKelulusan.includes(option.level)}
+                        onchange={() => toggleTingkatKelulusan(option.level)}
+                        disabled={loadingKonfigurasi || konfigurasiSaving}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            <p class="settings-note">
+              Hanya berlaku untuk nilai yang belum tersimpan. Nilai yang sudah ada tidak akan
+              berubah.
+            </p>
+          </section>
+        {/if}
+
+        {#if tahfizActiveTab === 'kriteria'}
+          <section class="kelulusan-settings">
+            <div class="settings-header">
+              <div>
+                <h2 class="settings-title">Kriteria Penilaian Rapor</h2>
+                <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Istimewa)</p>
+              </div>
+            </div>
+
+            {#if konfigurasiError}
+              <div class="alert-error">{konfigurasiError}</div>
+            {/if}
+            {#if konfigurasiSuccess}
+              <div class="alert-success">{konfigurasiSuccess}</div>
+            {/if}
+
+            <div class="settings-kriteria-block" style="margin-top: 1rem;">
+              <div class="settings-kriteria-header">
+                <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
+                <button
+                  class="btn-secondary btn-sm"
+                  onclick={tambahKriteria}
+                  disabled={loadingKonfigurasi || konfigurasiSaving}
+                >
+                  <Icon name="plus" size={14} /> Tambah
+                </button>
+              </div>
+
+              <div class="kriteria-list">
+                {#each kriteriaPenilaian as kriteria, index (kriteria.id || index)}
+                  <div class="kriteria-row">
+                    <div class="form-group">
+                      <label>Batas Bawah</label>
+                      <input
+                        type="number"
+                        class="input"
+                        bind:value={kriteria.min}
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label>Batas Atas</label>
+                      <input
+                        type="number"
+                        class="input"
+                        bind:value={kriteria.max}
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div class="form-group kriteria-arab">
+                      <label>Predikat Arab</label>
+                      <input
+                        type="text"
+                        class="input"
+                        bind:value={kriteria.arab}
+                        placeholder="مُمْتَاز"
+                        dir="rtl"
+                      />
+                    </div>
+                    <div class="form-group kriteria-indo">
+                      <label>Predikat Indonesia</label>
+                      <input
+                        type="text"
+                        class="input"
+                        bind:value={kriteria.indo}
+                        placeholder="Istimewa"
+                      />
+                    </div>
+                    <button
+                      class="btn-icon btn-icon-danger kriteria-hapus"
+                      onclick={() => hapusKriteria(index)}
+                      title="Hapus Kriteria"
+                    >
+                      <Icon name="trash" size={16} />
+                    </button>
+                  </div>
+                {/each}
+                {#if kriteriaPenilaian.length === 0}
+                  <div class="settings-note">
+                    Belum ada kriteria penilaian. Klik Tambah untuk membuat.
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <div style="margin-top: 1.5rem;">
               <button
                 class="btn-primary"
                 onclick={simpanKonfigurasiNilaiTahfiz}
                 disabled={loadingKonfigurasi || konfigurasiSaving}
               >
-                {konfigurasiSaving ? 'Menyimpan...' : 'Simpan'}
+                {konfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
               </button>
             </div>
-            {#if kelasKelulusanOptions.length === 0}
-              <div class="settings-note">Belum ada kelas yang bisa dipilih untuk sekolah ini.</div>
-            {:else}
-              <div class="level-options">
-                {#each kelasKelulusanOptions as option (option.level)}
-                  <label class="level-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedTingkatKelulusan.includes(option.level)}
-                      onchange={() => toggleTingkatKelulusan(option.level)}
-                      disabled={loadingKonfigurasi || konfigurasiSaving}
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                {/each}
-              </div>
-            {/if}
-          </div>
-          
-          <p class="settings-note">
-            Hanya berlaku untuk nilai yang belum tersimpan. Nilai yang sudah ada tidak akan berubah.
-          </p>
-        </section>
-        {/if}
-
-        {#if tahfizActiveTab === 'kriteria'}
-        <section class="kelulusan-settings">
-          <div class="settings-header">
-            <div>
-              <h2 class="settings-title">Kriteria Penilaian Rapor</h2>
-              <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Istimewa)</p>
-            </div>
-          </div>
-          
-          {#if konfigurasiError}
-            <div class="alert-error">{konfigurasiError}</div>
-          {/if}
-          {#if konfigurasiSuccess}
-            <div class="alert-success">{konfigurasiSuccess}</div>
-          {/if}
-
-          <div class="settings-kriteria-block" style="margin-top: 1rem;">
-            <div class="settings-kriteria-header">
-              <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
-              <button
-                class="btn-secondary btn-sm"
-                onclick={tambahKriteria}
-                disabled={loadingKonfigurasi || konfigurasiSaving}
-              >
-                <Icon name="plus" size={14} /> Tambah
-              </button>
-            </div>
-
-            <div class="kriteria-list">
-              {#each kriteriaPenilaian as kriteria, index (kriteria.id || index)}
-                <div class="kriteria-row">
-                  <div class="form-group">
-                    <label>Batas Bawah</label>
-                    <input
-                      type="number"
-                      class="input"
-                      bind:value={kriteria.min}
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Batas Atas</label>
-                    <input
-                      type="number"
-                      class="input"
-                      bind:value={kriteria.max}
-                      min="0"
-                      max="100"
-                    />
-                  </div>
-                  <div class="form-group kriteria-arab">
-                    <label>Predikat Arab</label>
-                    <input
-                      type="text"
-                      class="input"
-                      bind:value={kriteria.arab}
-                      placeholder="مُمْتَاز"
-                      dir="rtl"
-                    />
-                  </div>
-                  <div class="form-group kriteria-indo">
-                    <label>Predikat Indonesia</label>
-                    <input
-                      type="text"
-                      class="input"
-                      bind:value={kriteria.indo}
-                      placeholder="Istimewa"
-                    />
-                  </div>
-                  <button
-                    class="btn-icon btn-icon-danger kriteria-hapus"
-                    onclick={() => hapusKriteria(index)}
-                    title="Hapus Kriteria"
-                  >
-                    <Icon name="trash" size={16} />
-                  </button>
-                </div>
-              {/each}
-              {#if kriteriaPenilaian.length === 0}
-                <div class="settings-note">
-                  Belum ada kriteria penilaian. Klik Tambah untuk membuat.
-                </div>
-              {/if}
-            </div>
-          </div>
-          
-          <div style="margin-top: 1.5rem;">
-            <button
-              class="btn-primary"
-              onclick={simpanKonfigurasiNilaiTahfiz}
-              disabled={loadingKonfigurasi || konfigurasiSaving}
-            >
-              {konfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
-            </button>
-          </div>
-        </section>
+          </section>
         {/if}
         <!-- ======= END TAB TAHFIZ ======= -->
       {:else if activeTab === 'diniyah' && hasDiniyah}
         <!-- ======= TAB DINIYAH ======= -->
-        <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.35rem; border-radius: 999px; max-width: 750px;">
+        <div
+          style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.35rem; border-radius: 999px; max-width: 750px;"
+        >
           <button
-            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {diniyahActiveTab === 'mapel' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {diniyahActiveTab ===
+            'mapel'
+              ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
+              : 'background: transparent; color: #64748b;'}"
             onclick={() => (diniyahActiveTab = 'mapel')}
           >
             Daftar Mapel
           </button>
           <button
-            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {diniyahActiveTab === 'kriteria' ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);' : 'background: transparent; color: #64748b;'}"
+            style="flex: 1; border-radius: 999px; padding: 0.5rem 1rem; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; {diniyahActiveTab ===
+            'kriteria'
+              ? 'background: #10b981; color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'
+              : 'background: transparent; color: #64748b;'}"
             onclick={() => (diniyahActiveTab = 'kriteria')}
           >
             Kriteria Penilaian
@@ -1778,882 +1800,981 @@
         </div>
 
         {#if diniyahActiveTab === 'mapel'}
-        <div class="toolbar">
-          <span class="materi-count">
-            {diniyahList.length} mapel terdaftar ({diniyahList.filter((m) => m.aktif).length} aktif)
-          </span>
-          <button class="btn-primary" onclick={() => (showDiniyahForm = !showDiniyahForm)}>
-            <Icon name="plus" size={16} />
-            Tambah Mapel
-          </button>
-        </div>
-
-        {#if showDiniyahForm}
-          <div class="form-card">
-            <h3 class="form-title">Tambah Mapel Diniyah Baru</h3>
-            {#if diniyahFormError}
-              <div class="alert-error">{diniyahFormError}</div>
-            {/if}
-            <div class="form-row">
-              <div class="form-group form-group-wide">
-                <label for="diniyah-nama">Nama Mapel (Latin) <span class="required">*</span></label>
-                <input
-                  id="diniyah-nama"
-                  type="text"
-                  placeholder="contoh: KHUDZ AQIDATAKA"
-                  bind:value={diniyahFormNama}
-                  class="input"
-                />
-              </div>
-              <div class="form-group form-group-wide">
-                <div
-                  style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;"
-                >
-                  <label for="diniyah-arab" style="margin-bottom: 0;">Nama Mapel (Arab)</label>
-                  <button
-                    type="button"
-                    class="btn-secondary btn-sm"
-                    style="padding: 0.2rem 0.5rem; font-size: 0.75rem;"
-                    onclick={translateDiniyahForm}
-                    disabled={isTranslatingDiniyahForm || !diniyahFormNama.trim()}
-                    title="Terjemahkan otomatis dari Latin"
-                  >
-                    <Icon name="refreshCw" size={12} />
-                    {isTranslatingDiniyahForm ? 'Menerjemahkan...' : 'Translate'}
-                  </button>
-                </div>
-                <input
-                  id="diniyah-arab"
-                  type="text"
-                  placeholder="contoh: خذ عقيدتك"
-                  bind:value={diniyahFormNamaArab}
-                  class="input input-arab"
-                  dir="rtl"
-                />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="diniyah-kategori">Kategori</label>
-                <select id="diniyah-kategori" bind:value={diniyahFormKategori} class="input">
-                  <option value="tes_tulis">Tes Tulis</option>
-                  <option value="tes_lisan">Tes Lisan</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="diniyah-urutan">Urutan</label>
-                <input
-                  id="diniyah-urutan"
-                  type="number"
-                  min="1"
-                  placeholder="Otomatis"
-                  bind:value={diniyahFormUrutan}
-                  class="input"
-                />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button class="btn-secondary" onclick={batalDiniyahForm} disabled={diniyahFormLoading}
-                >Batal</button
-              >
-              <button class="btn-primary" onclick={tambahDiniyah} disabled={diniyahFormLoading}>
-                {diniyahFormLoading ? 'Menyimpan...' : 'Simpan Mapel'}
-              </button>
-            </div>
-          </div>
-        {/if}
-
-        {#if errorDiniyah}
-          <div class="alert-error">{errorDiniyah}</div>
-        {/if}
-
-        {#if loadingDiniyah}
-          <div class="card-loading">Memuat daftar mapel diniyah...</div>
-        {:else if diniyahList.length === 0}
-          <div class="empty-state">
-            <Icon name="book" size={48} />
-            <h3>Belum ada mapel diniyah</h3>
-            <p>Tambahkan mapel diniyah agar guru dapat mulai menginput nilai.</p>
-            <button class="btn-primary" onclick={() => (showDiniyahForm = true)}>
-              <Icon name="plus" size={16} /> Tambah Mapel Pertama
+          <div class="toolbar">
+            <span class="materi-count">
+              {diniyahList.length} mapel terdaftar ({diniyahList.filter((m) => m.aktif).length} aktif)
+            </span>
+            <button class="btn-primary" onclick={() => (showDiniyahForm = !showDiniyahForm)}>
+              <Icon name="plus" size={16} />
+              Tambah Mapel
             </button>
           </div>
-        {:else}
-          <div class="table-wrapper">
-            <table class="materi-table">
-              <thead>
-                <tr>
-                  <th class="col-urutan">Urutan</th>
-                  <th class="col-nama">Nama Mapel</th>
-                  <th class="col-nama">Nama Arab</th>
-                  <th class="col-juz">Kategori</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-aksi">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each diniyahList as mapel (mapel.id)}
-                  <tr class:row-nonaktif={!mapel.aktif}>
-                    {#if diniyahEditingId === mapel.id}
-                      <td
-                        ><input
-                          type="number"
-                          min="1"
-                          bind:value={diniyahEditUrutan}
-                          class="input-inline"
-                          placeholder="—"
-                        /></td
-                      >
-                      <td
-                        ><input
-                          type="text"
-                          bind:value={diniyahEditNama}
-                          class="input-inline input-wide"
-                          placeholder="Nama mapel"
-                        /></td
-                      >
-                      <td
-                        ><input
-                          type="text"
-                          bind:value={diniyahEditNamaArab}
-                          class="input-inline input-wide input-arab"
-                          dir="rtl"
-                          placeholder="Nama arab"
-                        /></td
-                      >
-                      <td>
-                        <select bind:value={diniyahEditKategori} class="input-inline">
-                          <option value="tes_tulis">Tes Tulis</option>
-                          <option value="tes_lisan">Tes Lisan</option>
-                        </select>
-                      </td>
-                      <td>—</td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-save"
-                          onclick={() => simpanDiniyahEdit(mapel)}
-                          disabled={diniyahEditLoading}
-                          >{diniyahEditLoading ? '...' : 'Simpan'}</button
-                        >
-                        <button class="btn-cancel" onclick={cancelDiniyahEdit}>Batal</button>
-                      </td>
-                    {:else}
-                      <td class="text-center text-muted">{mapel.urutan || '—'}</td>
-                      <td class="nama-cell"
-                        ><span class:text-muted={!mapel.aktif}>{mapel.nama_mapel}</span></td
-                      >
-                      <td class="nama-cell arab-cell" dir="rtl"
-                        ><span class:text-muted={!mapel.aktif}>{mapel.nama_mapel_arab || '—'}</span
-                        ></td
-                      >
-                      <td class="text-center"
-                        >{mapel.kategori === 'tes_lisan' ? 'Tes Lisan' : 'Tes Tulis'}</td
-                      >
-                      <td class="text-center">
-                        <button
-                          class="toggle-btn"
-                          class:aktif={mapel.aktif}
-                          class:nonaktif={!mapel.aktif}
-                          onclick={() => toggleDiniyahAktif(mapel)}
-                          title={mapel.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
-                        >
-                          {mapel.aktif ? 'Aktif' : 'Nonaktif'}
-                        </button>
-                      </td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-icon"
-                          title="Edit"
-                          onclick={() => startDiniyahEdit(mapel)}
-                          ><Icon name="edit2" size={15} /></button
-                        >
-                        <button
-                          class="btn-icon btn-icon-danger"
-                          title="Hapus"
-                          onclick={() => hapusDiniyah(mapel.id)}
-                          disabled={diniyahDeletingId === mapel.id}
-                          ><Icon name="trash" size={15} /></button
-                        >
-                      </td>
-                    {/if}
+
+          {#if showDiniyahForm}
+            <div class="form-card">
+              <h3 class="form-title">Tambah Mapel Diniyah Baru</h3>
+              {#if diniyahFormError}
+                <div class="alert-error">{diniyahFormError}</div>
+              {/if}
+              <div class="form-row">
+                <div class="form-group form-group-wide">
+                  <label for="diniyah-nama"
+                    >Nama Mapel (Latin) <span class="required">*</span></label
+                  >
+                  <input
+                    id="diniyah-nama"
+                    type="text"
+                    placeholder="contoh: KHUDZ AQIDATAKA"
+                    bind:value={diniyahFormNama}
+                    class="input"
+                  />
+                </div>
+                <div class="form-group form-group-wide">
+                  <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;"
+                  >
+                    <label for="diniyah-arab" style="margin-bottom: 0;">Nama Mapel (Arab)</label>
+                    <button
+                      type="button"
+                      class="btn-secondary btn-sm"
+                      style="padding: 0.2rem 0.5rem; font-size: 0.75rem;"
+                      onclick={translateDiniyahForm}
+                      disabled={isTranslatingDiniyahForm || !diniyahFormNama.trim()}
+                      title="Terjemahkan otomatis dari Latin"
+                    >
+                      <Icon name="refreshCw" size={12} />
+                      {isTranslatingDiniyahForm ? 'Menerjemahkan...' : 'Translate'}
+                    </button>
+                  </div>
+                  <input
+                    id="diniyah-arab"
+                    type="text"
+                    placeholder="contoh: خذ عقيدتك"
+                    bind:value={diniyahFormNamaArab}
+                    class="input input-arab"
+                    dir="rtl"
+                  />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="diniyah-kategori">Kategori</label>
+                  <select id="diniyah-kategori" bind:value={diniyahFormKategori} class="input">
+                    <option value="tes_tulis">Tes Tulis</option>
+                    <option value="tes_lisan">Tes Lisan</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="diniyah-urutan">Urutan</label>
+                  <input
+                    id="diniyah-urutan"
+                    type="number"
+                    min="1"
+                    placeholder="Otomatis"
+                    bind:value={diniyahFormUrutan}
+                    class="input"
+                  />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button
+                  class="btn-secondary"
+                  onclick={batalDiniyahForm}
+                  disabled={diniyahFormLoading}>Batal</button
+                >
+                <button class="btn-primary" onclick={tambahDiniyah} disabled={diniyahFormLoading}>
+                  {diniyahFormLoading ? 'Menyimpan...' : 'Simpan Mapel'}
+                </button>
+              </div>
+            </div>
+          {/if}
+
+          {#if errorDiniyah}
+            <div class="alert-error">{errorDiniyah}</div>
+          {/if}
+
+          {#if loadingDiniyah}
+            <div class="card-loading">Memuat daftar mapel diniyah...</div>
+          {:else if diniyahList.length === 0}
+            <div class="empty-state">
+              <Icon name="book" size={48} />
+              <h3>Belum ada mapel diniyah</h3>
+              <p>Tambahkan mapel diniyah agar guru dapat mulai menginput nilai.</p>
+              <button class="btn-primary" onclick={() => (showDiniyahForm = true)}>
+                <Icon name="plus" size={16} /> Tambah Mapel Pertama
+              </button>
+            </div>
+          {:else}
+            <div class="table-wrapper">
+              <table class="materi-table">
+                <thead>
+                  <tr>
+                    <th class="col-urutan">Urutan</th>
+                    <th class="col-nama">Nama Mapel</th>
+                    <th class="col-nama">Nama Arab</th>
+                    <th class="col-juz">Kategori</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
                   </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
+                </thead>
+                <tbody>
+                  {#each diniyahList as mapel (mapel.id)}
+                    <tr class:row-nonaktif={!mapel.aktif}>
+                      {#if diniyahEditingId === mapel.id}
+                        <td
+                          ><input
+                            type="number"
+                            min="1"
+                            bind:value={diniyahEditUrutan}
+                            class="input-inline"
+                            placeholder="—"
+                          /></td
+                        >
+                        <td
+                          ><input
+                            type="text"
+                            bind:value={diniyahEditNama}
+                            class="input-inline input-wide"
+                            placeholder="Nama mapel"
+                          /></td
+                        >
+                        <td
+                          ><input
+                            type="text"
+                            bind:value={diniyahEditNamaArab}
+                            class="input-inline input-wide input-arab"
+                            dir="rtl"
+                            placeholder="Nama arab"
+                          /></td
+                        >
+                        <td>
+                          <select bind:value={diniyahEditKategori} class="input-inline">
+                            <option value="tes_tulis">Tes Tulis</option>
+                            <option value="tes_lisan">Tes Lisan</option>
+                          </select>
+                        </td>
+                        <td>—</td>
+                        <td class="aksi-cell">
+                          <button
+                            class="btn-save"
+                            onclick={() => simpanDiniyahEdit(mapel)}
+                            disabled={diniyahEditLoading}
+                            >{diniyahEditLoading ? '...' : 'Simpan'}</button
+                          >
+                          <button class="btn-cancel" onclick={cancelDiniyahEdit}>Batal</button>
+                        </td>
+                      {:else}
+                        <td class="text-center text-muted">{mapel.urutan || '—'}</td>
+                        <td class="nama-cell"
+                          ><span class:text-muted={!mapel.aktif}>{mapel.nama_mapel}</span></td
+                        >
+                        <td class="nama-cell arab-cell" dir="rtl"
+                          ><span class:text-muted={!mapel.aktif}
+                            >{mapel.nama_mapel_arab || '—'}</span
+                          ></td
+                        >
+                        <td class="text-center"
+                          >{mapel.kategori === 'tes_lisan' ? 'Tes Lisan' : 'Tes Tulis'}</td
+                        >
+                        <td class="text-center">
+                          <button
+                            class="toggle-btn"
+                            class:aktif={mapel.aktif}
+                            class:nonaktif={!mapel.aktif}
+                            onclick={() => toggleDiniyahAktif(mapel)}
+                            title={mapel.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                          >
+                            {mapel.aktif ? 'Aktif' : 'Nonaktif'}
+                          </button>
+                        </td>
+                        <td class="aksi-cell">
+                          <button
+                            class="btn-icon"
+                            title="Edit"
+                            onclick={() => startDiniyahEdit(mapel)}
+                            ><Icon name="edit2" size={15} /></button
+                          >
+                          <button
+                            class="btn-icon btn-icon-danger"
+                            title="Hapus"
+                            onclick={() => hapusDiniyah(mapel.id)}
+                            disabled={diniyahDeletingId === mapel.id}
+                            ><Icon name="trash" size={15} /></button
+                          >
+                        </td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
         {/if}
 
         {#if diniyahActiveTab === 'kriteria'}
-        <section class="kelulusan-settings">
-          <div class="settings-header">
-            <div>
-              <h2 class="settings-title">Kriteria Penilaian Diniyah</h2>
-              <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Mumtaz)</p>
-            </div>
-          </div>
-
-          {#if diniyahKonfigurasiError}
-            <div class="alert-error">{diniyahKonfigurasiError}</div>
-          {/if}
-          {#if diniyahKonfigurasiSuccess}
-            <div class="alert-success">{diniyahKonfigurasiSuccess}</div>
-          {/if}
-
-          <div class="settings-kriteria-block" style="margin-top: 1rem;">
-            <div class="settings-kriteria-header">
-              <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
-              <button
-                class="btn-secondary btn-sm"
-                onclick={tambahKriteriaDiniyah}
-                disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
-              >
-                + Tambah Kriteria
-              </button>
-            </div>
-
-            {#if diniyahKriteriaPenilaian.length === 0}
-              <div class="settings-note">Belum ada kriteria penilaian yang dikonfigurasi.</div>
-            {:else}
-              <div class="kriteria-list">
-                <div class="kriteria-header-row">
-                  <div>Batas Minimal</div>
-                  <div>Batas Maksimal</div>
-                  <div>Predikat (Arab)</div>
-                  <div>Predikat (Indonesia)</div>
-                  <div>Aksi</div>
-                </div>
-                {#each diniyahKriteriaPenilaian as k, i}
-                  <div class="kriteria-row">
-                    <input type="number" min="0" max="100" class="form-input" bind:value={k.min} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
-                    <input type="number" min="0" max="100" class="form-input" bind:value={k.max} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
-                    <input type="text" class="form-input arabic-text" dir="rtl" placeholder="مُمْتَاز" bind:value={k.arab} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
-                    <input type="text" class="form-input" placeholder="Istimewa" bind:value={k.indo} disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving} />
-                    <button class="btn-icon btn-icon-danger" onclick={() => hapusKriteriaDiniyah(i)} title="Hapus kriteria ini" disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}>
-                      <Icon name="trash" size={15} />
-                    </button>
-                  </div>
-                {/each}
+          <section class="kelulusan-settings">
+            <div class="settings-header">
+              <div>
+                <h2 class="settings-title">Kriteria Penilaian Diniyah</h2>
+                <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Mumtaz)</p>
               </div>
+            </div>
+
+            {#if diniyahKonfigurasiError}
+              <div class="alert-error">{diniyahKonfigurasiError}</div>
+            {/if}
+            {#if diniyahKonfigurasiSuccess}
+              <div class="alert-success">{diniyahKonfigurasiSuccess}</div>
             {/if}
 
-            <div style="margin-top: 1rem; text-align: right;">
-              <button
-                class="btn-primary"
-                onclick={simpanKonfigurasiNilaiDiniyah}
-                disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
-              >
-                {diniyahKonfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
-              </button>
+            <div class="settings-kriteria-block" style="margin-top: 1rem;">
+              <div class="settings-kriteria-header">
+                <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
+                <button
+                  class="btn-secondary btn-sm"
+                  onclick={tambahKriteriaDiniyah}
+                  disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                >
+                  + Tambah Kriteria
+                </button>
+              </div>
+
+              {#if diniyahKriteriaPenilaian.length === 0}
+                <div class="settings-note">Belum ada kriteria penilaian yang dikonfigurasi.</div>
+              {:else}
+                <div class="kriteria-list">
+                  <div class="kriteria-header-row">
+                    <div>Batas Minimal</div>
+                    <div>Batas Maksimal</div>
+                    <div>Predikat (Arab)</div>
+                    <div>Predikat (Indonesia)</div>
+                    <div>Aksi</div>
+                  </div>
+                  {#each diniyahKriteriaPenilaian as k, i}
+                    <div class="kriteria-row">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="form-input"
+                        bind:value={k.min}
+                        disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="form-input"
+                        bind:value={k.max}
+                        disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                      />
+                      <input
+                        type="text"
+                        class="form-input arabic-text"
+                        dir="rtl"
+                        placeholder="مُمْتَاز"
+                        bind:value={k.arab}
+                        disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                      />
+                      <input
+                        type="text"
+                        class="form-input"
+                        placeholder="Istimewa"
+                        bind:value={k.indo}
+                        disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                      />
+                      <button
+                        class="btn-icon btn-icon-danger"
+                        onclick={() => hapusKriteriaDiniyah(i)}
+                        title="Hapus kriteria ini"
+                        disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                      >
+                        <Icon name="trash" size={15} />
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              <div style="margin-top: 1rem; text-align: right;">
+                <button
+                  class="btn-primary"
+                  onclick={simpanKonfigurasiNilaiDiniyah}
+                  disabled={diniyahKonfigurasiLoading || diniyahKonfigurasiSaving}
+                >
+                  {diniyahKonfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
         {/if}
         <!-- ======= END TAB DINIYAH ======= -->
       {:else if activeTab === 'keseharian' && hasKeseharian}
-        <div class="tabs sub-tabs" style="margin-bottom: 1rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0;">
-          <button class="tab-btn" class:active={activeSubTab === 'keseharian'} onclick={() => activeSubTab = 'keseharian'}>Indikator Keseharian</button>
-          <button class="tab-btn" class:active={activeSubTab === 'pelanggaran'} onclick={() => activeSubTab = 'pelanggaran'}>Pelanggaran</button>
-          <button class="tab-btn" class:active={activeSubTab === 'iqob'} onclick={() => activeSubTab = 'iqob'}>Iqob</button>
-          <button class="tab-btn" class:active={activeSubTab === 'kriteria'} onclick={() => activeSubTab = 'kriteria'}>Kriteria Penilaian</button>
+        <div class="card-tabs">
+          <button
+            class="card-tab-btn"
+            class:active={activeSubTab === 'keseharian'}
+            onclick={() => (activeSubTab = 'keseharian')}
+          >
+            Indikator Keseharian
+          </button>
+          <button
+            class="card-tab-btn"
+            class:active={activeSubTab === 'pelanggaran'}
+            onclick={() => (activeSubTab = 'pelanggaran')}
+          >
+            Pelanggaran
+          </button>
+          <button
+            class="card-tab-btn"
+            class:active={activeSubTab === 'iqob'}
+            onclick={() => (activeSubTab = 'iqob')}
+          >
+            Iqob
+          </button>
+          <button
+            class="card-tab-btn"
+            class:active={activeSubTab === 'kriteria'}
+            onclick={() => (activeSubTab = 'kriteria')}
+          >
+            Kriteria Penilaian
+          </button>
         </div>
+
         {#if activeSubTab === 'keseharian'}
-        <!-- ======= TAB KESEHARIAN ======= -->
-        <div class="toolbar">
-          <span class="materi-count">
-            {indikators.length} indikator ({indikators.filter((m) => m.aktif).length} aktif)
-          </span>
-          <div class="toolbar-actions" style="display: flex; gap: 8px;">
-            <button class="btn-secondary" onclick={handleDownloadTemplateKeseharian}>
-              <Icon name="download" size={16} />
-              Template
-            </button>
-            <button
-              class="btn-secondary"
-              onclick={() => fileInputKeseharian.click()}
-              disabled={loadingImportKeseharian}
-            >
-              <Icon name="import" size={16} />
-              {loadingImportKeseharian ? 'Mengimport...' : 'Import'}
-            </button>
-            <input
-              type="file"
-              accept=".xlsx"
-              bind:this={fileInputKeseharian}
-              onchange={handleImportKeseharian}
-              style="display: none;"
-            />
-            <button class="btn-primary" onclick={() => (showKeseharianForm = !showKeseharianForm)}>
-              <Icon name="plus" size={16} /> Tambah Indikator
-            </button>
-          </div>
-        </div>
-
-        {#if showKeseharianForm}
-          <div class="materi-form">
-            <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
-              <div class="form-group">
-                <label for="kes-nama">Nama Indikator Keseharian</label>
-                <input
-                  id="kes-nama"
-                  type="text"
-                  placeholder="Contoh: Shalat Dhuha, Piket Asrama, dsb"
-                  bind:value={keseharianFormNama}
-                  class="input"
-                />
-              </div>
-            </div>
-            <div class="form-actions">
+          <!-- ======= TAB KESEHARIAN ======= -->
+          <div class="toolbar">
+            <span class="materi-count">
+              {indikators.length} indikator ({indikators.filter((m) => m.aktif).length} aktif)
+            </span>
+            <div class="toolbar-actions" style="display: flex; gap: 8px;">
+              <button class="btn-secondary" onclick={handleDownloadTemplateKeseharian}>
+                <Icon name="download" size={16} />
+                Template
+              </button>
               <button
                 class="btn-secondary"
-                onclick={batalKeseharianForm}
-                disabled={keseharianFormLoading}>Batal</button
+                onclick={() => fileInputKeseharian.click()}
+                disabled={loadingImportKeseharian}
               >
-              <button
-                class="btn-primary"
-                onclick={tambahKeseharian}
-                disabled={keseharianFormLoading || !keseharianFormNama.trim()}
-              >
-                {keseharianFormLoading ? 'Menyimpan...' : 'Simpan Indikator'}
+                <Icon name="import" size={16} />
+                {loadingImportKeseharian ? 'Mengimport...' : 'Import'}
               </button>
-            </div>
-          </div>
-        {/if}
-
-        {#if keseharianFormError}
-          <div class="alert-error">{keseharianFormError}</div>
-        {/if}
-
-        {#if errorKeseharian}
-          <div class="alert-error">{errorKeseharian}</div>
-        {/if}
-
-        {#if loadingKeseharian}
-          <div class="card-loading">Memuat daftar indikator keseharian...</div>
-        {:else if indikators.length === 0}
-          <div class="empty-state">
-            <Icon name="checkCircle" size={48} />
-            <h3>Belum ada indikator keseharian</h3>
-            <p>
-              Tambahkan indikator (misal: Shalat Dhuha, Izin) agar musyrif dapat mengisi rapor
-              keseharian siswa.
-            </p>
-            <button class="btn-primary" onclick={() => (showKeseharianForm = true)}>
-              <Icon name="plus" size={16} /> Tambah Indikator Pertama
-            </button>
-          </div>
-        {:else}
-          <div class="table-wrapper">
-            <table class="materi-table">
-              <thead>
-                <tr>
-                  <th style="width: 50px;">No</th>
-                  <th class="col-nama">Nama Indikator</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-aksi">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each indikators as ind, i (ind.id)}
-                  <tr class:row-nonaktif={!ind.aktif}>
-                    {#if keseharianEditingId === ind.id}
-                      <td class="text-center">{i + 1}</td>
-                      <td>
-                        <input
-                          type="text"
-                          bind:value={keseharianEditNama}
-                          class="input-inline input-wide"
-                          placeholder="Nama indikator"
-                        />
-                      </td>
-                      <td>—</td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-save"
-                          onclick={() => simpanKeseharianEdit(ind)}
-                          disabled={keseharianEditLoading}
-                        >
-                          {keseharianEditLoading ? '...' : 'Simpan'}
-                        </button>
-                        <button class="btn-cancel" onclick={cancelKeseharianEdit}>Batal</button>
-                      </td>
-                    {:else}
-                      <td class="text-center text-muted">{i + 1}</td>
-                      <td class="nama-cell">
-                        <span class:text-muted={!ind.aktif}>{ind.nama}</span>
-                      </td>
-                      <td class="text-center">
-                        <button
-                          class="toggle-btn"
-                          class:aktif={ind.aktif}
-                          class:nonaktif={!ind.aktif}
-                          onclick={() => toggleKeseharianAktif(ind)}
-                          title={ind.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
-                        >
-                          {ind.aktif ? 'Aktif' : 'Nonaktif'}
-                        </button>
-                      </td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-icon"
-                          title="Edit"
-                          onclick={() => startKeseharianEdit(ind)}
-                        >
-                          <Icon name="edit2" size={15} />
-                        </button>
-                        <button
-                          class="btn-icon btn-icon-danger"
-                          title="Hapus"
-                          onclick={() => hapusKeseharian(ind.id)}
-                          disabled={keseharianDeletingId === ind.id}
-                        >
-                          <Icon name="trash" size={15} />
-                        </button>
-                      </td>
-                    {/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
-        <!-- ======= END TAB KESEHARIAN ======= -->
-      {:else if activeSubTab === 'pelanggaran'}
-        <!-- ======= TAB PELANGGARAN ======= -->
-        <div class="toolbar">
-          <span class="materi-count">
-            {pelanggaranList.length} jenis pelanggaran ({pelanggaranList.filter((p) => p.aktif)
-              .length} aktif)
-          </span>
-          <div class="toolbar-actions" style="display: flex; gap: 8px;">
-            <button class="btn-secondary" onclick={handleDownloadTemplatePelanggaran}>
-              <Icon name="download" size={16} />
-              Template
-            </button>
-            <button
-              class="btn-secondary"
-              onclick={() => fileInputPelanggaran.click()}
-              disabled={loadingImportPelanggaran}
-            >
-              <Icon name="import" size={16} />
-              {loadingImportPelanggaran ? 'Mengimport...' : 'Import'}
-            </button>
-            <input
-              type="file"
-              accept=".xlsx"
-              bind:this={fileInputPelanggaran}
-              onchange={handleImportPelanggaran}
-              style="display: none;"
-            />
-            <button
-              class="btn-primary"
-              onclick={() => (showPelanggaranForm = !showPelanggaranForm)}
-            >
-              <Icon name="plus" size={16} /> Tambah Pelanggaran
-            </button>
-          </div>
-        </div>
-
-        {#if showPelanggaranForm}
-          <div class="materi-form">
-            <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
-              <div class="form-group">
-                <label for="plg-nama">Nama Pelanggaran</label>
-                <input
-                  id="plg-nama"
-                  type="text"
-                  placeholder="Contoh: Telat disiplin subuh"
-                  bind:value={pelanggaranFormNama}
-                  class="input"
-                />
-              </div>
-              <div class="form-group">
-                <label for="plg-poin">Poin Pelanggaran</label>
-                <input
-                  id="plg-poin"
-                  type="number"
-                  min="0"
-                  step="1"
-                  bind:value={pelanggaranFormPoin}
-                  class="input"
-                />
-              </div>
-            </div>
-            <div class="form-actions">
-              <button
-                class="btn-secondary"
-                onclick={() => {
-                  showPelanggaranForm = false;
-                  pelanggaranFormNama = '';
-                  pelanggaranFormPoin = 0;
-                  pelanggaranFormError = '';
-                }}
-                disabled={pelanggaranFormLoading}>Batal</button
-              >
-              <button
-                class="btn-primary"
-                onclick={tambahPelanggaran}
-                disabled={pelanggaranFormLoading || !pelanggaranFormNama.trim()}
-              >
-                {pelanggaranFormLoading ? 'Menyimpan...' : 'Simpan'}
-              </button>
-            </div>
-          </div>
-        {/if}
-
-        {#if pelanggaranFormError}
-          <div class="alert-error">{pelanggaranFormError}</div>
-        {/if}
-        {#if errorPelanggaran}
-          <div class="alert-error">{errorPelanggaran}</div>
-        {/if}
-
-        {#if loadingPelanggaran}
-          <div class="card-loading">Memuat daftar pelanggaran...</div>
-        {:else if pelanggaranList.length === 0}
-          <div class="empty-state">
-            <Icon name="alertCircle" size={48} />
-            <h3>Belum ada jenis pelanggaran</h3>
-            <p>Tambahkan jenis pelanggaran dan poinnya untuk bisa digunakan dalam pencatatan.</p>
-            <button class="btn-primary" onclick={() => (showPelanggaranForm = true)}>
-              <Icon name="plus" size={16} /> Tambah Pelanggaran Pertama
-            </button>
-          </div>
-        {:else}
-          <div class="table-wrapper">
-            <table class="materi-table">
-              <thead>
-                <tr>
-                  <th style="width: 50px;">No</th>
-                  <th class="col-nama">Nama Pelanggaran</th>
-                  <th>Poin</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-aksi">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each pelanggaranList as plg, i (plg.id)}
-                  <tr class:row-nonaktif={!plg.aktif}>
-                    {#if pelanggaranEditingId === plg.id}
-                      <td class="text-center">{i + 1}</td>
-                      <td>
-                        <input
-                          type="text"
-                          bind:value={pelanggaranEditNama}
-                          class="input-inline input-wide"
-                          placeholder="Nama pelanggaran"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          bind:value={pelanggaranEditPoin}
-                          class="input-inline"
-                          style="width: 70px"
-                        />
-                      </td>
-                      <td>—</td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-save"
-                          onclick={() => simpanPelanggaranEdit(plg)}
-                          disabled={pelanggaranEditLoading}
-                        >
-                          {pelanggaranEditLoading ? '...' : 'Simpan'}
-                        </button>
-                        <button class="btn-cancel" onclick={cancelPelanggaranEdit}>Batal</button>
-                      </td>
-                    {:else}
-                      <td class="text-center text-muted">{i + 1}</td>
-                      <td class="nama-cell">
-                        <span class:text-muted={!plg.aktif}>{plg.nama}</span>
-                      </td>
-                      <td class="text-center">
-                        <span class:text-muted={!plg.aktif}>{plg.poin}</span>
-                      </td>
-                      <td class="text-center">
-                        <button
-                          class="toggle-btn"
-                          class:aktif={plg.aktif}
-                          class:nonaktif={!plg.aktif}
-                          onclick={() => togglePelanggaranAktif(plg)}
-                          title={plg.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
-                        >
-                          {plg.aktif ? 'Aktif' : 'Nonaktif'}
-                        </button>
-                      </td>
-                      <td class="aksi-cell">
-                        <button
-                          class="btn-icon"
-                          title="Edit"
-                          onclick={() => startPelanggaranEdit(plg)}
-                        >
-                          <Icon name="edit2" size={15} />
-                        </button>
-                        <button
-                          class="btn-icon btn-icon-danger"
-                          title="Hapus"
-                          onclick={() => hapusPelanggaran(plg.id)}
-                          disabled={pelanggaranDeletingId === plg.id}
-                        >
-                          <Icon name="trash" size={15} />
-                        </button>
-                      </td>
-                    {/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
-        <!-- ======= END TAB PELANGGARAN ======= -->
-      {:else if activeSubTab === 'iqob'}
-        <!-- ======= TAB IQOB ======= -->
-        <div class="toolbar">
-          <span class="materi-count">
-            {iqobList.length} jenis iqob ({iqobList.filter((p) => p.aktif).length} aktif)
-          </span>
-          <div class="toolbar-actions" style="display: flex; gap: 8px;">
-            <button class="btn-secondary" onclick={handleDownloadTemplateIqob}>
-              <Icon name="download" size={16} />
-              Template
-            </button>
-            <button
-              class="btn-secondary"
-              onclick={() => fileInputIqob.click()}
-              disabled={loadingImportIqob}
-            >
-              <Icon name="import" size={16} />
-              {loadingImportIqob ? 'Mengimport...' : 'Import'}
-            </button>
-            <input
-              type="file"
-              accept=".xlsx"
-              bind:this={fileInputIqob}
-              onchange={handleImportIqob}
-              style="display: none;"
-            />
-            <button class="btn-primary" onclick={() => (showIqobForm = !showIqobForm)}>
-              <Icon name="plus" size={16} /> Tambah Iqob
-            </button>
-          </div>
-        </div>
-
-        {#if showIqobForm}
-          <div class="materi-form">
-            <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
-              <div class="form-group">
-                <label for="iqob-nama">Nama Iqob</label>
-                <input
-                  id="iqob-nama"
-                  type="text"
-                  placeholder="Contoh: Membersihkan Masjid"
-                  bind:value={iqobFormNama}
-                  class="input"
-                />
-              </div>
-              <div class="form-group">
-                <label for="iqob-poin">Poin (Pengurangan)</label>
-                <input
-                  id="iqob-poin"
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  bind:value={iqobFormPoin}
-                  class="input"
-                />
-              </div>
-            </div>
-            <div class="form-group" style="margin-top: 16px;">
-              <label for="iqob-ket">Keterangan (Opsional)</label>
               <input
-                id="iqob-ket"
-                type="text"
-                placeholder="Penjelasan..."
-                bind:value={iqobFormKeterangan}
-                class="input"
+                type="file"
+                accept=".xlsx"
+                bind:this={fileInputKeseharian}
+                onchange={handleImportKeseharian}
+                style="display: none;"
               />
-            </div>
-            <div class="form-actions" style="margin-top: 16px;">
               <button
-                class="btn-cancel"
-                onclick={() => {
-                  showIqobForm = false;
-                  iqobFormError = '';
-                }}>Batal</button
+                class="btn-primary"
+                onclick={() => (showKeseharianForm = !showKeseharianForm)}
               >
-              <button class="btn-save" onclick={tambahIqob} disabled={iqobFormLoading}>
-                {iqobFormLoading ? 'Menyimpan...' : 'Simpan Iqob'}
+                <Icon name="plus" size={16} /> Tambah Indikator
               </button>
             </div>
-            {#if iqobFormError}
-              <div class="alert-error mt-2">{iqobFormError}</div>
-            {/if}
           </div>
-        {/if}
 
-        {#if errorIqob}
-          <div class="alert-error">{errorIqob}</div>
-        {/if}
-        {#if loadingIqob}
-          <div class="loading-state">Memuat data iqob...</div>
-        {:else if iqobList.length === 0 && !errorIqob}
-          <div class="empty-state">
-            <Icon name="folderOpen" size={48} color="#cbd5e1" />
-            <p>Belum ada konfigurasi jenis iqob.</p>
-            <button class="btn-primary" onclick={() => (showIqobForm = true)}>
-              <Icon name="plus" size={16} /> Tambah Jenis Iqob
-            </button>
-          </div>
-        {:else if iqobList.length > 0}
-          <div class="table-container">
-            <table class="table-modern">
-              <thead>
-                <tr>
-                  <th class="col-nama">Nama Iqob</th>
-                  <th class="col-poin">Poin Pengurang</th>
-                  <th>Keterangan</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-action">Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {#each iqobList as p}
+          {#if showKeseharianForm}
+            <div class="materi-form">
+              <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+                <div class="form-group">
+                  <label for="kes-nama">Nama Indikator Keseharian</label>
+                  <input
+                    id="kes-nama"
+                    type="text"
+                    placeholder="Contoh: Shalat Dhuha, Piket Asrama, dsb"
+                    bind:value={keseharianFormNama}
+                    class="input"
+                  />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button
+                  class="btn-secondary"
+                  onclick={batalKeseharianForm}
+                  disabled={keseharianFormLoading}>Batal</button
+                >
+                <button
+                  class="btn-primary"
+                  onclick={tambahKeseharian}
+                  disabled={keseharianFormLoading || !keseharianFormNama.trim()}
+                >
+                  {keseharianFormLoading ? 'Menyimpan...' : 'Simpan Indikator'}
+                </button>
+              </div>
+            </div>
+          {/if}
+
+          {#if keseharianFormError}
+            <div class="alert-error">{keseharianFormError}</div>
+          {/if}
+
+          {#if errorKeseharian}
+            <div class="alert-error">{errorKeseharian}</div>
+          {/if}
+
+          {#if loadingKeseharian}
+            <div class="card-loading">Memuat daftar indikator keseharian...</div>
+          {:else if indikators.length === 0}
+            <div class="empty-state">
+              <Icon name="checkCircle" size={48} />
+              <h3>Belum ada indikator keseharian</h3>
+              <p>
+                Tambahkan indikator (misal: Shalat Dhuha, Izin) agar musyrif dapat mengisi rapor
+                keseharian siswa.
+              </p>
+              <button class="btn-primary" onclick={() => (showKeseharianForm = true)}>
+                <Icon name="plus" size={16} /> Tambah Indikator Pertama
+              </button>
+            </div>
+          {:else}
+            <div class="table-wrapper">
+              <table class="materi-table">
+                <thead>
                   <tr>
-                    {#if iqobEditingId === p.id}
-                      <td><input type="text" class="input" bind:value={iqobEditNama} /></td>
-                      <td
-                        ><input
-                          type="number"
-                          step="0.1"
-                          class="input"
-                          bind:value={iqobEditPoin}
-                        /></td
-                      >
-                      <td><input type="text" class="input" bind:value={iqobEditKeterangan} /></td>
-                      <td></td>
-                      <td>
-                        <div class="action-buttons">
+                    <th style="width: 50px;">No</th>
+                    <th class="col-nama">Nama Indikator</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each indikators as ind, i (ind.id)}
+                    <tr class:row-nonaktif={!ind.aktif}>
+                      {#if keseharianEditingId === ind.id}
+                        <td class="text-center">{i + 1}</td>
+                        <td>
+                          <input
+                            type="text"
+                            bind:value={keseharianEditNama}
+                            class="input-inline input-wide"
+                            placeholder="Nama indikator"
+                          />
+                        </td>
+                        <td>—</td>
+                        <td class="aksi-cell">
                           <button
                             class="btn-save"
-                            onclick={() => simpanIqobEdit(p)}
-                            disabled={iqobEditLoading}
+                            onclick={() => simpanKeseharianEdit(ind)}
+                            disabled={keseharianEditLoading}
                           >
-                            <Icon name="check" size={16} />
+                            {keseharianEditLoading ? '...' : 'Simpan'}
                           </button>
-                          <button class="btn-cancel" onclick={cancelIqobEdit}>Batal</button>
-                        </div>
-                      </td>
-                    {:else}
-                      <td>{p.nama}</td>
-                      <td><span class="badge badge-success">-{p.poin}</span></td>
-                      <td>{p.keterangan || '-'}</td>
-                      <td>
-                        <button
-                          class="badge {p.aktif ? 'badge-success' : 'badge-danger'}"
-                          style="cursor:pointer; border:none;"
-                          onclick={() => toggleIqobAktif(p)}
-                          title="Klik untuk mengubah status"
-                        >
-                          {p.aktif ? 'Aktif' : 'Nonaktif'}
-                        </button>
-                      </td>
-                      <td>
-                        <div class="action-buttons">
+                          <button class="btn-cancel" onclick={cancelKeseharianEdit}>Batal</button>
+                        </td>
+                      {:else}
+                        <td class="text-center text-muted">{i + 1}</td>
+                        <td class="nama-cell">
+                          <span class:text-muted={!ind.aktif}>{ind.nama}</span>
+                        </td>
+                        <td class="text-center">
                           <button
-                            class="btn-icon text-blue"
-                            onclick={() => startIqobEdit(p)}
-                            title="Edit Iqob"
+                            class="toggle-btn"
+                            class:aktif={ind.aktif}
+                            class:nonaktif={!ind.aktif}
+                            onclick={() => toggleKeseharianAktif(ind)}
+                            title={ind.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
                           >
-                            <Icon name="edit" size={18} />
+                            {ind.aktif ? 'Aktif' : 'Nonaktif'}
+                          </button>
+                        </td>
+                        <td class="aksi-cell">
+                          <button
+                            class="btn-icon"
+                            title="Edit"
+                            onclick={() => startKeseharianEdit(ind)}
+                          >
+                            <Icon name="edit2" size={15} />
                           </button>
                           <button
-                            class="btn-icon text-red"
-                            onclick={() => hapusIqob(p.id)}
-                            disabled={iqobDeletingId === p.id}
-                            title="Hapus Iqob"
+                            class="btn-icon btn-icon-danger"
+                            title="Hapus"
+                            onclick={() => hapusKeseharian(ind.id)}
+                            disabled={keseharianDeletingId === ind.id}
                           >
-                            <Icon name="trash" size={18} />
+                            <Icon name="trash" size={15} />
                           </button>
-                        </div>
-                      </td>
-                    {/if}
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
-        {/if}
-      {:else if activeSubTab === 'kriteria'}
-
-        <section class="kelulusan-settings">
-          <div class="settings-header">
-            <div>
-              <h2 class="settings-title">Kriteria Penilaian Keseharian</h2>
-              <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Sangat Baik)</p>
+                        </td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
-          </div>
-
-          {#if keseharianKonfigurasiError}
-            <div class="alert-error" style="margin-bottom: 1rem;">{keseharianKonfigurasiError}</div>
           {/if}
-          {#if keseharianKonfigurasiSuccess}
-            <div class="alert-success" style="margin-bottom: 1rem;">{keseharianKonfigurasiSuccess}</div>
-          {/if}
-
-          <div class="settings-kriteria-block" style="margin-top: 1rem;">
-            <div class="settings-kriteria-header">
-              <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
+          <!-- ======= END TAB KESEHARIAN ======= -->
+        {:else if activeSubTab === 'pelanggaran'}
+          <!-- ======= TAB PELANGGARAN ======= -->
+          <div class="toolbar">
+            <span class="materi-count">
+              {pelanggaranList.length} jenis pelanggaran ({pelanggaranList.filter((p) => p.aktif)
+                .length} aktif)
+            </span>
+            <div class="toolbar-actions" style="display: flex; gap: 8px;">
+              <button class="btn-secondary" onclick={handleDownloadTemplatePelanggaran}>
+                <Icon name="download" size={16} />
+                Template
+              </button>
               <button
-                class="btn-secondary btn-sm"
-                onclick={tambahKeseharianKriteria}
-                disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                class="btn-secondary"
+                onclick={() => fileInputPelanggaran.click()}
+                disabled={loadingImportPelanggaran}
               >
-                + Tambah Kriteria
+                <Icon name="import" size={16} />
+                {loadingImportPelanggaran ? 'Mengimport...' : 'Import'}
+              </button>
+              <input
+                type="file"
+                accept=".xlsx"
+                bind:this={fileInputPelanggaran}
+                onchange={handleImportPelanggaran}
+                style="display: none;"
+              />
+              <button
+                class="btn-primary"
+                onclick={() => (showPelanggaranForm = !showPelanggaranForm)}
+              >
+                <Icon name="plus" size={16} /> Tambah Pelanggaran
               </button>
             </div>
+          </div>
 
-            {#if keseharianKriteriaPenilaian.length === 0}
-              <div class="settings-note">Belum ada kriteria penilaian yang dikonfigurasi.</div>
-            {:else}
-              <div class="kriteria-list">
-                <div class="kriteria-header-row">
-                  <div>Batas Minimal</div>
-                  <div>Batas Maksimal</div>
-                  <div>Predikat Arab</div>
-                  <div>Predikat Indonesia</div>
-                  <div>Aksi</div>
+          {#if showPelanggaranForm}
+            <div class="materi-form">
+              <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+                <div class="form-group">
+                  <label for="plg-nama">Nama Pelanggaran</label>
+                  <input
+                    id="plg-nama"
+                    type="text"
+                    placeholder="Contoh: Telat disiplin subuh"
+                    bind:value={pelanggaranFormNama}
+                    class="input"
+                  />
                 </div>
-                {#each keseharianKriteriaPenilaian as k, i}
-                  <div class="kriteria-row">
-                    <input type="number" min="0" max="100" class="form-input" bind:value={k.min} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
-                    <input type="number" min="0" max="100" class="form-input" bind:value={k.max} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
-                    <input type="text" class="form-input arabic-text" dir="rtl" placeholder="مُمْتَاز" bind:value={k.arab} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
-                    <input type="text" class="form-input" placeholder="Sangat Baik" bind:value={k.indo} disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving} />
-                    <button class="btn-icon btn-icon-danger" onclick={() => hapusKeseharianKriteria(i)} title="Hapus kriteria ini" disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}>
-                      <Icon name="trash" size={15} />
-                    </button>
-                  </div>
-                {/each}
+                <div class="form-group">
+                  <label for="plg-poin">Poin Pelanggaran</label>
+                  <input
+                    id="plg-poin"
+                    type="number"
+                    min="0"
+                    step="1"
+                    bind:value={pelanggaranFormPoin}
+                    class="input"
+                  />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button
+                  class="btn-secondary"
+                  onclick={() => {
+                    showPelanggaranForm = false;
+                    pelanggaranFormNama = '';
+                    pelanggaranFormPoin = 0;
+                    pelanggaranFormError = '';
+                  }}
+                  disabled={pelanggaranFormLoading}>Batal</button
+                >
+                <button
+                  class="btn-primary"
+                  onclick={tambahPelanggaran}
+                  disabled={pelanggaranFormLoading || !pelanggaranFormNama.trim()}
+                >
+                  {pelanggaranFormLoading ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
+            </div>
+          {/if}
+
+          {#if pelanggaranFormError}
+            <div class="alert-error">{pelanggaranFormError}</div>
+          {/if}
+          {#if errorPelanggaran}
+            <div class="alert-error">{errorPelanggaran}</div>
+          {/if}
+
+          {#if loadingPelanggaran}
+            <div class="card-loading">Memuat daftar pelanggaran...</div>
+          {:else if pelanggaranList.length === 0}
+            <div class="empty-state">
+              <Icon name="alertCircle" size={48} />
+              <h3>Belum ada jenis pelanggaran</h3>
+              <p>Tambahkan jenis pelanggaran dan poinnya untuk bisa digunakan dalam pencatatan.</p>
+              <button class="btn-primary" onclick={() => (showPelanggaranForm = true)}>
+                <Icon name="plus" size={16} /> Tambah Pelanggaran Pertama
+              </button>
+            </div>
+          {:else}
+            <div class="table-wrapper">
+              <table class="materi-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">No</th>
+                    <th class="col-nama">Nama Pelanggaran</th>
+                    <th>Poin</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-aksi">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each pelanggaranList as plg, i (plg.id)}
+                    <tr class:row-nonaktif={!plg.aktif}>
+                      {#if pelanggaranEditingId === plg.id}
+                        <td class="text-center">{i + 1}</td>
+                        <td>
+                          <input
+                            type="text"
+                            bind:value={pelanggaranEditNama}
+                            class="input-inline input-wide"
+                            placeholder="Nama pelanggaran"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            bind:value={pelanggaranEditPoin}
+                            class="input-inline"
+                            style="width: 70px"
+                          />
+                        </td>
+                        <td>—</td>
+                        <td class="aksi-cell">
+                          <button
+                            class="btn-save"
+                            onclick={() => simpanPelanggaranEdit(plg)}
+                            disabled={pelanggaranEditLoading}
+                          >
+                            {pelanggaranEditLoading ? '...' : 'Simpan'}
+                          </button>
+                          <button class="btn-cancel" onclick={cancelPelanggaranEdit}>Batal</button>
+                        </td>
+                      {:else}
+                        <td class="text-center text-muted">{i + 1}</td>
+                        <td class="nama-cell">
+                          <span class:text-muted={!plg.aktif}>{plg.nama}</span>
+                        </td>
+                        <td class="text-center">
+                          <span class:text-muted={!plg.aktif}>{plg.poin}</span>
+                        </td>
+                        <td class="text-center">
+                          <button
+                            class="toggle-btn"
+                            class:aktif={plg.aktif}
+                            class:nonaktif={!plg.aktif}
+                            onclick={() => togglePelanggaranAktif(plg)}
+                            title={plg.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                          >
+                            {plg.aktif ? 'Aktif' : 'Nonaktif'}
+                          </button>
+                        </td>
+                        <td class="aksi-cell">
+                          <button
+                            class="btn-icon"
+                            title="Edit"
+                            onclick={() => startPelanggaranEdit(plg)}
+                          >
+                            <Icon name="edit2" size={15} />
+                          </button>
+                          <button
+                            class="btn-icon btn-icon-danger"
+                            title="Hapus"
+                            onclick={() => hapusPelanggaran(plg.id)}
+                            disabled={pelanggaranDeletingId === plg.id}
+                          >
+                            <Icon name="trash" size={15} />
+                          </button>
+                        </td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+          <!-- ======= END TAB PELANGGARAN ======= -->
+        {:else if activeSubTab === 'iqob'}
+          <!-- ======= TAB IQOB ======= -->
+          <div class="toolbar">
+            <span class="materi-count">
+              {iqobList.length} jenis iqob ({iqobList.filter((p) => p.aktif).length} aktif)
+            </span>
+            <div class="toolbar-actions" style="display: flex; gap: 8px;">
+              <button class="btn-secondary" onclick={handleDownloadTemplateIqob}>
+                <Icon name="download" size={16} />
+                Template
+              </button>
+              <button
+                class="btn-secondary"
+                onclick={() => fileInputIqob.click()}
+                disabled={loadingImportIqob}
+              >
+                <Icon name="import" size={16} />
+                {loadingImportIqob ? 'Mengimport...' : 'Import'}
+              </button>
+              <input
+                type="file"
+                accept=".xlsx"
+                bind:this={fileInputIqob}
+                onchange={handleImportIqob}
+                style="display: none;"
+              />
+              <button class="btn-primary" onclick={() => (showIqobForm = !showIqobForm)}>
+                <Icon name="plus" size={16} /> Tambah Iqob
+              </button>
+            </div>
+          </div>
+
+          {#if showIqobForm}
+            <div class="materi-form">
+              <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+                <div class="form-group">
+                  <label for="iqob-nama">Nama Iqob</label>
+                  <input
+                    id="iqob-nama"
+                    type="text"
+                    placeholder="Contoh: Membersihkan Masjid"
+                    bind:value={iqobFormNama}
+                    class="input"
+                  />
+                </div>
+                <div class="form-group">
+                  <label for="iqob-poin">Poin (Pengurangan)</label>
+                  <input
+                    id="iqob-poin"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    bind:value={iqobFormPoin}
+                    class="input"
+                  />
+                </div>
+              </div>
+              <div class="form-group" style="margin-top: 16px;">
+                <label for="iqob-ket">Keterangan (Opsional)</label>
+                <input
+                  id="iqob-ket"
+                  type="text"
+                  placeholder="Penjelasan..."
+                  bind:value={iqobFormKeterangan}
+                  class="input"
+                />
+              </div>
+              <div class="form-actions" style="margin-top: 16px;">
+                <button
+                  class="btn-cancel"
+                  onclick={() => {
+                    showIqobForm = false;
+                    iqobFormError = '';
+                  }}>Batal</button
+                >
+                <button class="btn-save" onclick={tambahIqob} disabled={iqobFormLoading}>
+                  {iqobFormLoading ? 'Menyimpan...' : 'Simpan Iqob'}
+                </button>
+              </div>
+              {#if iqobFormError}
+                <div class="alert-error mt-2">{iqobFormError}</div>
+              {/if}
+            </div>
+          {/if}
+
+          {#if errorIqob}
+            <div class="alert-error">{errorIqob}</div>
+          {/if}
+          {#if loadingIqob}
+            <div class="loading-state">Memuat data iqob...</div>
+          {:else if iqobList.length === 0 && !errorIqob}
+            <div class="empty-state">
+              <Icon name="folderOpen" size={48} color="#cbd5e1" />
+              <p>Belum ada konfigurasi jenis iqob.</p>
+              <button class="btn-primary" onclick={() => (showIqobForm = true)}>
+                <Icon name="plus" size={16} /> Tambah Jenis Iqob
+              </button>
+            </div>
+          {:else if iqobList.length > 0}
+            <div class="table-container">
+              <table class="table-modern">
+                <thead>
+                  <tr>
+                    <th class="col-nama">Nama Iqob</th>
+                    <th class="col-poin">Poin Pengurang</th>
+                    <th>Keterangan</th>
+                    <th class="col-status">Status</th>
+                    <th class="col-action">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each iqobList as p}
+                    <tr>
+                      {#if iqobEditingId === p.id}
+                        <td><input type="text" class="input" bind:value={iqobEditNama} /></td>
+                        <td
+                          ><input
+                            type="number"
+                            step="0.1"
+                            class="input"
+                            bind:value={iqobEditPoin}
+                          /></td
+                        >
+                        <td><input type="text" class="input" bind:value={iqobEditKeterangan} /></td>
+                        <td></td>
+                        <td>
+                          <div class="action-buttons">
+                            <button
+                              class="btn-save"
+                              onclick={() => simpanIqobEdit(p)}
+                              disabled={iqobEditLoading}
+                            >
+                              <Icon name="check" size={16} />
+                            </button>
+                            <button class="btn-cancel" onclick={cancelIqobEdit}>Batal</button>
+                          </div>
+                        </td>
+                      {:else}
+                        <td>{p.nama}</td>
+                        <td><span class="badge badge-success">-{p.poin}</span></td>
+                        <td>{p.keterangan || '-'}</td>
+                        <td>
+                          <button
+                            class="badge {p.aktif ? 'badge-success' : 'badge-danger'}"
+                            style="cursor:pointer; border:none;"
+                            onclick={() => toggleIqobAktif(p)}
+                            title="Klik untuk mengubah status"
+                          >
+                            {p.aktif ? 'Aktif' : 'Nonaktif'}
+                          </button>
+                        </td>
+                        <td>
+                          <div class="action-buttons">
+                            <button
+                              class="btn-icon text-blue"
+                              onclick={() => startIqobEdit(p)}
+                              title="Edit Iqob"
+                            >
+                              <Icon name="edit" size={18} />
+                            </button>
+                            <button
+                              class="btn-icon text-red"
+                              onclick={() => hapusIqob(p.id)}
+                              disabled={iqobDeletingId === p.id}
+                              title="Hapus Iqob"
+                            >
+                              <Icon name="trash" size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      {/if}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        {:else if activeSubTab === 'kriteria'}
+          <section class="kelulusan-settings">
+            <div class="settings-header">
+              <div>
+                <h2 class="settings-title">Kriteria Penilaian Keseharian</h2>
+                <p class="settings-subtitle">Atur batas predikat (Misal: 90 - 100 = Sangat Baik)</p>
+              </div>
+            </div>
+
+            {#if keseharianKonfigurasiError}
+              <div class="alert-error" style="margin-bottom: 1rem;">
+                {keseharianKonfigurasiError}
+              </div>
+            {/if}
+            {#if keseharianKonfigurasiSuccess}
+              <div class="alert-success" style="margin-bottom: 1rem;">
+                {keseharianKonfigurasiSuccess}
               </div>
             {/if}
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
-              <button
-                class="btn-primary"
-                onclick={simpanKeseharianKonfigurasi}
-                disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
-              >
-                {keseharianKonfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
-              </button>
-            </div>
-          </div>
-        </section>
+            <div class="settings-kriteria-block" style="margin-top: 1rem;">
+              <div class="settings-kriteria-header">
+                <div class="settings-class-label">Kriteria Penilaian (Skala 100)</div>
+                <button
+                  class="btn-secondary btn-sm"
+                  onclick={tambahKeseharianKriteria}
+                  disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                >
+                  + Tambah Kriteria
+                </button>
+              </div>
 
-      {/if}
+              {#if keseharianKriteriaPenilaian.length === 0}
+                <div class="settings-note">Belum ada kriteria penilaian yang dikonfigurasi.</div>
+              {:else}
+                <div class="kriteria-list">
+                  <div class="kriteria-header-row">
+                    <div>Batas Minimal</div>
+                    <div>Batas Maksimal</div>
+                    <div>Predikat Arab</div>
+                    <div>Predikat Indonesia</div>
+                    <div>Aksi</div>
+                  </div>
+                  {#each keseharianKriteriaPenilaian as k, i}
+                    <div class="kriteria-row">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="form-input"
+                        bind:value={k.min}
+                        disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        class="form-input"
+                        bind:value={k.max}
+                        disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                      />
+                      <input
+                        type="text"
+                        class="form-input arabic-text"
+                        dir="rtl"
+                        placeholder="مُمْتَاز"
+                        bind:value={k.arab}
+                        disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                      />
+                      <input
+                        type="text"
+                        class="form-input"
+                        placeholder="Sangat Baik"
+                        bind:value={k.indo}
+                        disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                      />
+                      <button
+                        class="btn-icon btn-icon-danger"
+                        onclick={() => hapusKeseharianKriteria(i)}
+                        title="Hapus kriteria ini"
+                        disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                      >
+                        <Icon name="trash" size={15} />
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+
+              <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                <button
+                  class="btn-primary"
+                  onclick={simpanKeseharianKonfigurasi}
+                  disabled={keseharianKonfigurasiLoading || keseharianKonfigurasiSaving}
+                >
+                  {keseharianKonfigurasiSaving ? 'Menyimpan...' : 'Simpan Kriteria'}
+                </button>
+              </div>
+            </div>
+          </section>
+        {/if}
       {:else if activeTab === 'kop_logo'}
         <!-- ======= TAB KOP & LOGO ======= -->
-        <div class="card" style="padding: 2rem; max-width: 900px; margin: 0 auto;">
+        <div class="card" style="padding: 2rem;">
           <h2 style="margin-top: 0;">Pengaturan Kop & Logo Rapor</h2>
           <p style="color: #64748b; margin-bottom: 2rem;">
             Atur Kop Surat (teks baris) dan Logo Sekolah. Pengaturan ini akan diaplikasikan ke semua
@@ -2764,7 +2885,7 @@
           >
             <!-- Simulation of A4 Container at scaled size, matching .page in reports -->
             <div
-              style="width: 210mm; min-height: 100mm; background: white; margin: 0 auto; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; padding: 1cm !important; box-sizing: border-box;"
+              style="width: 210mm; min-height: 100mm; background: white; margin: 0 auto; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transform: scale(0.8); transform-origin: top center; overflow: hidden; padding: 1cm !important; box-sizing: border-box;"
             >
               <!-- header-section: same as in reports (position: relative; text-align: center; margin-bottom: 16px) -->
               <div style="position: relative; text-align: center; margin-bottom: 16px;">
@@ -2808,6 +2929,82 @@
       {/if}
     {/if}
     <!-- Akhir else (!hasTahfiz && !hasDiniyah) -->
+  {/if}
+</div>
+
+<!-- TAMPILAN MOBILE: KONFIGURASI -->
+<div class="mobile-app-ui sheet-page" style="padding-top: 0 !important; margin-bottom: 80px;">
+  <div class="mobile-app-header">
+    <h1 class="page-title">Konfigurasi</h1>
+    <div class="student-sub" style="margin-top: 4px;">Atur parameter penilaian dan rapor.</div>
+  </div>
+
+  {#if !selectedSekolah}
+    <div class="empty-state" style="border: none; margin-top: 1rem;">
+      Silakan pilih jenjang sekolah di pojok kanan atas.
+    </div>
+  {:else}
+    <div class="mobile-cards-view" style="padding-bottom: 0;">
+      
+      {#if hasTahfiz}
+      <div class="surah-card" style="margin-top: 0;">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);" onclick={() => activeTab = activeTab === 'tahfiz_m' ? '' : 'tahfiz_m'}>
+          <div class="surah-no" style="background: #e0f2fe; color: #0284c7;"><Icon name="bookOpen" size={14}/></div>
+          <div class="surah-name">Konfigurasi Tahfiz</div>
+          <Icon name={activeTab === 'tahfiz_m' ? 'chevronUp' : 'chevronDown'} size={18} color="#94a3b8" />
+        </div>
+        {#if activeTab === 'tahfiz_m'}
+        <div style="padding: 12px 14px; font-size: 13px; color: var(--muted); text-align: center; background: var(--bg);">
+          Pengaturan Materi Tahfiz terlalu rumit untuk layar kecil. Silakan gunakan perangkat Desktop/Tablet PC.
+        </div>
+        {/if}
+      </div>
+      {/if}
+
+      {#if hasDiniyah}
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);" onclick={() => activeTab = activeTab === 'diniyah_m' ? '' : 'diniyah_m'}>
+          <div class="surah-no" style="background: #dcfce7; color: #16a34a;"><Icon name="book" size={14}/></div>
+          <div class="surah-name">Mapel Diniyah</div>
+          <Icon name={activeTab === 'diniyah_m' ? 'chevronUp' : 'chevronDown'} size={18} color="#94a3b8" />
+        </div>
+        {#if activeTab === 'diniyah_m'}
+        <div style="padding: 12px 14px; font-size: 13px; color: var(--muted); text-align: center; background: var(--bg);">
+          Pengaturan Mapel Diniyah terlalu rumit untuk layar kecil. Silakan gunakan perangkat Desktop/Tablet PC.
+        </div>
+        {/if}
+      </div>
+      {/if}
+
+      {#if hasKeseharian}
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);" onclick={() => activeTab = activeTab === 'keseharian_m' ? '' : 'keseharian_m'}>
+          <div class="surah-no" style="background: #fce7f3; color: #db2777;"><Icon name="smile" size={14}/></div>
+          <div class="surah-name">Indikator Keseharian</div>
+          <Icon name={activeTab === 'keseharian_m' ? 'chevronUp' : 'chevronDown'} size={18} color="#94a3b8" />
+        </div>
+        {#if activeTab === 'keseharian_m'}
+        <div style="padding: 12px 14px; font-size: 13px; color: var(--muted); text-align: center; background: var(--bg);">
+          Pengaturan Indikator Keseharian terlalu rumit untuk layar kecil. Silakan gunakan perangkat Desktop/Tablet PC.
+        </div>
+        {/if}
+      </div>
+      {/if}
+
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);" onclick={() => activeTab = activeTab === 'logo_m' ? '' : 'logo_m'}>
+          <div class="surah-no" style="background: #fef3c7; color: #d97706;"><Icon name="image" size={14}/></div>
+          <div class="surah-name">Kop & Logo Rapor</div>
+          <Icon name={activeTab === 'logo_m' ? 'chevronUp' : 'chevronDown'} size={18} color="#94a3b8" />
+        </div>
+        {#if activeTab === 'logo_m'}
+        <div style="padding: 12px 14px; font-size: 13px; color: var(--muted); text-align: center; background: var(--bg);">
+          Pengaturan letak posisi logo dan penyusunan Kop Rapor hanya didukung di perangkat Desktop.
+        </div>
+        {/if}
+      </div>
+
+    </div>
   {/if}
 </div>
 
@@ -3248,13 +3445,12 @@
     border: 1px solid #e2e8f0;
     margin-top: 1rem;
   }
-  
+
   .settings-class-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
-
   }
   .settings-class-label {
     margin-bottom: 0.5rem;
@@ -3666,7 +3862,7 @@
       padding-bottom: 0.5rem;
       gap: 10px;
     }
-    
+
     .tab-link {
       flex: 1;
       display: flex;
@@ -3693,7 +3889,7 @@
       transform: translateY(-2px);
       box-shadow: 0 10px 30px -12px rgba(34, 197, 94, 0.4);
     }
-    
+
     .icon-wrapper {
       width: 34px;
       height: 34px;
@@ -3702,9 +3898,9 @@
       color: var(--color-primary, #22c55e);
       transition: all 0.2s;
     }
-    
+
     .tab-link.active .icon-wrapper {
-      background: rgba(255,255,255,0.25);
+      background: rgba(255, 255, 255, 0.25);
       color: #fff;
     }
 
@@ -3728,7 +3924,7 @@
     .card-tabs::-webkit-scrollbar {
       display: none;
     }
-    
+
     .card-tab-btn {
       padding: 9px 14px;
       border-radius: 12px;
@@ -3737,7 +3933,7 @@
       border: 1px solid var(--color-border, #e2e8f0);
       box-shadow: none;
     }
-    
+
     .card-tab-btn.active {
       background: var(--color-text-main, #1e293b);
       border-color: var(--color-text-main, #1e293b);
@@ -3745,5 +3941,4 @@
       box-shadow: none;
     }
   }
-
 </style>
