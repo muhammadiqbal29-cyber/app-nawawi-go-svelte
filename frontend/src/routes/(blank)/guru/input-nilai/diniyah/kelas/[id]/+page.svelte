@@ -203,8 +203,8 @@
         remidi_pts: data.remidi_pts,
         pas: data.pas || 0
       };
-      if (activeTahun) payload.tahun_ajaran_id = activeTahun;
-      if (activeSemester) payload.semester_id = activeSemester;
+      if (activeTahun) payload.tahun_ajaran_id = Number(activeTahun);
+      if (activeSemester) payload.semester_id = Number(activeSemester);
       const res = await fetch(`${apiUrl}/api/guru/nilai-diniyah`, {
         method: 'POST',
         credentials: 'include',

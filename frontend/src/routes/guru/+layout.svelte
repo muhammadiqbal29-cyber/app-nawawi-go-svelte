@@ -210,6 +210,10 @@
   );
 </script>
 
+<svelte:head>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+</svelte:head>
+
 <div class="layout-wrapper" class:sidebar-closed={!sidebarOpen}>
   <GuruSidebar isOpen={sidebarOpen} onClose={() => sidebarOpen = false} {currentPath} {onLogout} {fiturGuru} userRole={auth.role} />
   
