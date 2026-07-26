@@ -309,6 +309,7 @@ func main() {
 	// Rute Guru Pribadi (Hanya Guru)
 	guruRouter.HandleFunc("/tahun-ajaran", tahunajaran.GetTahunAjaranHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/profil", guru.GetMeProfileHandler).Methods("GET")
+	guruRouter.HandleFunc("/me/password", guru.UpdateMePasswordHandler).Methods("PUT")
 	guruRouter.HandleFunc("/me/presensi/masuk", guru.PresensiMasukHandler).Methods("POST")
 	guruRouter.HandleFunc("/me/presensi/pulang", guru.PresensiPulangHandler).Methods("POST")
 	guruRouter.HandleFunc("/me/presensi/riwayat", guru.GetPresensiHistoryHandler).Methods("GET")

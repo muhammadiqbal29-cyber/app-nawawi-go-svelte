@@ -12,6 +12,10 @@
   let kelasLabel = $derived($page.url.searchParams.get('kelas') || '');
   let rombelParam = $derived($page.url.searchParams.get('rombel') || '__kosong__');
   let sekolahId = $derived($page.url.searchParams.get('sekolah_id') || '');
+  let urlTahunId = $derived($page.url.searchParams.get('tahun_ajaran_id'));
+  let urlSemesterId = $derived($page.url.searchParams.get('semester_id'));
+  let activeTahun = $derived(urlTahunId || guruState.activeTahunId);
+  let activeSemester = $derived(urlSemesterId || guruState.activeSemesterId);
 
   // State
   let mapelList = $state([]);
@@ -34,7 +38,7 @@
   const KKM = 65;
 
   $effect(() => {
-    if (guruState.activeTahunId && guruState.activeSemesterId && rombelParam) {
+    if (activeTahun && activeSemester && rombelParam) {
       if (mapelList.length === 0) {
         loadMapel();
       } else {
@@ -71,8 +75,8 @@
         mapel_diniyah_id: String(selectedMapel.id),
         rombel: rombelParam
       });
-      if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
-      if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
+      if (activeTahun) params.append('tahun_ajaran_id', activeTahun);
+      if (activeSemester) params.append('semester_id', activeSemester);
       const res = await fetch(
         `${apiUrl}/api/guru/kelas/${kelasId}/nilai-diniyah?${params.toString()}`,
         { credentials: 'include' }
@@ -199,8 +203,8 @@
         remidi_pts: data.remidi_pts,
         pas: data.pas || 0
       };
-      if (guruState.activeTahunId) payload.tahun_ajaran_id = guruState.activeTahunId;
-      if (guruState.activeSemesterId) payload.semester_id = guruState.activeSemesterId;
+      if (activeTahun) payload.tahun_ajaran_id = activeTahun;
+      if (activeSemester) payload.semester_id = activeSemester;
       const res = await fetch(`${apiUrl}/api/guru/nilai-diniyah`, {
         method: 'POST',
         credentials: 'include',
@@ -247,12 +251,10 @@
     nilaiMap = { ...nilaiMap };
   }
 
-  let showMapelDropdown = $state(false);
-
-  function selectMapelItem(m) {
-    selectedMapel = m;
-    showMapelDropdown = false;
-    loadNilai();
+  function onSelectMapel(e) {
+    const id = Number(e.target.value);
+    selectedMapel = mapelList.find((m) => m.id === id) || null;
+    if (selectedMapel) loadNilai();
   }
 
   function formatDecimal(val) {
@@ -263,8 +265,8 @@
   function downloadTemplate() {
     if (!selectedMapel) return;
     const params = new URLSearchParams({ rombel: rombelParam });
-    if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
-    if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
+    if (activeTahun) params.append('tahun_ajaran_id', activeTahun);
+    if (activeSemester) params.append('semester_id', activeSemester);
     window.location.href = `${apiUrl}/api/guru/kelas/${kelasId}/mapel-diniyah/${selectedMapel.id}/template?${params.toString()}`;
   }
 
@@ -353,15 +355,23 @@
 </svelte:head>
 
 <div class="page-container">
-  <div class="page-header">
-    <button class="btn-back" onclick={() => goto('/guru/input-nilai/diniyah')}>
-      <Icon name="chevronLeft" size={16} /> Kembali
+  <div class="back-button-wrapper">
+    <button type="button" class="back-button" onclick={() => goto('/guru/input-nilai/diniyah')}>
+      <Icon name="arrowLeft" size={16} /> Kembali
     </button>
-    <div>
-      <h1 class="page-title">Input Nilai Diniyah</h1>
-      <p class="page-subtitle">Kelas {kelasLabel}</p>
-    </div>
   </div>
+
+  <section class="sheet-header">
+    <div>
+      <h1>Input Nilai Diniyah</h1>
+      <p>Kelas {kelasLabel}</p>
+    </div>
+    <div class="meta-box">
+      <span>Diniyah</span>
+      <strong>{filteredSiswa.length} Siswa</strong>
+      <small>{loadingNilai ? 'Memuat...' : 'Autosave aktif'}</small>
+    </div>
+  </section>
 
   {#if error}
     <div class="alert-error">
@@ -378,32 +388,26 @@
       {:else if mapelList.length === 0}
         <span class="text-muted">Belum ada mapel diniyah dikonfigurasi admin.</span>
       {:else}
-        <div class="custom-select-wrapper">
-          <button class="custom-select-btn" onclick={() => showMapelDropdown = !showMapelDropdown}>
-            <span class="truncate">
-              {selectedMapel ? `${selectedMapel.nama_mapel} ${selectedMapel.nama_mapel_arab ? `(${selectedMapel.nama_mapel_arab})` : ''}` : 'Pilih Mapel'}
-            </span>
-            <Icon name={showMapelDropdown ? 'chevronUp' : 'chevronDown'} size={16} />
-          </button>
-          
-          {#if showMapelDropdown}
-            <div class="dropdown-overlay" onclick={() => showMapelDropdown = false} role="button" tabindex="0" onkeydown={(e) => e.key === 'Escape' && (showMapelDropdown = false)}></div>
-            <div class="custom-select-dropdown">
-              {#each mapelList as m (m.id)}
-                <button class="custom-select-item" class:active={selectedMapel?.id === m.id} onclick={() => selectMapelItem(m)}>
-                  {m.nama_mapel} {m.nama_mapel_arab ? `(${m.nama_mapel_arab})` : ''}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
+        <select id="select-mapel" class="select-mapel" onchange={onSelectMapel}>
+          {#each mapelList as m (m.id)}
+            <option value={m.id} selected={selectedMapel?.id === m.id}>
+              {m.nama_mapel}
+              {m.nama_mapel_arab ? `(${m.nama_mapel_arab})` : ''}
+            </option>
+          {/each}
+        </select>
       {/if}
     </div>
 
     <div class="toolbar-right">
       <div class="search-bar">
         <Icon name="search" size={14} class="search-icon" />
-        <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />
+        <input
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Cari nama siswa..."
+          class="search-input"
+        />
       </div>
       <button class="btn-sm btn-primary" onclick={downloadTemplate}>
         <Icon name="download" size={14} /> Template Excel
@@ -537,7 +541,19 @@
       {#each filteredSiswa as siswa, idx (siswa.siswa_id)}
         {@const data = getSiswaData(siswa.siswa_id)}
         <div class="m-card" class:saving={savingCell === String(siswa.siswa_id)}>
-          <div class="m-card-header" onclick={() => expandedSiswaId = expandedSiswaId === siswa.siswa_id ? null : siswa.siswa_id} role="button" tabindex="0" onkeydown={(e) => { if(e.key === 'Enter' || e.key === ' ') { expandedSiswaId = expandedSiswaId === siswa.siswa_id ? null : siswa.siswa_id; e.preventDefault(); } }}>
+          <div
+            class="m-card-header"
+            onclick={() =>
+              (expandedSiswaId = expandedSiswaId === siswa.siswa_id ? null : siswa.siswa_id)}
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                expandedSiswaId = expandedSiswaId === siswa.siswa_id ? null : siswa.siswa_id;
+                e.preventDefault();
+              }
+            }}
+          >
             <div class="m-avatar">{siswa.nama_lengkap.charAt(0)}</div>
             <div class="m-info">
               <h3>{siswa.nama_lengkap}</h3>
@@ -548,109 +564,113 @@
               <span class="m-nr-lbl">Nilai Rapor</span>
             </div>
             <div class="m-chevron">
-              <Icon name={expandedSiswaId === siswa.siswa_id ? 'chevronUp' : 'chevronDown'} size={20} color="#94a3b8" />
+              <Icon
+                name={expandedSiswaId === siswa.siswa_id ? 'chevronUp' : 'chevronDown'}
+                size={20}
+                color="#94a3b8"
+              />
             </div>
           </div>
-          
+
           {#if expandedSiswaId === siswa.siswa_id}
             <div class="m-card-body">
-            <!-- UH Inputs -->
-            <div class="m-section">
-              <div class="m-sec-header">
-                <h4>Ulangan Harian</h4>
-                <span class="m-calc-badge">Rata: {formatDecimal(data.rata_uh)}</span>
+              <!-- UH Inputs -->
+              <div class="m-section">
+                <div class="m-sec-header">
+                  <h4>Ulangan Harian</h4>
+                  <span class="m-calc-badge">Rata: {formatDecimal(data.rata_uh)}</span>
+                </div>
+                <div class="m-grid-inputs">
+                  {#each Array(uhColumnCount) as _, i (i)}
+                    <div class="m-input-box">
+                      <label>UH {i + 1}</label>
+                      <input
+                        type="number"
+                        class="input-cell"
+                        min="0"
+                        max="100"
+                        data-field="uh"
+                        data-idx={i}
+                        value={getUhScore(siswa.siswa_id, i) || ''}
+                        onblur={(e) => {
+                          updateUh(siswa.siswa_id, i, e.target.value);
+                          saveNilai(siswa.siswa_id);
+                        }}
+                        onchange={(e) => updateUh(siswa.siswa_id, i, e.target.value)}
+                      />
+                    </div>
+                  {/each}
+                </div>
               </div>
-              <div class="m-grid-inputs">
-                {#each Array(uhColumnCount) as _, i (i)}
+
+              <!-- PTS Inputs -->
+              <div class="m-section">
+                <div class="m-sec-header">
+                  <h4>Penilaian Tengah Semester</h4>
+                  <span class="m-calc-badge">NA PTS: {data.na_pts || '-'}</span>
+                </div>
+                <div class="m-grid-inputs">
                   <div class="m-input-box">
-                    <label>UH {i + 1}</label>
+                    <label>Murni</label>
                     <input
                       type="number"
                       class="input-cell"
                       min="0"
                       max="100"
-                      data-field="uh"
-                      data-idx={i}
-                      value={getUhScore(siswa.siswa_id, i) || ''}
+                      data-field="murni_pts"
+                      value={data.murni_pts || ''}
                       onblur={(e) => {
-                        updateUh(siswa.siswa_id, i, e.target.value);
+                        updateField(siswa.siswa_id, 'murni_pts', e.target.value);
                         saveNilai(siswa.siswa_id);
                       }}
-                      onchange={(e) => updateUh(siswa.siswa_id, i, e.target.value)}
+                      onchange={(e) => updateField(siswa.siswa_id, 'murni_pts', e.target.value)}
                     />
                   </div>
-                {/each}
+                  <div class="m-input-box">
+                    <label>Remidi</label>
+                    <input
+                      type="number"
+                      class="input-cell input-remidi"
+                      min="0"
+                      max="100"
+                      data-field="remidi_pts"
+                      placeholder="-"
+                      value={data.remidi_pts ?? ''}
+                      onblur={(e) => {
+                        updateField(siswa.siswa_id, 'remidi_pts', e.target.value);
+                        saveNilai(siswa.siswa_id);
+                      }}
+                      onchange={(e) => updateField(siswa.siswa_id, 'remidi_pts', e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <!-- PTS Inputs -->
-            <div class="m-section">
-              <div class="m-sec-header">
-                <h4>Penilaian Tengah Semester</h4>
-                <span class="m-calc-badge">NA PTS: {data.na_pts || '-'}</span>
-              </div>
-              <div class="m-grid-inputs">
-                <div class="m-input-box">
-                  <label>Murni</label>
-                  <input
-                    type="number"
-                    class="input-cell"
-                    min="0"
-                    max="100"
-                    data-field="murni_pts"
-                    value={data.murni_pts || ''}
-                    onblur={(e) => {
-                      updateField(siswa.siswa_id, 'murni_pts', e.target.value);
-                      saveNilai(siswa.siswa_id);
-                    }}
-                    onchange={(e) => updateField(siswa.siswa_id, 'murni_pts', e.target.value)}
-                  />
+              <!-- PAS Input -->
+              <div class="m-section">
+                <div class="m-sec-header">
+                  <h4>Penilaian Akhir Semester</h4>
                 </div>
-                <div class="m-input-box">
-                  <label>Remidi</label>
-                  <input
-                    type="number"
-                    class="input-cell input-remidi"
-                    min="0"
-                    max="100"
-                    data-field="remidi_pts"
-                    placeholder="-"
-                    value={data.remidi_pts ?? ''}
-                    onblur={(e) => {
-                      updateField(siswa.siswa_id, 'remidi_pts', e.target.value);
-                      saveNilai(siswa.siswa_id);
-                    }}
-                    onchange={(e) => updateField(siswa.siswa_id, 'remidi_pts', e.target.value)}
-                  />
+                <div class="m-grid-inputs">
+                  <div class="m-input-box">
+                    <label>PAS</label>
+                    <input
+                      type="number"
+                      class="input-cell"
+                      min="0"
+                      max="100"
+                      data-field="pas"
+                      value={data.pas || ''}
+                      onblur={(e) => {
+                        updateField(siswa.siswa_id, 'pas', e.target.value);
+                        saveNilai(siswa.siswa_id);
+                      }}
+                      onchange={(e) => updateField(siswa.siswa_id, 'pas', e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-
-            <!-- PAS Input -->
-            <div class="m-section">
-              <div class="m-sec-header">
-                <h4>Penilaian Akhir Semester</h4>
-              </div>
-              <div class="m-grid-inputs">
-                <div class="m-input-box">
-                  <label>PAS</label>
-                  <input
-                    type="number"
-                    class="input-cell"
-                    min="0"
-                    max="100"
-                    data-field="pas"
-                    value={data.pas || ''}
-                    onblur={(e) => {
-                      updateField(siswa.siswa_id, 'pas', e.target.value);
-                      saveNilai(siswa.siswa_id);
-                    }}
-                    onchange={(e) => updateField(siswa.siswa_id, 'pas', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
           {/if}
         </div>
       {/each}
@@ -680,43 +700,89 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 1200px;
+    padding-top: 24px;
+    padding-bottom: 2rem;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 2rem;
+    padding-left: 24px;
+    padding-right: 24px;
+    box-sizing: border-box;
   }
 
-  .page-header {
-    margin-bottom: 1.5rem;
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    margin: 0 auto 12px;
   }
 
-  .btn-back {
+  .back-button-wrapper {
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .back-button {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    background: none;
-    border: none;
-    color: #6366f1;
+    gap: 6px;
+    margin: 0 0 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    padding: 8px 16px;
     font-weight: 600;
+    font-size: 13px;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-family: inherit;
-    margin-bottom: 0.75rem;
-    padding: 0;
-  }
-  .btn-back:hover {
-    color: #4338ca;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
   }
 
-  .page-title {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #1e293b;
-    font-weight: 700;
+  .back-button:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
   }
-  .page-subtitle {
-    margin: 0.25rem 0 0;
-    font-size: 0.9rem;
-    color: #64748b;
+
+  .sheet-header h1 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.2;
+    color: #1e293b;
+  }
+
+  .sheet-header p {
+    margin: 4px 0 0;
+    color: #4b5563;
+    font-size: 13px;
+  }
+
+  .meta-box {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 160px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px 16px;
+    text-align: right;
+    font-size: 12px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .meta-box span {
+    color: #4b5563;
+  }
+
+  .meta-box small {
+    color: #16a34a;
+    font-size: 11px;
+    font-weight: 700;
   }
 
   .toolbar {
@@ -725,11 +791,13 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 1rem;
+    width: 100%;
     margin-bottom: 1rem;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 0.85rem 1rem;
+    box-sizing: border-box;
   }
 
   .toolbar-left {
@@ -746,75 +814,14 @@
     white-space: nowrap;
   }
 
-  .custom-select-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 320px;
-  }
-  .custom-select-btn {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: 0.65rem 1rem;
-    background: #f8fafc;
+  .select-mapel {
+    padding: 0.5rem 0.75rem;
     border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    font-family: inherit;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #1e293b;
-    cursor: pointer;
-    text-align: left;
-  }
-  .custom-select-dropdown {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    z-index: 50;
-    max-height: 250px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    padding: 0.5rem;
-  }
-  .custom-select-item {
-    padding: 0.75rem 1rem;
-    text-align: left;
-    background: transparent;
-    border: none;
     border-radius: 8px;
     font-family: inherit;
     font-size: 0.9rem;
-    color: #334155;
-    cursor: pointer;
-    line-height: 1.4;
-  }
-  .custom-select-item:hover {
-    background: #f1f5f9;
-  }
-  .custom-select-item.active {
-    background: #ecfdf5;
-    color: #059669;
-    font-weight: 700;
-  }
-  .dropdown-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 40;
-  }
-  .truncate {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    min-width: 220px;
+    background: #f8fafc;
   }
 
   .toolbar-right {
@@ -889,6 +896,8 @@
     border: 1px solid #e2e8f0;
     border-radius: 12px;
     background: #fff;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .nilai-table {
@@ -1001,15 +1010,19 @@
   }
 
   /* Mobile View Styles */
-  .desktop-only { display: block; }
-  .mobile-only { display: none; }
+  .desktop-only {
+    display: block;
+  }
+  .mobile-only {
+    display: none;
+  }
 
   @media (max-width: 768px) {
-    .desktop-only { display: none !important; }
-    .mobile-only { display: block !important; }
-    
-    .page-container {
-      padding: 1rem;
+    .desktop-only {
+      display: none !important;
+    }
+    .mobile-only {
+      display: block !important;
     }
 
     .toolbar {
@@ -1019,13 +1032,14 @@
       padding: 0;
       background: transparent;
     }
-    
-    .toolbar-left, .toolbar-right {
+
+    .toolbar-left,
+    .toolbar-right {
       width: 100%;
     }
-    
-    .custom-select-wrapper {
-      max-width: 100%;
+
+    .select-mapel {
+      width: 100%;
     }
 
     .search-bar {
@@ -1081,7 +1095,7 @@
       width: 42px;
       height: 42px;
       border-radius: 12px;
-      background: linear-gradient(155deg, #12A150, #0B7C3D);
+      background: linear-gradient(155deg, #12a150, #0b7c3d);
       color: white;
       font-weight: 800;
       font-size: 1.1rem;
@@ -1096,13 +1110,12 @@
       min-width: 0;
     }
     .m-info h3 {
-      margin: 0 0 0.25rem 0;
+      margin: 0 0 0.2rem 0;
       font-size: 1rem;
       font-weight: 800;
       color: #1e293b;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      line-height: 1.3;
+      word-break: break-word;
     }
     .m-info p {
       margin: 0;
@@ -1118,7 +1131,7 @@
     .m-nr-val {
       font-size: 1.25rem;
       font-weight: 800;
-      color: #0B7C3D;
+      color: #0b7c3d;
     }
     .m-nr-lbl {
       font-size: 0.65rem;
@@ -1197,7 +1210,7 @@
       color: #1e293b;
     }
     .m-input-box .input-cell:focus {
-      border-color: #12A150;
+      border-color: #12a150;
       box-shadow: 0 0 0 3px rgba(18, 161, 80, 0.15);
     }
   }
@@ -1280,7 +1293,10 @@
       box-shadow: none !important;
       padding: 0 !important;
     }
-    .data-table, .data-table tbody, .data-table tr, .data-table td {
+    .data-table,
+    .data-table tbody,
+    .data-table tr,
+    .data-table td {
       display: block;
       width: 100%;
     }
@@ -1317,14 +1333,17 @@
       flex-direction: column;
       margin-top: 1rem;
     }
-    .btn-action-primary, .btn-action-secondary {
+    .btn-action-primary,
+    .btn-action-secondary {
       width: 100%;
       justify-content: center;
     }
     .search-bar {
       width: 100%;
     }
-    textarea, input[type="number"], .form-input {
+    textarea,
+    input[type='number'],
+    .form-input {
       width: 100% !important;
       min-width: 0 !important;
     }
@@ -1337,4 +1356,3 @@
     }
   }
 </style>
-

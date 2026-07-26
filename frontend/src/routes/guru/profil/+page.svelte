@@ -1,11 +1,20 @@
 <script>
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { toastStore } from '$lib/toast.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   let profilData = $state(null);
   let loading = $state(true);
   let error = $state('');
+
+  // State untuk form ganti password
+  let passwordLama = $state('');
+  let passwordBaru = $state('');
+  let passwordKonfirmasi = $state('');
+  let passwordLoading = $state(false);
+  let passwordError = $state('');
+  let passwordSuccess = $state('');
 
   onMount(async () => {
     try {
@@ -37,6 +46,55 @@
     input_tahfiz: 'Input Nilai Tahfiz',
     cetak_rapor: 'Cetak Rapor'
   };
+
+  async function updatePassword() {
+    passwordError = '';
+    passwordSuccess = '';
+    
+    if (!passwordLama || !passwordBaru || !passwordKonfirmasi) {
+      passwordError = 'Semua kolom password harus diisi.';
+      return;
+    }
+    if (passwordBaru !== passwordKonfirmasi) {
+      passwordError = 'Konfirmasi password baru tidak cocok.';
+      return;
+    }
+    if (passwordBaru.length < 6) {
+      passwordError = 'Password baru minimal 6 karakter.';
+      return;
+    }
+
+    passwordLoading = true;
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/me/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          password_lama: passwordLama,
+          password_baru: passwordBaru
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.text();
+        throw new Error(errorData || 'Gagal mengubah password');
+      }
+
+      passwordSuccess = 'Password berhasil diubah!';
+      passwordLama = '';
+      passwordBaru = '';
+      passwordKonfirmasi = '';
+      toastStore.show('Password berhasil diubah', 'success');
+    } catch (err) {
+      passwordError = err.message;
+      toastStore.show(err.message, 'error');
+    } finally {
+      passwordLoading = false;
+    }
+  }
 </script>
 
 <div class="page-container">
@@ -80,6 +138,41 @@
             <span class="label">No HP</span>
             <span class="value">{profilData.no_hp || '-'}</span>
           </div>
+        </div>
+      </div>
+
+      <div class="card detail-card" style="margin-top: 1.5rem;">
+        <h2>Ganti Password</h2>
+        <div class="form-wrapper">
+          {#if passwordError}
+            <div class="alert alert-error" style="margin-bottom: 1rem;">{passwordError}</div>
+          {/if}
+          {#if passwordSuccess}
+            <div class="alert alert-success" style="margin-bottom: 1rem; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; padding: 1rem; border-radius: 0.5rem;">{passwordSuccess}</div>
+          {/if}
+
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="pass_lama" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #475569; font-weight: 500;">Password Lama</label>
+            <input id="pass_lama" type="password" bind:value={passwordLama} class="input-modern" placeholder="Masukkan password saat ini" />
+          </div>
+          
+          <div class="form-group" style="margin-bottom: 1rem;">
+            <label for="pass_baru" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #475569; font-weight: 500;">Password Baru</label>
+            <input id="pass_baru" type="password" bind:value={passwordBaru} class="input-modern" placeholder="Minimal 6 karakter" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 1.5rem;">
+            <label for="pass_konf" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #475569; font-weight: 500;">Konfirmasi Password Baru</label>
+            <input id="pass_konf" type="password" bind:value={passwordKonfirmasi} class="input-modern" placeholder="Ketik ulang password baru" />
+          </div>
+
+          <button class="btn-primary" onclick={updatePassword} disabled={passwordLoading} style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 0.5rem; padding: 0.75rem; border-radius: 0.5rem; background: #4f46e5; color: white; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            {#if passwordLoading}
+              <Icon name="loader" size={16} class="spin" /> Menyimpan...
+            {:else}
+              Simpan Password
+            {/if}
+          </button>
         </div>
       </div>
 
@@ -293,5 +386,28 @@
     padding: 1rem;
     border-radius: 0.5rem;
     border: 1px solid #fecaca;
+  }
+
+  .input-modern {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #cbd5e1;
+    font-size: 0.95rem;
+    outline: none;
+    transition: all 0.2s;
+    background: #f8fafc;
+  }
+  .input-modern:focus {
+    border-color: #6366f1;
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  }
+  .btn-primary:hover {
+    background: #4338ca;
+  }
+  .btn-primary:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
   }
 </style>

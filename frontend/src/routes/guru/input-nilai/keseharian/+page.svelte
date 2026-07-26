@@ -8,6 +8,12 @@
   let kelasList = $state([]);
   let loadingKelas = $state(false);
   let error = $state('');
+  
+  let currentTab = $state('keseharian');
+
+  function changeTab(tab) {
+    currentTab = tab;
+  }
 
   let hasAccess = $derived(
     guruState.activeSekolahId &&
@@ -60,7 +66,8 @@
     const params = new URLSearchParams({
       kelas: kelasLabel(kelas),
       rombel: kelas.rombel || '__kosong__',
-      sekolah_id: String(guruState.activeSekolahId)
+      sekolah_id: String(guruState.activeSekolahId),
+      tab: currentTab
     });
     if (guruState.activeTahunId) params.append('tahun_ajaran_id', guruState.activeTahunId);
     if (guruState.activeSemesterId) params.append('semester_id', guruState.activeSemesterId);
@@ -93,6 +100,23 @@
         <div>
           <h1 class="page-title">Nilai Keseharian</h1>
         </div>
+      </div>
+
+      <div class="tabs-header">
+        <button
+          class="tab-btn"
+          class:active={currentTab === 'keseharian'}
+          onclick={() => changeTab('keseharian')}
+        >
+          Poin Keseharian
+        </button>
+        <button
+          class="tab-btn"
+          class:active={currentTab === 'pelanggaran_iqob'}
+          onclick={() => changeTab('pelanggaran_iqob')}
+        >
+          Pelanggaran & Iqob
+        </button>
       </div>
 
       {#if error}
@@ -166,6 +190,38 @@
     margin: 0.25rem 0 0;
     font-size: 0.9rem;
     color: var(--color-text-muted, #64748b);
+  }
+
+  .tabs-header {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .tabs-header::-webkit-scrollbar {
+    display: none;
+  }
+  .tab-btn {
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 9999px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    color: #059669;
+    background: #ecfdf5;
+    border-color: #10b981;
   }
 
   .kelas-section {

@@ -1318,12 +1318,6 @@
 </svelte:head>
 
 <div class="page-container">
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">Konfigurasi Materi</h1>
-    </div>
-  </div>
-
   <!-- Pilih Sekolah via Layout -->
   {#if !selectedSekolah}
     <div class="empty-state">
@@ -1333,43 +1327,53 @@
     </div>
   {:else}
     <!-- Tabs -->
-    <div class="tabs">
+    <div class="tabs-header">
       {#if hasTahfiz}
         <button
-          class="tab-btn"
+          class="tab-link"
           class:active={activeTab === 'tahfiz'}
           onclick={() => (activeTab = 'tahfiz')}
         >
-          Materi Tahfiz
+          <div class="icon-wrapper"><Icon name="bookOpen" size={18} /></div>
+          <span>Materi Tahfiz</span>
         </button>
       {/if}
       {#if hasDiniyah}
         <button
-          class="tab-btn"
+          class="tab-link"
           class:active={activeTab === 'diniyah'}
           onclick={() => (activeTab = 'diniyah')}
         >
-          Mapel Diniyah
+          <div class="icon-wrapper"><Icon name="book" size={18} /></div>
+          <span>Mapel Diniyah</span>
         </button>
       {/if}
       {#if hasKeseharian}
         <button
-          class="tab-btn"
+          class="tab-link"
           class:active={activeTab === 'keseharian'}
           onclick={() => (activeTab = 'keseharian')}
         >
-          Keseharian
+          <div class="icon-wrapper"><Icon name="smile" size={18} /></div>
+          <span>Keseharian</span>
         </button>
       {/if}
       {#if hasTahfiz || hasDiniyah || hasKeseharian}
         <button
-          class="tab-btn"
+          class="tab-link"
           class:active={activeTab === 'kop_logo'}
           onclick={() => (activeTab = 'kop_logo')}
         >
-          Kop & Logo Rapor
+          <div class="icon-wrapper"><Icon name="image" size={18} /></div>
+          <span>Kop & Logo Rapor</span>
         </button>
       {/if}
+    </div>
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Konfigurasi Materi</h1>
+      </div>
     </div>
 
     {#if !hasTahfiz && !hasDiniyah && !hasKeseharian}
@@ -2649,7 +2653,7 @@
       {/if}
       {:else if activeTab === 'kop_logo'}
         <!-- ======= TAB KOP & LOGO ======= -->
-        <div class="card" style="padding: 2rem;">
+        <div class="card" style="padding: 2rem; max-width: 900px; margin: 0 auto;">
           <h2 style="margin-top: 0;">Pengaturan Kop & Logo Rapor</h2>
           <p style="color: #64748b; margin-bottom: 2rem;">
             Atur Kop Surat (teks baris) dan Logo Sekolah. Pengaturan ini akan diaplikasikan ke semua
@@ -2760,7 +2764,7 @@
           >
             <!-- Simulation of A4 Container at scaled size, matching .page in reports -->
             <div
-              style="width: 210mm; min-height: 100mm; background: white; margin: 0 auto; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transform: scale(0.8); transform-origin: top center; overflow: hidden; padding: 1cm !important; box-sizing: border-box;"
+              style="width: 210mm; min-height: 100mm; background: white; margin: 0 auto; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; padding: 1cm !important; box-sizing: border-box;"
             >
               <!-- header-section: same as in reports (position: relative; text-align: center; margin-bottom: 16px) -->
               <div style="position: relative; text-align: center; margin-bottom: 16px;">
@@ -2810,31 +2814,80 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
 
-  /* Tabs */
+  /* Main Tabs */
   .tabs-header {
-    display: inline-flex;
-    background-color: var(--color-surface, #fff);
-    border: 1px solid var(--color-border, #e2e8f0);
-    border-radius: 12px;
-    padding: 0.35rem;
-    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--color-border, #e2e8f0);
     margin-bottom: 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
-  .tab-btn {
+  .tabs-header::-webkit-scrollbar {
+    display: none;
+  }
+  .icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tab-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    color: var(--color-text-muted, #64748b);
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+  }
+  .tab-link:hover {
+    color: var(--color-primary, #4f46e5);
+    background-color: var(--color-background, #f8fafc);
+    border-radius: 8px 8px 0 0;
+  }
+  .tab-link.active {
+    color: var(--color-primary, #4f46e5);
+    border-bottom-color: var(--color-primary, #4f46e5);
+  }
+
+  /* Sub Tabs */
+  .card-tabs {
+    display: inline-flex;
+    align-self: flex-start;
+    background-color: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.35rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e2e8f0;
+  }
+  .card-tab-btn {
     padding: 0.6rem 1.5rem;
     font-size: 0.9rem;
     font-weight: 600;
     border: none;
     background: transparent;
     color: var(--color-text-muted, #64748b);
-    border-radius: 8px;
+    border-radius: 999px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     font-family: inherit;
+    white-space: nowrap;
   }
-  .tab-btn.active {
-    background-color: var(--color-primary, #4f46e5);
-    color: white;
+  .card-tab-btn.active {
+    background-color: white;
+    color: var(--color-primary, #10b981);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 
   /* Arabic */
@@ -2847,9 +2900,10 @@
     text-align: right;
   }
   .page-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding-bottom: 3rem;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding-bottom: 2rem;
   }
 
   .page-header {
@@ -3604,4 +3658,92 @@
     color: #334155;
     cursor: pointer;
   }
+
+  @media (max-width: 768px) {
+    .tabs-header {
+      border-bottom: none;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      gap: 10px;
+    }
+    
+    .tab-link {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 12px 6px 10px;
+      border-radius: 18px;
+      background: var(--color-surface, #fff);
+      border: 1px solid var(--color-border, #e2e8f0);
+      margin-bottom: 0;
+    }
+
+    .tab-link:hover {
+      background: var(--color-surface, #fff);
+      border-radius: 18px;
+    }
+
+    .tab-link.active {
+      background: var(--color-primary, #22c55e);
+      border-color: var(--color-primary, #22c55e);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px -12px rgba(34, 197, 94, 0.4);
+    }
+    
+    .icon-wrapper {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: #e6f7ec;
+      color: var(--color-primary, #22c55e);
+      transition: all 0.2s;
+    }
+    
+    .tab-link.active .icon-wrapper {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+    }
+
+    .tab-link span {
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .card-tabs {
+      display: flex;
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      background: transparent;
+      border: none;
+      padding: 0;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    .card-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .card-tab-btn {
+      padding: 9px 14px;
+      border-radius: 12px;
+      font-size: 12.5px;
+      background: var(--color-surface, #fff);
+      border: 1px solid var(--color-border, #e2e8f0);
+      box-shadow: none;
+    }
+    
+    .card-tab-btn.active {
+      background: var(--color-text-main, #1e293b);
+      border-color: var(--color-text-main, #1e293b);
+      color: #fff;
+      box-shadow: none;
+    }
+  }
+
 </style>

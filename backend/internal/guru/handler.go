@@ -537,3 +537,57 @@ func GetPresensiHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Gagal encode response", "error", err)
 	}
 }
+
+// UpdatePasswordRequest payload
+type UpdatePasswordRequest struct {
+	PasswordLama string `json:"password_lama" validate:"required"`
+	PasswordBaru string `json:"password_baru" validate:"required,min=6"`
+}
+
+// UpdateMePasswordHandler changes the currently logged-in Guru's password
+func UpdateMePasswordHandler(w http.ResponseWriter, r *http.Request) {
+	guruObj, err := GetGuruFromContext(r)
+	if err != nil {
+		http.Error(w, "Guru not found", http.StatusUnauthorized)
+		return
+	}
+
+	var req UpdatePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if err := utils.ValidateStruct(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	if err := database.DB.First(&user, guruObj.UserID).Error; err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.PasswordLama)); err != nil {
+		http.Error(w, "Password lama salah", http.StatusUnauthorized)
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.PasswordBaru), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Gagal mengenkripsi password baru", http.StatusInternalServerError)
+		return
+	}
+
+	user.Password = string(hashedPassword)
+	if err := database.DB.Save(&user).Error; err != nil {
+		http.Error(w, "Gagal menyimpan password baru", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Password berhasil diubah"}); err != nil {
+		slog.Error("Gagal encode response", "error", err)
+	}
+}
