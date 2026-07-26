@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { syncManager } from '$lib/syncManager.svelte.js';
   import '$lib/components/guru/AlquranMobileUI.css';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -169,33 +170,26 @@
     row.saveStatus = 'Menyimpan...';
 
     try {
-      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz/detail`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mata_pelajaran: mataPelajaran,
-          jenis_penilaian: jenisPenilaian,
-          tahun_ajaran_id: tahunAjaranId ? Number(tahunAjaranId) : undefined,
-          semester_id: semesterId ? Number(semesterId) : undefined,
-          nama_materi: row.namaMateri,
-          juz: row.juz,
-          urutan: rowIndex + 1,
-          skor_hafalan: scoreNumber(row.hafalan),
-          skor_kelancaran: scoreNumber(row.kelancaran),
-          skor_mad: scoreNumber(row.mad),
-          skor_tajwid: scoreNumber(row.tajwid),
-          skor_makharijul_huruf: scoreNumber(row.makharijulHuruf)
-        })
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Gagal menyimpan.');
-      }
+      const payload = {
+        siswa_id: Number(siswaId), // Important for syncManager deduplication
+        mata_pelajaran: mataPelajaran,
+        jenis_penilaian: jenisPenilaian,
+        tahun_ajaran_id: tahunAjaranId ? Number(tahunAjaranId) : undefined,
+        semester_id: semesterId ? Number(semesterId) : undefined,
+        nama_materi: row.namaMateri,
+        juz: row.juz,
+        urutan: rowIndex + 1,
+        skor_hafalan: scoreNumber(row.hafalan),
+        skor_kelancaran: scoreNumber(row.kelancaran),
+        skor_mad: scoreNumber(row.mad),
+        skor_tajwid: scoreNumber(row.tajwid),
+        skor_makharijul_huruf: scoreNumber(row.makharijulHuruf)
+      };
 
-      const body = await res.json();
-      lastSavedSummary = body.nilai || null;
-      row.saveStatus = 'Tersimpan';
+      syncManager.enqueue(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz/detail`, payload, { method: 'POST' });
+
+      // Optimistic save
+      row.saveStatus = 'Tersimpan (Auto)';
     } catch (err) {
       row.saveStatus = err.message || 'Gagal';
     }

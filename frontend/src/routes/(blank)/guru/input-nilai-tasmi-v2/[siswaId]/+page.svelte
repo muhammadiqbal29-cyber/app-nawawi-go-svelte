@@ -4,6 +4,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { syncManager } from '$lib/syncManager.svelte.js';
   import '$lib/components/guru/AlquranMobileUI.css';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -221,25 +222,16 @@
     savingJuz = true;
     loadError = '';
     try {
-      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tasmi-v2/juz`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mata_pelajaran: 'Ujian Tasmi',
-          jenis_penilaian: jenisPenilaian,
-          tahap: tahap,
-          tahun_ajaran_id: tahunAjaranId ? Number(tahunAjaranId) : undefined,
-          semester_id: semesterId ? Number(semesterId) : undefined,
-          juz_yang_diujikan: selectedJuz.join(',')
-        })
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Gagal menyimpan Juz.');
-      }
-      const body = await res.json();
-      lastSavedSummary = body.nilai || null;
+      const payload = {
+        mata_pelajaran: 'Ujian Tasmi',
+        jenis_penilaian: jenisPenilaian,
+        tahap: tahap,
+        tahun_ajaran_id: tahunAjaranId ? Number(tahunAjaranId) : undefined,
+        semester_id: semesterId ? Number(semesterId) : undefined,
+        juz_yang_diujikan: selectedJuz.join(','),
+        siswa_id: Number(siswaId) // For deduplication
+      };
+      syncManager.enqueue(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tasmi-v2/juz`, payload, { method: 'POST' });
       applyJuzFilter();
     } catch (err) {
       loadError = err.message || 'Gagal menyimpan Juz yang diujikan.';
@@ -275,11 +267,8 @@
     row.saveStatus = 'Menyimpan...';
 
     try {
-      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tasmi-v2/detail`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const payload = {
+          siswa_id: Number(siswaId), // Important for syncManager deduplication
           mata_pelajaran: 'Ujian Tasmi',
           jenis_penilaian: jenisPenilaian,
           tahap: tahap,
@@ -291,16 +280,11 @@
           skor_kelancaran: scoreNumber(row.kelancaran),
           skor_tajwid: scoreNumber(row.tajwid),
           skor_makharijul_huruf: scoreNumber(row.makharijulHuruf)
-        })
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Gagal menyimpan.');
-      }
+      };
 
-      const body = await res.json();
-      lastSavedSummary = body.nilai || null;
-      row.saveStatus = 'Tersimpan';
+      syncManager.enqueue(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tasmi-v2/detail`, payload, { method: 'POST' });
+
+      row.saveStatus = 'Tersimpan (Auto)';
     } catch (err) {
       row.saveStatus = err.message || 'Gagal';
     }

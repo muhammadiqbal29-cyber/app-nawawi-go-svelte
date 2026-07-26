@@ -1,5 +1,6 @@
 <script>
   import Icon from '$lib/components/ui/Icon.svelte';
+  import SyncIndicator from '$lib/components/ui/SyncIndicator.svelte';
 
   let {
     title = 'Dashboard',
@@ -26,6 +27,7 @@
     </div>
 
     <div class="header-right">
+      <SyncIndicator />
       {#if userRole === 'guru'}
         <button
           class="active-jenjang-badge desktop-badge {!activeJenjang ? 'pulse' : ''}"

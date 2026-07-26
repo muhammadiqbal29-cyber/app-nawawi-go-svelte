@@ -3,9 +3,12 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
   import '$lib/components/guru/AlquranMobileUI.css';
+  import { auth } from '$lib/auth.svelte.js';
   import { guruState } from '$lib/guruState.svelte.js';
   import { toastStore } from '$lib/toast.svelte.js';
+  import { syncManager } from '$lib/syncManager.svelte.js';
   import { modalStore } from '$lib/modal.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -160,35 +163,29 @@
     if (r) r.saving = true;
 
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/keseharian/poin`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          siswa_id: siswaId,
-          indikator_id: Number(selectedIndikator),
-          poin_akhir: poinVal
-        })
-      });
-      if (!res.ok) throw new Error('Gagal simpan poin');
+      const payload = {
+        siswa_id: siswaId,
+        indikator_id: Number(selectedIndikator),
+        poin_akhir: poinVal
+      };
 
-      const body = await res.json();
-      const updated = body.data;
+      syncManager.enqueue(`${apiUrl}/api/guru/sekolah/${sekolahId}/keseharian/poin`, payload, { method: 'POST' });
+
+      // Optimistic update
+      const currentMurni = r?.poin_murni || 0;
       rekapData[siswaId] = {
         ...(rekapData[siswaId] || {}),
-        id: updated.id,
-        poin_murni: updated.poin_murni,
-        poin_akhir: updated.poin_akhir,
-        poin_penyesuaian: updated.poin_penyesuaian,
+        poin_akhir: poinVal,
+        poin_penyesuaian: poinVal - currentMurni,
         saving: false
       };
 
-      saveStatus = 'Tersimpan!';
+      saveStatus = 'Tersimpan (Otomatis)';
       setTimeout(() => (saveStatus = ''), 2000);
     } catch (err) {
       toastStore.show(err.message, 'info');
     } finally {
-      if (rekapData[siswaId]) rekapData[siswaId].saving = false;
+      setTimeout(() => { if (rekapData[siswaId]) rekapData[siswaId].saving = false; }, 500);
     }
   }
   // ===== PELANGGARAN FUNCTIONS =====

@@ -5,6 +5,7 @@
   import { modalStore } from '$lib/modal.svelte.js';
   import { toastStore } from '$lib/toast.svelte.js';
   import { onMount } from 'svelte';
+  import { syncManager } from '$lib/syncManager.svelte.js';
   
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   
@@ -206,30 +207,29 @@
       if (activeTahun) url.searchParams.append('tahun_ajaran_id', activeTahun);
       if (activeSemester) url.searchParams.append('semester_id', activeSemester);
       
-      const promises = pendingPelanggaranList.map((item) => {
-        return fetch(url.toString(), {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      pendingPelanggaranList.forEach((item) => {
+        syncManager.enqueue(url.toString(), {
             siswa_id: Number(siswaId),
             sekolah_id: Number(sekolahId),
             jenis_pelanggaran_id: Number(item.jenis_pelanggaran_id),
             tanggal: item.tanggal,
             poin: Number(item.poin),
             iqob: item.iqob || ''
-          })
-        }).then(async (r) => {
-          if (!r.ok) {
-            const b = await r.json().catch(() => ({}));
-            throw new Error(b.message || `Gagal menambah pelanggaran: ${item.nama}`);
-          }
+        }, { method: 'POST' });
+        
+        // Optimistic update
+        pelanggaranCatatan.push({
+           jenis_pelanggaran_nama: item.nama,
+           tanggal: item.tanggal,
+           iqob: item.iqob || '',
+           poin: Number(item.poin),
+           id: 'pending-' + Date.now()
         });
       });
-      await Promise.all(promises);
+      
+      pelanggaranCatatan = [...pelanggaranCatatan];
       toastStore.show('Pelanggaran berhasil dicatat', 'success');
       pendingPelanggaranList = [];
-      await loadCatatan();
     } catch (err) {
       plgFormError = err.message;
     } finally {
@@ -288,29 +288,27 @@
       if (activeTahun) url.searchParams.append('tahun_ajaran_id', activeTahun);
       if (activeSemester) url.searchParams.append('semester_id', activeSemester);
       
-      const promises = pendingIqobList.map((item) => {
-        return fetch(url.toString(), {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+      pendingIqobList.forEach((item) => {
+        syncManager.enqueue(url.toString(), {
             siswa_id: Number(siswaId),
             sekolah_id: Number(sekolahId),
             jenis_iqob_id: Number(item.jenis_iqob_id),
             tanggal: item.tanggal,
             poin: Number(item.poin)
-          })
-        }).then(async (r) => {
-          if (!r.ok) {
-            const b = await r.json().catch(() => ({}));
-            throw new Error(b.message || `Gagal menambah iqob: ${item.nama}`);
-          }
+        }, { method: 'POST' });
+        
+        // Optimistic update
+        iqobCatatan.push({
+           jenis_iqob_nama: item.nama,
+           tanggal: item.tanggal,
+           poin: Number(item.poin),
+           id: 'pending-' + Date.now()
         });
       });
-      await Promise.all(promises);
+      
+      iqobCatatan = [...iqobCatatan];
       toastStore.show('Iqob berhasil dicatat', 'success');
       pendingIqobList = [];
-      await loadCatatan();
     } catch (err) {
       iqobFormError = err.message;
     } finally {

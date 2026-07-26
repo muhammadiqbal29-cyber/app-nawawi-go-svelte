@@ -1,9 +1,10 @@
 <script>
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import { goto } from '$app/navigation';
   import { guruState } from '$lib/guruState.svelte.js';
+  import { syncManager } from '$lib/syncManager.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -205,32 +206,15 @@
       };
       if (activeTahun) payload.tahun_ajaran_id = Number(activeTahun);
       if (activeSemester) payload.semester_id = Number(activeSemester);
-      const res = await fetch(`${apiUrl}/api/guru/nilai-diniyah`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || 'Gagal menyimpan');
-      }
-      const saved = await res.json();
-      nilaiMap[siswaId] = {
-        id: saved.id,
-        uh_scores: saved.uh_scores || [],
-        rata_uh: saved.rata_uh || 0,
-        murni_pts: saved.murni_pts || 0,
-        remidi_pts: saved.remidi_pts,
-        na_pts: saved.na_pts || 0,
-        pas: saved.pas || 0,
-        nilai_rapor: saved.nilai_rapor || 0
-      };
-      nilaiMap = { ...nilaiMap };
+      
+      syncManager.enqueue(`${apiUrl}/api/guru/nilai-diniyah`, payload, { method: 'POST' });
+      
+      // Update local state without waiting for backend to calculate
+      recalculate(siswaId);
     } catch (err) {
       error = err.message;
     } finally {
-      savingCell = '';
+      setTimeout(() => { savingCell = ''; }, 500); // Visual feedback
     }
   }
 
