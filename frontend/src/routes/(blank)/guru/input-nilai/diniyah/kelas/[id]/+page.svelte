@@ -48,13 +48,16 @@
     }
   });
 
+  import { untrack } from 'svelte';
   $effect(() => {
     if (activeTahun && activeSemester && rombelParam) {
-      if (mapelList.length === 0) {
-        loadMapel();
-      } else {
-        loadNilai();
-      }
+      untrack(() => {
+        if (mapelList.length === 0) {
+          loadMapel();
+        } else {
+          loadNilai();
+        }
+      });
     }
   });
   async function loadMapel() {

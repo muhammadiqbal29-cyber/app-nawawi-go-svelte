@@ -80,15 +80,17 @@
   let loadingIqob = $state(false);
   let errorIqob = $state('');
 
+  import { untrack } from 'svelte';
+
   $effect(() => {
     if (sekolahId) {
-      loadIndikator();
+      untrack(() => loadIndikator());
     }
   });
 
   $effect(() => {
     if (sekolahId && kelasId && selectedIndikator) {
-      fetchRekap();
+      untrack(() => fetchRekap());
     }
   });
 
@@ -322,8 +324,10 @@
 
   $effect(() => {
     if (activeTab === 'pelanggaran_iqob' && sekolahId && kelasId) {
-      loadPelanggaranKelas();
-      loadIqobKelas();
+      untrack(() => {
+        loadPelanggaranKelas();
+        loadIqobKelas();
+      });
     }
   });
 

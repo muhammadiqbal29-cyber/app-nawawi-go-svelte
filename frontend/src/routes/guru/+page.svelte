@@ -218,12 +218,13 @@
       .sort((a, b) => a.label.localeCompare(b.label));
   });
 
+  import { untrack } from 'svelte';
   $effect(() => {
     const sekolahId = guruState.activeSekolahId;
     const taId = guruState.activeTahunId;
     const semId = guruState.activeSemesterId;
     if (sekolahId && taId && semId) {
-      loadDashboardData(taId, semId);
+      untrack(() => loadDashboardData(taId, semId));
     }
   });
 
