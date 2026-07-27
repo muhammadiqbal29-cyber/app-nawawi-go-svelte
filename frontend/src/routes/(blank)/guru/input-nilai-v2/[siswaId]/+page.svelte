@@ -38,6 +38,13 @@
 
   onMount(init);
 
+  $effect(() => {
+    if (typeof window !== 'undefined' && rows.length > 0) {
+      const cacheKey = `siakad_offline_tahfiz_v2_detail_${siswaId}_${jenisPenilaian}`;
+      localStorage.setItem(cacheKey, JSON.stringify({ rows, lastSavedSummary }));
+    }
+  });
+
   function clampScore(value) {
     if (value === '' || value === null || value === undefined) return '';
     const numberValue = Number(value);
@@ -63,8 +70,30 @@
   }
 
   async function init() {
-    loading = true;
     loadError = '';
+
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    // Tampilkan data brankas lokal seketika tanpa menunggu server!
+    if (typeof window !== 'undefined') {
+      const cacheKey = `siakad_offline_tahfiz_v2_detail_${siswaId}_${jenisPenilaian}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.rows && data.rows.length > 0) {
+            rows = data.rows;
+            lastSavedSummary = data.lastSavedSummary || null;
+            materiTidakAda = false;
+            loading = false; // Matikan loading seketika!
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (rows.length === 0) {
+      loading = true; // Hanya tampilkan loading jika brankas kosong
+    }
+
     try {
       // 1. Fetch daftar materi aktif dari backend
       const materiRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
@@ -81,20 +110,42 @@
         return;
       }
 
-      // 2. Bangun rows dari materi
-      rows = materiData.map((m) => ({
-        namaMateri: m.nama_materi,
-        juz: m.juz || 0,
-        urutan: m.urutan,
-        kelancaran: '',
-        tajwid: '',
-        makharijulHuruf: '',
-        saveStatus: ''
-      }));
+      // 2. Bangun rows dari materi HANYA JIKA rows saat ini kosong 
+      // (agar tidak terjadi flicker/kedip jika sudah ada data dari brankas lokal)
+      if (rows.length === 0) {
+        rows = materiData.map((m) => ({
+          namaMateri: m.nama_materi,
+          juz: m.juz || 0,
+          urutan: m.urutan,
+          kelancaran: '',
+          tajwid: '',
+          makharijulHuruf: '',
+          saveStatus: ''
+        }));
+      }
 
       // 3. Fetch nilai yang sudah ada
       await loadNilaiTahfiz();
+
+      if (typeof window !== 'undefined') {
+        const cacheKey = `siakad_offline_tahfiz_v2_detail_${siswaId}_${jenisPenilaian}`;
+        localStorage.setItem(cacheKey, JSON.stringify({ rows, lastSavedSummary }));
+      }
     } catch (err) {
+      if (typeof window !== 'undefined') {
+        const cacheKey = `siakad_offline_tahfiz_v2_detail_${siswaId}_${jenisPenilaian}`;
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const data = JSON.parse(cached);
+            rows = data.rows || [];
+            lastSavedSummary = data.lastSavedSummary || null;
+            loadError = '';
+            materiTidakAda = rows.length === 0;
+            return;
+          } catch (e) {}
+        }
+      }
       loadError = err.message || 'Gagal memuat halaman.';
     } finally {
       loading = false;
@@ -121,6 +172,24 @@
       }
 
       const body = await res.json();
+
+      // PROTECT LOCAL EDITS: If there are pending offline syncs for this student, ignore backend data!
+      const hasPending = syncManager.queue.some(q => q.payload?.siswa_id === Number(siswaId) && q.url.includes('nilai-tahfiz-v2'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `siakad_offline_tahfiz_v2_detail_${siswaId}_${jenisPenilaian}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              rows = data.rows || rows;
+              lastSavedSummary = data.lastSavedSummary || lastSavedSummary;
+              return; // Skip applying backend data
+            } catch (e) {}
+          }
+        }
+      }
+
       const detailMap = new Map((body.details || []).map((detail) => [detail.nama_materi, detail]));
       rows = rows.map((row) => {
         const detail = detailMap.get(row.namaMateri);

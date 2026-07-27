@@ -46,6 +46,20 @@
 
   onMount(init);
 
+  $effect(() => {
+    if (typeof window !== 'undefined' && allRows.length > 0) {
+      const cacheKey = `siakad_offline_tasmi_v1_detail_${siswaId}_${jenisPenilaian}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        allRows,
+        rows,
+        selectedJuz,
+        tahap,
+        lastSavedSummary,
+        showJuzSelection
+      }));
+    }
+  });
+
   function clampScore(value) {
     if (value === '' || value === null || value === undefined) return '';
     const numberValue = Number(value);
@@ -71,8 +85,33 @@
   }
 
   async function init() {
-    loading = true;
     loadError = '';
+
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+      const cacheKey = `siakad_offline_tasmi_v1_detail_${siswaId}_${jenisPenilaian}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.allRows && data.allRows.length > 0) {
+            allRows = data.allRows;
+            rows = data.rows || [];
+            selectedJuz = data.selectedJuz || [];
+            tahap = data.tahap || 1;
+            lastSavedSummary = data.lastSavedSummary || null;
+            showJuzSelection = data.showJuzSelection ?? true;
+            materiTidakAda = false;
+            loading = false;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (allRows.length === 0) {
+      loading = true;
+    }
+
     try {
       // 1. Fetch daftar materi aktif dari backend
       const materiRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
@@ -97,17 +136,19 @@
       availableJuz = Array.from(juzSet).sort((a, b) => a - b);
 
       // 2. Bangun rows dari materi
-      allRows = materiData.map((m) => ({
-        namaMateri: m.nama_materi,
-        juz: m.juz || 0,
-        urutan: m.urutan,
-        hafalan: '',
-        kelancaran: '',
-        mad: '',
-        tajwid: '',
-        makharijulHuruf: '',
-        saveStatus: ''
-      }));
+      if (allRows.length === 0) {
+        allRows = materiData.map((m) => ({
+          namaMateri: m.nama_materi,
+          juz: m.juz || 0,
+          urutan: m.urutan,
+          hafalan: '',
+          kelancaran: '',
+          mad: '',
+          tajwid: '',
+          makharijulHuruf: '',
+          saveStatus: ''
+        }));
+      }
 
       
       // 3. Fetch riwayat to determine maxTahap
@@ -174,6 +215,28 @@
       }
 
       const body = await res.json();
+      
+      // PROTECT LOCAL EDITS
+      const hasPending = syncManager.queue.some(q => q.payload?.siswa_id === Number(siswaId) && q.url.includes('nilai-tasmi'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `siakad_offline_tasmi_v1_detail_${siswaId}_${jenisPenilaian}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              allRows = data.allRows || allRows;
+              rows = data.rows || rows;
+              selectedJuz = data.selectedJuz || selectedJuz;
+              tahap = data.tahap || tahap;
+              lastSavedSummary = data.lastSavedSummary || lastSavedSummary;
+              showJuzSelection = data.showJuzSelection ?? showJuzSelection;
+              return; // Skip applying backend data
+            } catch (e) {}
+          }
+        }
+      }
+
       const detailMap = new Map((body.details || []).map((detail) => [detail.nama_materi, detail]));
       allRows = allRows.map((row) => {
         const detail = detailMap.get(row.namaMateri);

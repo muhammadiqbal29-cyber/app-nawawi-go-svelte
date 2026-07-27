@@ -93,8 +93,40 @@
     }
   });
   
+  $effect(() => {
+    if (typeof window !== 'undefined' && (jenisPelanggaranList.length > 0 || jenisIqobList.length > 0)) {
+       const cacheKey = `siakad_offline_pelanggaran_detail_${siswaId}_${activeTahun}_${activeSemester}`;
+       localStorage.setItem(cacheKey, JSON.stringify({
+         jenisPelanggaranList,
+         jenisIqobList,
+         pelanggaranCatatan,
+         iqobCatatan
+       }));
+    }
+  });
+
   async function loadData() {
-    loading = true;
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+       const cacheKey = `siakad_offline_pelanggaran_detail_${siswaId}_${activeTahun}_${activeSemester}`;
+       const cached = localStorage.getItem(cacheKey);
+       if (cached) {
+         try {
+           const data = JSON.parse(cached);
+           jenisPelanggaranList = data.jenisPelanggaranList || [];
+           jenisIqobList = data.jenisIqobList || [];
+           pelanggaranCatatan = data.pelanggaranCatatan || [];
+           iqobCatatan = data.iqobCatatan || [];
+           if (jenisPelanggaranList.length > 0 || jenisIqobList.length > 0) {
+             loading = false;
+           }
+         } catch(e) {}
+       }
+    }
+
+    if (jenisPelanggaranList.length === 0 && jenisIqobList.length === 0) {
+      loading = true;
+    }
     pageError = '';
     
     await Promise.all([
@@ -146,7 +178,12 @@
       if (resPlg.ok) {
         const body = await resPlg.json();
         const map = body.data?.catatan || {};
-        pelanggaranCatatan = map[siswaId] || [];
+        
+        // PROTECT LOCAL EDITS
+        const hasPendingPlg = syncManager.queue.some(q => q.url.includes('pelanggaran/catatan') && q.payload?.siswa_id === Number(siswaId));
+        if (!hasPendingPlg) {
+           pelanggaranCatatan = map[siswaId] || [];
+        }
       }
       
       // Load Iqob
@@ -159,7 +196,12 @@
       if (resIqob.ok) {
         const body = await resIqob.json();
         const map = body.data?.catatan || {};
-        iqobCatatan = map[siswaId] || [];
+        
+        // PROTECT LOCAL EDITS
+        const hasPendingIqob = syncManager.queue.some(q => q.url.includes('iqob/catatan') && q.payload?.siswa_id === Number(siswaId));
+        if (!hasPendingIqob) {
+           iqobCatatan = map[siswaId] || [];
+        }
       }
     } catch (err) {
       pageError = 'Gagal memuat catatan siswa';

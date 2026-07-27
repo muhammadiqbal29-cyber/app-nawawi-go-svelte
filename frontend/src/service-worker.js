@@ -20,6 +20,9 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+	// Tell the active service worker to take control of the page immediately
+	event.waitUntil(self.clients.claim());
+	
 	// Remove previous cached data from disk
 	async function deleteOldCaches() {
 		for (const key of await caches.keys()) {
@@ -31,15 +34,35 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-	// ignore POST requests etc
 	if (event.request.method !== 'GET') return;
 
+	const url = new URL(event.request.url);
+
+	// Bypass ALL API endpoints from Service Worker caching
+	// We rely on localStorage for offline fallback, not SW cache!
+	if (url.pathname.startsWith('/api/')) {
+		return;
+	}
+
+	if (url.origin === location.origin && url.pathname === '/login') {
+		return;
+	}
 	async function respond() {
 		const url = new URL(event.request.url);
 		const cache = await caches.open(CACHE);
 
-		// Network-first for everything to ensure latest data/assets,
-		// but fallback to cache if offline (this prevents the Dinosaur!)
+		// CACHE-FIRST untuk file statis dan build (CSS, JS, Fonts, Images)
+		// Ini membuat aplikasi SANGAT CEPAT dan menghemat bandwidth
+		if (ASSETS.includes(url.pathname)) {
+			const cachedAsset = await cache.match(url.pathname);
+			if (cachedAsset) {
+				return cachedAsset;
+			}
+		}
+
+		// NETWORK-FIRST untuk API dan Halaman HTML
+		// Memastikan data yang didapat selalu terbaru dari server,
+		// tapi mundur ke cache (offline) jika sinyal putus
 		try {
 			const response = await fetch(event.request);
 
@@ -66,4 +89,10 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	event.respondWith(respond());
+});
+
+self.addEventListener('message', (event) => {
+	if (event.data && event.data.type === 'SKIP_WAITING') {
+		self.skipWaiting();
+	}
 });

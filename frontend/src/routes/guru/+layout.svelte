@@ -1,5 +1,5 @@
 <script>
-  import { page } from '$app/stores';
+  import { page, updated } from '$app/stores';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/auth.svelte.js';
   import GuruSidebar from '$lib/components/layout/GuruSidebar.svelte';
@@ -17,6 +17,34 @@
   let fiturGuru = $derived(
     guruState.activeSekolahId ? guruState.aksesMap[guruState.activeSekolahId] || [] : []
   );
+  
+  let showUpdateToast = $state(false);
+
+  $effect(() => {
+    // Polling untuk mendeteksi versi baru PWA tiap 15 menit
+    const interval = setInterval(async () => {
+      try {
+        const isUpdate = await updated.check();
+        if (isUpdate) showUpdateToast = true;
+      } catch (e) {}
+    }, 15 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  });
+
+  function applyUpdate() {
+    if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg && reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      });
+    }
+    // Beri jeda sedikit agar SW mengambil alih
+    setTimeout(() => {
+      window.location.reload();
+    }, 200);
+  }
 
   $effect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -111,6 +139,11 @@
                 map[s.id] = f;
               });
               guruState.aksesMap = map;
+              
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('siakad_offline_sekolahList', JSON.stringify(guruState.sekolahList));
+                localStorage.setItem('siakad_offline_aksesMap', JSON.stringify(guruState.aksesMap));
+              }
 
               if (!guruState.activeSekolahId) {
                 let savedId = null;
@@ -136,9 +169,24 @@
                 }
               }
             }
+          } else {
+            throw new Error('Gagal fetch');
           }
         } catch (err) {
-          console.error('Gagal mengambil data guru/sekolah', err);
+          console.error('Gagal mengambil data guru/sekolah, mencoba dari local storage', err);
+          if (typeof window !== 'undefined') {
+            const cachedSekolah = localStorage.getItem('siakad_offline_sekolahList');
+            const cachedAkses = localStorage.getItem('siakad_offline_aksesMap');
+            if (cachedSekolah) guruState.sekolahList = JSON.parse(cachedSekolah);
+            if (cachedAkses) guruState.aksesMap = JSON.parse(cachedAkses);
+            
+            // Restore active state
+            const savedId = localStorage.getItem('siakad_active_sekolah_id');
+            if (savedId && guruState.sekolahList.find(s => s.id == savedId)) {
+              guruState.activeSekolahId = savedId;
+              guruState.activeSekolahName = localStorage.getItem('siakad_active_sekolah_name');
+            }
+          }
         }
       }
       loadGuruData();
@@ -150,6 +198,9 @@
       .then((data) => {
         if (data && data.length > 0) {
           guruState.tahunList = data;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('siakad_offline_tahunList', JSON.stringify(data));
+          }
           
           let savedTaId = typeof window !== 'undefined' ? localStorage.getItem('siakad_active_ta_id') : null;
           let savedSemId = typeof window !== 'undefined' ? localStorage.getItem('siakad_active_sem_id') : null;
@@ -177,9 +228,27 @@
               }
             }
           }
+        } else {
+          throw new Error('Gagal fetch tahun');
         }
       })
-      .catch((err) => console.error('Gagal mengambil tahun ajaran aktif', err));
+      .catch((err) => {
+        console.error('Gagal mengambil tahun ajaran aktif, mencoba dari local storage', err);
+        if (typeof window !== 'undefined') {
+          const cachedTahun = localStorage.getItem('siakad_offline_tahunList');
+          if (cachedTahun) guruState.tahunList = JSON.parse(cachedTahun);
+          
+          let savedTaId = localStorage.getItem('siakad_active_ta_id');
+          let savedSemId = localStorage.getItem('siakad_active_sem_id');
+          let savedTaName = localStorage.getItem('siakad_active_ta_name');
+
+          if (savedTaId && savedSemId && savedTaName) {
+            guruState.activeTahunId = parseInt(savedTaId);
+            guruState.activeSemesterId = parseInt(savedSemId);
+            guruState.activeTahunName = savedTaName;
+          }
+        }
+      });
   });
 
   function toggleSidebar() {
@@ -193,6 +262,9 @@
     }).finally(() => {
       auth.loggedInUser = null;
       auth.role = '';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('siakad_role');
+      }
       goto('/login');
     });
   }
@@ -246,7 +318,48 @@
 <TahunModal />
 <BottomNav {currentPath} {fiturGuru} />
 
+{#if showUpdateToast || $updated}
+<div class="update-toast">
+  <span>Versi sistem terbaru telah tersedia!</span>
+  <button onclick={applyUpdate}>Muat Ulang</button>
+</div>
+{/if}
+
 <style>
+  .update-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .update-toast button {
+    background: #4f46e5;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  @media (max-width: 768px) {
+    .update-toast {
+      bottom: 100px;
+      width: 90%;
+      justify-content: space-between;
+    }
+  }
+
   .layout-wrapper {
     display: flex;
     min-height: 100vh;

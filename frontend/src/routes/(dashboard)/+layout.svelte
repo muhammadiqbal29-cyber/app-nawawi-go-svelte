@@ -57,6 +57,9 @@
     }).finally(() => {
       auth.loggedInUser = null;
       auth.role = '';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('siakad_role');
+      }
       goto('/login');
     });
   }

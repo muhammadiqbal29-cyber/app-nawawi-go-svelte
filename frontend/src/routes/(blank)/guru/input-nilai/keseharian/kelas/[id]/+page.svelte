@@ -92,8 +92,43 @@
     }
   });
 
+  // ===== KESEHARIAN OFFLINE BRANKAS =====
+  $effect(() => {
+    if (typeof window !== 'undefined' && siswaData.length > 0 && selectedIndikator) {
+       const cacheKey = `siakad_offline_keseharian_rekap_${kelasId}_${selectedIndikator}_${activeTahun}_${activeSemester}_${rombel}`;
+       localStorage.setItem(cacheKey, JSON.stringify({ siswaData, rekapData }));
+    }
+  });
+  
+  $effect(() => {
+    if (typeof window !== 'undefined' && pelanggaranSiswaList.length > 0) {
+       const cacheKey = `siakad_offline_pelanggaran_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
+       localStorage.setItem(cacheKey, JSON.stringify({ pelanggaranSiswaList, pelanggaranCatatanMap }));
+    }
+  });
+  
+  $effect(() => {
+    if (typeof window !== 'undefined' && iqobSiswaList.length > 0) {
+       const cacheKey = `siakad_offline_iqob_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
+       localStorage.setItem(cacheKey, JSON.stringify({ iqobSiswaList, iqobCatatanMap }));
+    }
+  });
+
   // ===== KESEHARIAN FUNCTIONS =====
   async function loadIndikator() {
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+       const cached = localStorage.getItem(`siakad_offline_keseharian_indikator_${sekolahId}`);
+       if (cached) {
+         try {
+           indikatorList = JSON.parse(cached);
+           if (indikatorList.length > 0 && !selectedIndikator) {
+             selectedIndikator = indikatorList[0].id;
+           }
+         } catch(e) {}
+       }
+    }
+
     try {
       const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/keseharian/indikator`, {
         credentials: 'include'
@@ -101,6 +136,9 @@
       if (res.ok) {
         const body = await res.json();
         indikatorList = body.data || [];
+        if (typeof window !== 'undefined') {
+           localStorage.setItem(`siakad_offline_keseharian_indikator_${sekolahId}`, JSON.stringify(indikatorList));
+        }
         if (indikatorList.length > 0 && !selectedIndikator) {
           selectedIndikator = indikatorList[0].id;
         }
@@ -113,11 +151,25 @@
   async function fetchRekap() {
     if (!kelasId || !selectedIndikator) return;
 
-    loading = true;
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+       const cacheKey = `siakad_offline_keseharian_rekap_${kelasId}_${selectedIndikator}_${activeTahun}_${activeSemester}_${rombel}`;
+       const cached = localStorage.getItem(cacheKey);
+       if (cached) {
+         try {
+           const data = JSON.parse(cached);
+           if (data.siswaData && data.siswaData.length > 0) {
+             siswaData = data.siswaData;
+             rekapData = data.rekapData || {};
+             loading = false;
+           }
+         } catch(e) {}
+       }
+    }
+
+    if (siswaData.length === 0) loading = true;
     error = '';
     saveStatus = '';
-    siswaData = [];
-    rekapData = {};
 
     try {
       const url = new URL(`${apiUrl}/api/guru/kelas/${kelasId}/keseharian/rekap`);
@@ -132,6 +184,24 @@
       if (!res.ok) throw new Error('Gagal memuat rekap keseharian.');
 
       const body = await res.json();
+      
+      // PROTECT LOCAL EDITS
+      const hasPending = syncManager.queue.some(q => q.payload?.indikator_id === Number(selectedIndikator) && q.url.includes('keseharian/poin'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `siakad_offline_keseharian_rekap_${kelasId}_${selectedIndikator}_${activeTahun}_${activeSemester}_${rombel}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              siswaData = data.siswaData || siswaData;
+              rekapData = data.rekapData || rekapData;
+              return; // Skip applying backend data
+            } catch(e) {}
+          }
+        }
+      }
+      
       siswaData = body.data?.siswa || [];
       const rekaps = body.data?.rekap || [];
 
@@ -191,7 +261,24 @@
   // ===== PELANGGARAN FUNCTIONS =====
   async function loadPelanggaranKelas() {
     if (!kelasId) return;
-    loadingPelanggaran = true;
+    
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+       const cacheKey = `siakad_offline_pelanggaran_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
+       const cached = localStorage.getItem(cacheKey);
+       if (cached) {
+         try {
+           const data = JSON.parse(cached);
+           if (data.pelanggaranSiswaList && data.pelanggaranSiswaList.length > 0) {
+             pelanggaranSiswaList = data.pelanggaranSiswaList;
+             pelanggaranCatatanMap = data.pelanggaranCatatanMap || {};
+             loadingPelanggaran = false;
+           }
+         } catch(e) {}
+       }
+    }
+
+    if (pelanggaranSiswaList.length === 0) loadingPelanggaran = true;
     errorPelanggaran = '';
 
     try {
@@ -206,6 +293,24 @@
       if (!res.ok) throw new Error('Gagal memuat pelanggaran kelas');
 
       const body = await res.json();
+      
+      // PROTECT LOCAL EDITS
+      const hasPending = syncManager.queue.some(q => q.url.includes('keseharian/pelanggaran'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `siakad_offline_pelanggaran_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              pelanggaranSiswaList = data.pelanggaranSiswaList || pelanggaranSiswaList;
+              pelanggaranCatatanMap = data.pelanggaranCatatanMap || pelanggaranCatatanMap;
+              return;
+            } catch(e) {}
+          }
+        }
+      }
+      
       pelanggaranSiswaList = body.data?.siswa || [];
       pelanggaranCatatanMap = body.data?.catatan || {};
     } catch (err) {
@@ -225,7 +330,24 @@
   // ===== IQOB FUNCTIONS =====
   async function loadIqobKelas() {
     if (!kelasId) return;
-    loadingIqob = true;
+    
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+       const cacheKey = `siakad_offline_iqob_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
+       const cached = localStorage.getItem(cacheKey);
+       if (cached) {
+         try {
+           const data = JSON.parse(cached);
+           if (data.iqobSiswaList && data.iqobSiswaList.length > 0) {
+             iqobSiswaList = data.iqobSiswaList;
+             iqobCatatanMap = data.iqobCatatanMap || {};
+             loadingIqob = false;
+           }
+         } catch(e) {}
+       }
+    }
+    
+    if (iqobSiswaList.length === 0) loadingIqob = true;
     errorIqob = '';
 
     try {
@@ -240,6 +362,24 @@
       if (!res.ok) throw new Error('Gagal memuat iqob kelas');
 
       const body = await res.json();
+      
+      // PROTECT LOCAL EDITS
+      const hasPending = syncManager.queue.some(q => q.url.includes('keseharian/iqob'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `siakad_offline_iqob_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              iqobSiswaList = data.iqobSiswaList || iqobSiswaList;
+              iqobCatatanMap = data.iqobCatatanMap || iqobCatatanMap;
+              return;
+            } catch(e) {}
+          }
+        }
+      }
+      
       iqobSiswaList = body.data?.siswa || [];
       iqobCatatanMap = body.data?.catatan || {};
     } catch (err) {

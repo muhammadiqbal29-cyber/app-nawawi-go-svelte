@@ -31,7 +31,26 @@
   onMount(loadSiswa);
 
   async function loadSiswa() {
-    loading = true;
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+      const cacheKey = `siakad_offline_tasmi_kelas_${kelasId}_${jenisPenilaian}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.siswaList && data.siswaList.length > 0) {
+            siswaList = data.siswaList;
+            nilaiMap = data.nilaiMap || {};
+            loading = false;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (siswaList.length === 0) {
+      loading = true;
+    }
+    
     error = '';
     try {
       const params = new URLSearchParams({
@@ -55,6 +74,11 @@
         nama: s.nama_lengkap || '-',
         nisn: s.nisn || '-'
       }));
+      
+      if (typeof window !== 'undefined') {
+        const cacheKey = `siakad_offline_tasmi_kelas_${kelasId}_${jenisPenilaian}`;
+        localStorage.setItem(cacheKey, JSON.stringify({ siswaList, nilaiMap }));
+      }
     } catch (err) {
       error = err.message || 'Gagal memuat data siswa.';
     } finally {

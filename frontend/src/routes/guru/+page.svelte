@@ -227,9 +227,37 @@
     }
   });
 
+  // OFFLINE-FIRST: Brankas Dinamis
+  $effect(() => {
+    if (typeof window !== 'undefined' && selectedSekolah && (dataSantri.length > 0 || dataDiniyah.length > 0)) {
+       const cacheKey = `siakad_offline_dashboard_${selectedSekolah.id}_${guruState.activeTahunId}_${guruState.activeSemesterId}`;
+       localStorage.setItem(cacheKey, JSON.stringify({ dataSantri, dataDiniyah }));
+    }
+  });
+
   async function loadDashboardData(taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
     if (!selectedSekolah) return;
-    loadingData = true;
+    
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+       const cacheKey = `siakad_offline_dashboard_${selectedSekolah.id}_${taId}_${semId}`;
+       const cached = localStorage.getItem(cacheKey);
+       if (cached) {
+         try {
+           const data = JSON.parse(cached);
+           if (data.dataSantri?.length > 0 || data.dataDiniyah?.length > 0) {
+             dataSantri = data.dataSantri || [];
+             dataDiniyah = data.dataDiniyah || [];
+             loadingData = false;
+           }
+         } catch(e) {}
+       }
+    }
+
+    if (dataSantri.length === 0 && dataDiniyah.length === 0) {
+      loadingData = true;
+    }
+    
     try {
       const params = new URLSearchParams();
       if (taId) params.append('tahun_ajaran_id', taId);

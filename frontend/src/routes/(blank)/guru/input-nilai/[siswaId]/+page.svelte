@@ -38,6 +38,13 @@
 
   onMount(init);
 
+  $effect(() => {
+    if (typeof window !== 'undefined' && rows.length > 0) {
+      const cacheKey = `siakad_offline_nilai_tahfiz_v1_rows_${siswaId}_${jenisPenilaian}`;
+      localStorage.setItem(cacheKey, JSON.stringify({ rows, lastSavedSummary }));
+    }
+  });
+
   function clampScore(value) {
     if (value === '' || value === null || value === undefined) return '';
     const numberValue = Number(value);
@@ -63,8 +70,28 @@
   }
 
   async function init() {
-    loading = true;
     loadError = '';
+
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+      const cachedRows = localStorage.getItem(`siakad_offline_nilai_tahfiz_v1_rows_${siswaId}_${jenisPenilaian}`);
+      if (cachedRows) {
+        try {
+          const data = JSON.parse(cachedRows);
+          if (data.rows && data.rows.length > 0) {
+            rows = data.rows;
+            lastSavedSummary = data.lastSavedSummary || null;
+            materiTidakAda = false;
+            loading = false;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (rows.length === 0) {
+      loading = true;
+    }
+
     try {
       // 1. Fetch daftar materi aktif dari backend
       const materiRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
@@ -80,23 +107,53 @@
         materiTidakAda = true;
         return;
       }
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`siakad_offline_materi_tahfiz_${sekolahId}`, JSON.stringify(materiData));
+      }
 
-      // 2. Bangun rows dari materi
-      rows = materiData.map((m) => ({
-        namaMateri: m.nama_materi,
-        juz: m.juz || 0,
-        urutan: m.urutan,
-        hafalan: '',
-        kelancaran: '',
-        mad: '',
-        tajwid: '',
-        makharijulHuruf: '',
-        saveStatus: ''
-      }));
+      // 2. Bangun rows dari materi HANYA JIKA rows saat ini kosong
+      if (rows.length === 0) {
+        rows = materiData.map((m) => ({
+          namaMateri: m.nama_materi,
+          juz: m.juz || 0,
+          urutan: m.urutan,
+          hafalan: '',
+          kelancaran: '',
+          mad: '',
+          tajwid: '',
+          makharijulHuruf: '',
+          saveStatus: ''
+        }));
+      }
 
       // 3. Fetch nilai yang sudah ada
       await loadNilaiTahfiz();
     } catch (err) {
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem(`siakad_offline_materi_tahfiz_${sekolahId}`);
+        if (cached) {
+          try {
+            const materiData = JSON.parse(cached);
+            if (materiData && materiData.length > 0) {
+              rows = materiData.map((m) => ({
+                namaMateri: m.nama_materi,
+                juz: m.juz || 0,
+                urutan: m.urutan,
+                hafalan: '',
+                kelancaran: '',
+                mad: '',
+                tajwid: '',
+                makharijulHuruf: '',
+                saveStatus: ''
+              }));
+              await loadNilaiTahfiz();
+              loadError = '';
+              return;
+            }
+          } catch (e) {}
+        }
+      }
       loadError = err.message || 'Gagal memuat halaman.';
     } finally {
       loading = false;
@@ -123,24 +180,71 @@
       }
 
       const body = await res.json();
-      const detailMap = new Map((body.details || []).map((detail) => [detail.nama_materi, detail]));
-      rows = rows.map((row) => {
-        const detail = detailMap.get(row.namaMateri);
-        if (!detail) return row;
-        return {
-          ...row,
-          hafalan: toInputValue(detail.skor_hafalan),
-          kelancaran: toInputValue(detail.skor_kelancaran),
-          mad: toInputValue(detail.skor_mad),
-          tajwid: toInputValue(detail.skor_tajwid),
-          makharijulHuruf: toInputValue(detail.skor_makharijul_huruf),
-          saveStatus: 'Tersimpan'
-        };
-      });
-      lastSavedSummary = body.nilai || null;
+      
+      // PROTECT LOCAL EDITS: If there are pending offline syncs for this student, ignore backend data!
+      const hasPending = syncManager.queue.some(q => q.payload?.siswa_id === Number(siswaId) && q.url.includes('nilai-tahfiz'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cachedRows = localStorage.getItem(`siakad_offline_nilai_tahfiz_v1_rows_${siswaId}_${jenisPenilaian}`);
+          if (cachedRows) {
+            try {
+              const data = JSON.parse(cachedRows);
+              rows = data.rows || rows;
+              lastSavedSummary = data.lastSavedSummary || lastSavedSummary;
+              return; // Skip applying backend data
+            } catch (e) {}
+          }
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`siakad_offline_nilai_tahfiz_${siswaId}_${jenisPenilaian}`, JSON.stringify(body));
+      }
+      
+      applyNilaiTahfiz(body);
     } catch (err) {
+      if (typeof window !== 'undefined') {
+        const cachedRows = localStorage.getItem(`siakad_offline_nilai_tahfiz_v1_rows_${siswaId}_${jenisPenilaian}`);
+        if (cachedRows) {
+          try {
+            const data = JSON.parse(cachedRows);
+            rows = data.rows || rows;
+            lastSavedSummary = data.lastSavedSummary || lastSavedSummary;
+            loadError = '';
+            return;
+          } catch (e) {}
+        }
+        
+        const cached = localStorage.getItem(`siakad_offline_nilai_tahfiz_${siswaId}_${jenisPenilaian}`);
+        if (cached) {
+          try {
+            const body = JSON.parse(cached);
+            applyNilaiTahfiz(body);
+            loadError = '';
+            return;
+          } catch (e) {}
+        }
+      }
       loadError = err.message || 'Gagal memuat nilai tahfiz.';
     }
+  }
+
+  function applyNilaiTahfiz(body) {
+    const detailMap = new Map((body.details || []).map((detail) => [detail.nama_materi, detail]));
+    rows = rows.map((row) => {
+      const detail = detailMap.get(row.namaMateri);
+      if (!detail) return row;
+      return {
+        ...row,
+        hafalan: toInputValue(detail.skor_hafalan),
+        kelancaran: toInputValue(detail.skor_kelancaran),
+        mad: toInputValue(detail.skor_mad),
+        tajwid: toInputValue(detail.skor_tajwid),
+        makharijulHuruf: toInputValue(detail.skor_makharijul_huruf),
+        saveStatus: 'Tersimpan'
+      };
+    });
+    lastSavedSummary = body.nilai || null;
   }
 
   function handleScoreInput(event, rowIndex, field) {

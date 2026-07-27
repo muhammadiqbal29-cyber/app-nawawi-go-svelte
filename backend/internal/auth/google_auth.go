@@ -108,7 +108,7 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		"user_id": user.ID,
 		"email":   user.Email,
 		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"exp":     time.Now().Add(time.Hour * 24 * 180).Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -125,7 +125,7 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   isProd,
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   86400,
+		MaxAge:   15552000,
 	})
 
 	// Redirect ke dashboard frontend

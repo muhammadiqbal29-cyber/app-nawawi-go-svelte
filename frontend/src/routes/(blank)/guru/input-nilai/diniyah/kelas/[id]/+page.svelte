@@ -35,8 +35,18 @@
   let savingCell = $state('');
   let uhColumnCount = $state(4);
   let expandedSiswaId = $state(null);
-
   const KKM = 65;
+
+  // OFFLINE-FIRST: Brankas Dinamis
+  $effect(() => {
+    if (typeof window !== 'undefined' && siswaList.length > 0 && selectedMapel) {
+      const cacheKey = `siakad_offline_diniyah_data_${kelasId}_${selectedMapel.id}_${activeTahun}_${activeSemester}_${rombelParam}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        siswaList,
+        nilaiMap
+      }));
+    }
+  });
 
   $effect(() => {
     if (activeTahun && activeSemester && rombelParam) {
@@ -47,17 +57,40 @@
       }
     }
   });
-
   async function loadMapel() {
-    loadingMapel = true;
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+      const cachedMapel = localStorage.getItem(`siakad_offline_diniyah_mapel_${sekolahId}`);
+      if (cachedMapel) {
+        try {
+          const list = JSON.parse(cachedMapel);
+          if (list && list.length > 0) {
+            mapelList = list;
+            selectedMapel = mapelList[0];
+            loadingMapel = false;
+          }
+        } catch(e) {}
+      }
+    }
+    
+    if (mapelList.length === 0) {
+      loadingMapel = true;
+    }
+    
     try {
       const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/mapel-diniyah`, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat daftar mapel diniyah.');
       mapelList = await res.json();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`siakad_offline_diniyah_mapel_${sekolahId}`, JSON.stringify(mapelList));
+      }
       if (mapelList.length > 0) {
-        selectedMapel = mapelList[0];
+        if (!selectedMapel || !mapelList.find(m => m.id === selectedMapel.id)) {
+           selectedMapel = mapelList[0];
+        }
+
         await loadNilai();
       }
     } catch (err) {
@@ -66,10 +99,29 @@
       loadingMapel = false;
     }
   }
-
   async function loadNilai() {
     if (!selectedMapel) return;
-    loadingNilai = true;
+    
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined') {
+      const cacheKey = `siakad_offline_diniyah_data_${kelasId}_${selectedMapel.id}_${activeTahun}_${activeSemester}_${rombelParam}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const data = JSON.parse(cached);
+          if (data.siswaList && data.siswaList.length > 0) {
+            siswaList = data.siswaList;
+            nilaiMap = data.nilaiMap || nilaiMap;
+            loadingNilai = false;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (siswaList.length === 0) {
+      loadingNilai = true;
+    }
+    
     error = '';
     try {
       const params = new URLSearchParams({
@@ -82,8 +134,25 @@
         `${apiUrl}/api/guru/kelas/${kelasId}/nilai-diniyah?${params.toString()}`,
         { credentials: 'include' }
       );
-      if (!res.ok) throw new Error('Gagal memuat data nilai.');
       const body = await res.json();
+      
+      // PROTECT LOCAL EDITS (Anti-Race Condition)
+      const hasPending = syncManager.queue.some(q => q.payload?.mapel_diniyah_id === selectedMapel.id && q.url.includes('nilai-diniyah'));
+      if (hasPending) {
+        if (typeof window !== 'undefined') {
+          const cacheKey = `siakad_offline_diniyah_data_${kelasId}_${selectedMapel.id}_${activeTahun}_${activeSemester}_${rombelParam}`;
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const data = JSON.parse(cached);
+              siswaList = data.siswaList || siswaList;
+              nilaiMap = data.nilaiMap || nilaiMap;
+              return; // Skip applying backend data
+            } catch(e) {}
+          }
+        }
+      }
+      
       siswaList = body.siswa || [];
 
       // Build nilaiMap: siswa_id -> nilaiData

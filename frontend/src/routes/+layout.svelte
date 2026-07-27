@@ -48,9 +48,25 @@
         const data = await res.json();
         auth.loggedInUser = data.role;
         auth.role = data.role;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('siakad_role', data.role);
+        }
+      } else if (res.status === 401 || res.status === 403) {
+        // Clear local role if explicitly unauthorized
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('siakad_role');
+        }
       }
     } catch (e) {
-      console.error(e);
+      console.error('Network Error checking auth:', e);
+      // OFFLINE FALLBACK: if network fails, check if we have a saved role
+      if (typeof window !== 'undefined') {
+        const savedRole = localStorage.getItem('siakad_role');
+        if (savedRole) {
+          auth.loggedInUser = savedRole;
+          auth.role = savedRole;
+        }
+      }
     } finally {
       clearTimeout(timer);
       checkingAuth = false;

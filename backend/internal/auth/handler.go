@@ -74,7 +74,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"user_id": user.ID,
 		"email":   user.Email,
 		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(), // 1 hari
+		"exp":     time.Now().Add(time.Hour * 24 * 180).Unix(), // 180 hari (1 semester)
 	})
 
 	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
@@ -93,7 +93,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Secure:   isProd,
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   86400, // 1 hari
+		MaxAge:   15552000, // 180 hari
 	})
 
 	_ = json.NewEncoder(w).Encode(LoginResponse{
