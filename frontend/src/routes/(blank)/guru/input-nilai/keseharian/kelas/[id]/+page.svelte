@@ -318,7 +318,9 @@
       pelanggaranSiswaList = body.data?.siswa || [];
       pelanggaranCatatanMap = body.data?.catatan || {};
     } catch (err) {
-      errorPelanggaran = err.message;
+      if (pelanggaranSiswaList.length === 0) {
+        errorPelanggaran = err.message;
+      }
     } finally {
       loadingPelanggaran = false;
     }
@@ -389,7 +391,9 @@
       iqobSiswaList = body.data?.siswa || [];
       iqobCatatanMap = body.data?.catatan || {};
     } catch (err) {
-      errorIqob = err.message;
+      if (iqobSiswaList.length === 0) {
+        errorIqob = err.message;
+      }
     } finally {
       loadingIqob = false;
     }
