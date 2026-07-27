@@ -80,7 +80,9 @@
         localStorage.setItem(cacheKey, JSON.stringify({ siswaList, nilaiMap }));
       }
     } catch (err) {
-      error = err.message || 'Gagal memuat data siswa.';
+      if (siswaList.length === 0) {
+        error = err.message || 'Gagal memuat data siswa.';
+      }
     } finally {
       loading = false;
     }

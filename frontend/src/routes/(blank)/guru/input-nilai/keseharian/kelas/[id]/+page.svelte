@@ -221,7 +221,9 @@
       }
       rekapData = map;
     } catch (err) {
-      error = err.message;
+      if (siswaData.length === 0) {
+        error = err.message;
+      }
     } finally {
       loading = false;
     }

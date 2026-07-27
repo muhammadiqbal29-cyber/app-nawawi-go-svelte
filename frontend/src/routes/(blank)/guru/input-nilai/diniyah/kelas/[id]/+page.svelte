@@ -97,7 +97,9 @@
         await loadNilai();
       }
     } catch (err) {
-      error = err.message;
+      if (mapelList.length === 0) {
+        error = err.message;
+      }
     } finally {
       loadingMapel = false;
     }
@@ -178,7 +180,9 @@
       // Lock to 4 columns explicitly for ulangan harian
       uhColumnCount = 4;
     } catch (err) {
-      error = err.message;
+      if (siswaList.length === 0) {
+        error = err.message;
+      }
     } finally {
       loadingNilai = false;
     }
