@@ -13,19 +13,45 @@
 
   // Watch for changes in sekolahId or guruState year/semester
   // We must read these values synchronously so Svelte 5 can track them
+  import { untrack } from 'svelte';
   $effect(() => {
     const taId = guruState.activeTahunId;
     const semId = guruState.activeSemesterId;
     const skId = sekolahId;
     if (taId && semId && skId) {
-      loadKelas(selectedJenisPenilaian(), taId, semId);
+      untrack(() => loadKelas(selectedJenisPenilaian(), taId, semId));
+    }
+  });
+
+  // OFFLINE-FIRST: Simpan ke localStorage saat ada data
+  $effect(() => {
+    if (typeof window !== 'undefined' && kelasList.length > 0 && sekolahId) {
+      const cacheKey = `siakad_offline_kelas_${sekolahId}_${guruState.activeTahunId}_${guruState.activeSemesterId}_${currentTab}`;
+      localStorage.setItem(cacheKey, JSON.stringify(kelasList));
     }
   });
 
 
 
   async function loadKelas(jenisPenilaian = selectedJenisPenilaian(), taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
-    loadingKelas = true;
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined' && sekolahId) {
+      const cacheKey = `siakad_offline_kelas_${sekolahId}_${taId}_${semId}_${currentTab}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.length > 0) {
+            kelasList = parsed;
+            loadingKelas = false;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (kelasList.length === 0) {
+      loadingKelas = true;
+    }
     error = '';
     try {
       const params = new URLSearchParams({ jenis_penilaian: jenisPenilaian });
@@ -45,7 +71,9 @@
       kelasList = Array.isArray(data) ? data : [];
       await hydrateJumlahSiswa(jenisPenilaian, taId, semId);
     } catch (err) {
-      error = err.message || 'Gagal memuat data kelas.';
+      if (kelasList.length === 0) {
+        error = err.message || 'Gagal memuat data kelas.';
+      }
     } finally {
       loadingKelas = false;
     }

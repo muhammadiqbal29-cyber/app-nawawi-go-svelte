@@ -15,17 +15,43 @@
       guruState.aksesMap[guruState.activeSekolahId].includes('input_diniyah')
   );
 
+  import { untrack } from 'svelte';
   $effect(() => {
     const sekolahId = guruState.activeSekolahId;
     const taId = guruState.activeTahunId;
     const semId = guruState.activeSemesterId;
     if (sekolahId && taId && semId) {
-      loadKelas(taId, semId);
+      untrack(() => loadKelas(taId, semId));
+    }
+  });
+
+  // OFFLINE-FIRST: Simpan ke localStorage saat ada data
+  $effect(() => {
+    if (typeof window !== 'undefined' && kelasList.length > 0 && guruState.activeSekolahId) {
+      const cacheKey = `siakad_offline_kelas_${guruState.activeSekolahId}_${guruState.activeTahunId}_${guruState.activeSemesterId}`;
+      localStorage.setItem(cacheKey, JSON.stringify(kelasList));
     }
   });
 
   async function loadKelas(taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
-    loadingKelas = true;
+    // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
+    if (typeof window !== 'undefined' && guruState.activeSekolahId) {
+      const cacheKey = `siakad_offline_kelas_${guruState.activeSekolahId}_${taId}_${semId}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.length > 0) {
+            kelasList = parsed;
+            loadingKelas = false;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (kelasList.length === 0) {
+      loadingKelas = true;
+    }
     error = '';
     try {
       let url = `${apiUrl}/api/guru/sekolah/${guruState.activeSekolahId}/kelas`;
@@ -42,7 +68,9 @@
       const data = await res.json();
       kelasList = Array.isArray(data) ? data : [];
     } catch (err) {
-      error = err.message || 'Gagal memuat data kelas.';
+      if (kelasList.length === 0) {
+        error = err.message || 'Gagal memuat data kelas.';
+      }
     } finally {
       loadingKelas = false;
     }
