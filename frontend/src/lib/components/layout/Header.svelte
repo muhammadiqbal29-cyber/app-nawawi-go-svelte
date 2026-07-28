@@ -1,6 +1,7 @@
 <script>
   import Icon from '$lib/components/ui/Icon.svelte';
   import SyncIndicator from '$lib/components/ui/SyncIndicator.svelte';
+  import PrecacheIndicator from '$lib/components/ui/PrecacheIndicator.svelte';
 
   let {
     title = 'Dashboard',
@@ -11,7 +12,8 @@
     onGantiJenjang = () => {},
     onGantiTahun = () => {},
     onLogout,
-    onToggleSidebar
+    onToggleSidebar,
+    onHelpClick = () => {}
   } = $props();
 
   let showDropdown = $state(false);
@@ -27,6 +29,10 @@
     </div>
 
     <div class="header-right">
+      <button class="help-btn" onclick={onHelpClick} aria-label="Bantuan Kontekstual" title="Panduan Penggunaan">
+        <Icon name="helpCircle" size={20} />
+      </button>
+      <PrecacheIndicator />
       <SyncIndicator />
       {#if userRole === 'guru'}
         <button
@@ -121,13 +127,6 @@
     font-size: 1.5rem;
     color: var(--color-text-muted, #64748b);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.2s;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
   }
 
   .toggle-btn:hover {
@@ -144,6 +143,25 @@
 
   .desktop-badge {
     display: flex;
+  }
+
+  .help-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .help-btn:hover {
+    background: #f1f5f9;
+    color: #3b82f6;
   }
 
   .active-jenjang-badge {

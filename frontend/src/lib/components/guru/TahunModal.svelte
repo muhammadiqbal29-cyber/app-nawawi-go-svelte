@@ -1,6 +1,9 @@
 <script>
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { get } from 'svelte/store';
 
   function selectTahunSemester(ta, sem) {
     guruState.activeTahunId = ta.id;
@@ -13,6 +16,14 @@
       localStorage.setItem('siakad_active_ta_id', ta.id);
       localStorage.setItem('siakad_active_sem_id', sem.id);
       localStorage.setItem('siakad_active_ta_name', guruState.activeTahunName);
+    }
+
+    const currentPage = get(page);
+    const path = currentPage.url.pathname;
+    
+    // Redirect ke dashboard jika berada di halaman spesifik agar state URL tereset
+    if (path.startsWith('/guru/input-nilai') || path.startsWith('/guru/rapor')) {
+      goto('/guru');
     }
   }
 </script>

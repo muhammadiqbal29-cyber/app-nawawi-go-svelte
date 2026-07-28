@@ -63,6 +63,13 @@
         </li>
       {/if}
 
+      <li class:active={currentPath === '/guru/panduan'}>
+        <button class="nav-link" onclick={() => navigate('/guru/panduan')}>
+          <Icon name="helpCircle" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Panduan</span>
+        </button>
+      </li>
+
       <!-- Spacer to push Keluar to bottom -->
       <div style="flex-grow: 1;"></div>
 

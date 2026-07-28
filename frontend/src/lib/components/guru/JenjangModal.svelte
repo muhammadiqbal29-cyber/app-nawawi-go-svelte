@@ -14,11 +14,12 @@
       localStorage.setItem('siakad_active_sekolah_name', sekolah.nama_sekolah);
     }
 
-    // Jika user sedang berada di halaman detail yang terikat pada sekolah_id lama di URL
+    // Jika user sedang berada di halaman spesifik, redirect ke dashboard untuk mereset state dan versi (V1/V2)
     const currentPage = get(page);
+    const path = currentPage.url.pathname;
     const urlSekolahId = currentPage.url.searchParams.get('sekolah_id');
-    if (urlSekolahId && urlSekolahId !== String(sekolah.id)) {
-      // Redirect ke dashboard agar tidak nyangkut di kelas/siswa dari jenjang sebelumnya
+    
+    if (path.startsWith('/guru/input-nilai') || path.startsWith('/guru/rapor') || (urlSekolahId && urlSekolahId !== String(sekolah.id))) {
       goto('/guru');
     }
   }

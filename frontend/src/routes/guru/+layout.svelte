@@ -1,17 +1,24 @@
 <script>
   import { page, updated } from '$app/stores';
-  import { goto } from '$app/navigation';
+  import { goto, onNavigate } from '$app/navigation';
   import { auth } from '$lib/auth.svelte.js';
   import GuruSidebar from '$lib/components/layout/GuruSidebar.svelte';
   import Header from '$lib/components/layout/Header.svelte';
   import BottomNav from '$lib/components/layout/BottomNav.svelte';
   import JenjangModal from '$lib/components/guru/JenjangModal.svelte';
   import TahunModal from '$lib/components/guru/TahunModal.svelte';
+  import PrecacheIndicator from '$lib/components/ui/PrecacheIndicator.svelte';
+  import HelpModal from '$lib/components/ui/HelpModal.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
+  import { startPrecache } from '$lib/offlinePrecacher.svelte.js';
+  import { syncManager } from '$lib/syncManager.svelte.js';
 
+  let isClient = $state(false);
   let { children } = $props();
 
-  let sidebarOpen = $state(true);
+  let sidebarOpen = $state(false);
+  let showHelpModal = $state(false);
+  let isNavigating = $state(false);
   let currentPath = $derived($page.url.pathname);
   // fiturGuru sekarang di-derive dari aksesMap sekolah yang sedang aktif
   let fiturGuru = $derived(
@@ -30,6 +37,12 @@
     }, 15 * 60 * 1000);
 
     return () => clearInterval(interval);
+  });
+
+  $effect(() => {
+    if (guruState.activeSekolahId && guruState.activeTahunId && guruState.activeSemesterId) {
+       startPrecache();
+    }
   });
 
   function applyUpdate() {
@@ -305,6 +318,7 @@
       onGantiJenjang={() => (guruState.showJenjangModal = true)}
       userName={auth.loggedInUser || 'Guru'}
       onToggleSidebar={toggleSidebar}
+      onHelpClick={() => (showHelpModal = true)}
       {onLogout}
     />
 
@@ -316,6 +330,7 @@
 
 <JenjangModal />
 <TahunModal />
+<HelpModal bind:isOpen={showHelpModal} {currentPath} />
 <BottomNav {currentPath} {fiturGuru} />
 
 {#if showUpdateToast || $updated}
