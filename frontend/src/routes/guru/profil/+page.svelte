@@ -320,6 +320,14 @@
 </div>
 
 <style>
+
+  .desktop-only { display: block; }
+  .mobile-only { display: none !important; }
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+  }
+
   .page-container {
     padding: 1.5rem;
     max-width: 1000px;

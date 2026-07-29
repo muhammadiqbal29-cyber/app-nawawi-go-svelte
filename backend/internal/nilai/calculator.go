@@ -245,7 +245,7 @@ func calculateNilaiTasmiHeader(header *models.NilaiTasmi, details []models.Nilai
 		return
 	}
 
-	pembagi := jumlahMateri
+	pembagi := len(details)
 	if header.PembaginYangDigunakan > 0 {
 		pembagi = header.PembaginYangDigunakan
 	}

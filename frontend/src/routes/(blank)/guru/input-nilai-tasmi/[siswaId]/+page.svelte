@@ -362,7 +362,7 @@
   let submittedRows = $derived(rows.filter((row) => total(row) !== ''));
   let totalPoin = $derived(submittedRows.reduce((sum, row) => sum + total(row), 0));
   let rataRataPoin = $derived(
-    submittedRows.length > 0 ? Number((totalPoin / submittedRows.length).toFixed(2)) : ''
+    rows.length > 0 ? Number((totalPoin / rows.length).toFixed(2)) : ''
   );
 
   function moveCell(event, rowIndex, colIndex) {

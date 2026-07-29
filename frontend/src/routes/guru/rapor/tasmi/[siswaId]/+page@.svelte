@@ -210,8 +210,7 @@
     }
   }
 
-  let totalPoin = $derived(details.reduce((sum, d) => sum + (d.total_poin || 0), 0));
-
+  let totalPoin = $derived(details.reduce((sum, d) => sum + (Number(d.total_poin) || 0), 0));
   let maxPoin = $derived(details.length * 25);
 
   let averageScore = $derived(
@@ -219,7 +218,7 @@
       ? Math.round(nilaiHeader.nilai_akhir)
       : details.length > 0
         ? Math.round(totalPoin / (details.length * 5))
-        : 0
+        : null
   );
 
   function getPredicate(score) {
@@ -440,7 +439,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each details as row, index (row.id || index)}
+            {#each details as row, index (index)}
               <tr>
                 <td>{index + 1}</td>
                 <td class="text-left">{row.nama_materi}</td>

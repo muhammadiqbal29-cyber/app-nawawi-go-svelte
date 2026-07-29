@@ -354,6 +354,7 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis/template", iqob.DownloadTemplateJenisIqobHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/iqob/jenis/import", iqob.ImportJenisIqobHandler).Methods("POST")
 	guruRouter.HandleFunc("/iqob/catatan", iqob.CreateCatatanIqobHandler).Methods("POST")
+	guruRouter.HandleFunc("/iqob/pemutihan", iqob.PemutihanIqobHandler).Methods("POST")
 	guruRouter.HandleFunc("/iqob/catatan/{id:[0-9]+}", iqob.DeleteCatatanIqobHandler).Methods("DELETE")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/iqob", iqob.GetCatatanIqobSiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/iqob", iqob.GetCatatanIqobKelasHandler).Methods("GET")

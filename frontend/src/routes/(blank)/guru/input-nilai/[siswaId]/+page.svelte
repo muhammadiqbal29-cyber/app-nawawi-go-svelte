@@ -552,6 +552,14 @@
 </main>
 
 <style>
+
+  .desktop-only { display: block; }
+  .mobile-only { display: none !important; }
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+  }
+
   :global(body) {
     background: #f3f4f6;
   }

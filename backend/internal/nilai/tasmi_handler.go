@@ -388,10 +388,24 @@ func recalculateAndSaveNilaiTasmiHeader(tx *gorm.DB, header *models.NilaiTasmi) 
 		return err
 	}
 
+	var count int64
 	if header.JenisPenilaian == JenisPenilaianKelulusan {
-		var count int64
 		if err := tx.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND aktif = ?", header.SekolahID, true).Count(&count).Error; err == nil {
 			header.PembaginYangDigunakan = int(count)
+		}
+	} else if header.JuzYangDiujikan != "" {
+		juzStrList := strings.Split(header.JuzYangDiujikan, ",")
+		var validJuz []string
+		for _, s := range juzStrList {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				validJuz = append(validJuz, s)
+			}
+		}
+		if len(validJuz) > 0 {
+			if err := tx.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND juz IN ?", header.SekolahID, validJuz).Count(&count).Error; err == nil {
+				header.PembaginYangDigunakan = int(count)
+			}
 		}
 	}
 

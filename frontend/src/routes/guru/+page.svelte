@@ -543,6 +543,14 @@
 </div>
 
 <style>
+
+  .desktop-only { display: block; }
+  .mobile-only { display: none !important; }
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+  }
+
   .beranda-guru {
     max-width: 1200px;
     margin: 0 auto;

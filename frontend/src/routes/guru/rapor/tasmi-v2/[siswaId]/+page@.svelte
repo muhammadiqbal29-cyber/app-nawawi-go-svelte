@@ -209,7 +209,7 @@
 
   // V2: 3 kategori (kelancaran, tajwid, makharij), masing-masing 0-100
   // Total poin per materi = max 300
-  let totalPoin = $derived(details.reduce((sum, d) => sum + (d.total_poin || 0), 0));
+  let totalPoin = $derived(details.reduce((sum, d) => sum + (Number(d.total_poin) || 0), 0));
   let maxPoin = $derived(details.length * 300);
 
   let averageScore = $derived(
@@ -217,7 +217,7 @@
       ? Math.round(nilaiHeader.nilai_akhir)
       : details.length > 0
         ? Math.round((totalPoin / 3) / details.length)
-        : 0
+        : null
   );
 
   function getPredicate(score) {
@@ -432,7 +432,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each details as row, index (row.id || index)}
+            {#each details as row, index (index)}
               <tr>
                 <td>{index + 1}</td>
                 <td class="text-left">{row.nama_materi}</td>

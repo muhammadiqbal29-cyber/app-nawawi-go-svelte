@@ -371,6 +371,39 @@
       alert(err.message);
     }
   }
+
+  async function doPemutihan() {
+    if (poinAkhir <= 0) {
+      toastStore.show('Poin sudah 0, tidak perlu pemutihan', 'info');
+      return;
+    }
+    if (!(await modalStore.show({ message: 'Lakukan pemutihan poin untuk siswa ini? Seluruh poin akan di-reset (dinolkan).' }))) return;
+    
+    iqobFormLoading = true;
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/iqob/pemutihan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          siswa_id: Number(siswaId),
+          sekolah_id: Number(sekolahId),
+          tanggal: iqobFormTanggal || new Date().toISOString().split('T')[0],
+          keterangan: 'Pemutihan Manual'
+        })
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || 'Gagal melakukan pemutihan');
+      }
+      toastStore.show('Pemutihan berhasil dilakukan', 'success');
+      await loadCatatan();
+    } catch (err) {
+      toastStore.show(err.message, 'error');
+    } finally {
+      iqobFormLoading = false;
+    }
+  }
   
   let backUrl = $derived(
     `/guru/input-nilai/keseharian/kelas/${kelasId}?sekolah_id=${sekolahId}&tab=pelanggaran_iqob`
@@ -578,13 +611,23 @@
                     <div style="font-weight: 700; color: #0f172a; font-size: 0.9rem;">
                       {recommendedIqob.nama} (Poin: -{recommendedIqob.poin})
                     </div>
-                    <button class="btn-outline-sm" onclick={applyRecommendedIqob} style="margin-top:0.25rem;">
-                      Gunakan Rekomendasi Ini
-                    </button>
+                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top:0.25rem;">
+                      <button class="btn-outline-sm" onclick={applyRecommendedIqob}>
+                        Gunakan Rekomendasi
+                      </button>
+                      <button class="btn-outline-sm" onclick={doPemutihan} disabled={iqobFormLoading} style="color: #16a34a; border-color: #16a34a;">
+                        Pemutihan (Reset)
+                      </button>
+                    </div>
                   </div>
                 {:else}
                   <div style="text-align: right;">
                      <div style="font-size: 0.8rem; color: #64748b;">Belum ada rekomendasi iqob</div>
+                     {#if poinAkhir > 0}
+                       <button class="btn-outline-sm" onclick={doPemutihan} disabled={iqobFormLoading} style="margin-top:0.25rem; color: #16a34a; border-color: #16a34a;">
+                         Pemutihan (Reset)
+                       </button>
+                     {/if}
                   </div>
                 {/if}
               </div>
@@ -1063,12 +1106,18 @@
     border-radius: 8px;
   }
 
+  .desktop-only { display: block; }
+  .mobile-only { display: none !important; }
+
   @media (min-width: 640px) {
     .form-grid {
       grid-template-columns: 1fr 1fr;
     }
   }
   @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+    
     .sheet-page {
       padding: 12px;
     }

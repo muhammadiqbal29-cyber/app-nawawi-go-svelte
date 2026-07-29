@@ -1704,7 +1704,7 @@
               </div>
 
               <div class="kriteria-list">
-                {#each kriteriaPenilaian as kriteria, index (kriteria.id || index)}
+                {#each kriteriaPenilaian as kriteria, index (index)}
                   <div class="kriteria-row">
                     <div class="form-group">
                       <label>Batas Bawah</label>
@@ -3009,6 +3009,14 @@
 </div>
 
 <style>
+
+  .desktop-only { display: block; }
+  .mobile-only { display: none !important; }
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: block !important; }
+  }
+
   @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
 
   /* Main Tabs */

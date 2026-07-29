@@ -361,7 +361,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each details as row, index (row.id || index)}
+            {#each details as row, index (index)}
               <tr>
                 <td>{index + 1}</td>
                 <td class="text-left">{row.nama_materi}</td>
@@ -401,7 +401,7 @@
           <table>
             <tbody>
               {#if kriteriaPenilaian && kriteriaPenilaian.length > 0}
-                {#each kriteriaPenilaian as k (k.id || k.min)}
+                {#each kriteriaPenilaian as k, index (index)}
                   <tr>
                     <td>{k.min === 0 ? `< ${k.max + 1}` : `${k.min} - ${k.max}`}</td>
                     <td>: {k.arab} ({k.indo})</td>
