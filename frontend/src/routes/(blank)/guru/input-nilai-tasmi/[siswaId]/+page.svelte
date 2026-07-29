@@ -153,7 +153,7 @@
       
       // 3. Fetch riwayat to determine maxTahap
       try {
-        const riwayatRes = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/riwayat-tasmi`, {
+        const riwayatRes = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/riwayat-tasmi?sekolah_id=${sekolahId}`, {
           credentials: 'include'
         });
         if (riwayatRes.ok) {

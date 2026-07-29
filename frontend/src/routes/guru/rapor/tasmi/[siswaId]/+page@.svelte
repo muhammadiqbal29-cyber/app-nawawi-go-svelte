@@ -83,6 +83,18 @@
         tahap = maxTahap;
         await loadNilaiTasmi();
       } else {
+        // No v1 riwayat found — check if v2 has data and redirect
+        try {
+          const v2Res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/riwayat-tasmi-v2?sekolah_id=${sekolahId}`, { credentials: 'include' });
+          if (v2Res.ok) {
+            const v2Data = await v2Res.json();
+            if ((v2Data.riwayat || []).length > 0) {
+              const newPath = $page.url.pathname.replace('/rapor/tasmi/', '/rapor/tasmi-v2/');
+              goto(`${newPath}?${$page.url.searchParams.toString()}`, { replaceState: true });
+              return;
+            }
+          }
+        } catch {}
         await loadNilaiTasmi();
       }
 
@@ -93,7 +105,7 @@
   
   async function loadRiwayat() {
     try {
-      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/riwayat-tasmi`, {
+      const res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/riwayat-tasmi?sekolah_id=${sekolahId}`, {
         credentials: 'include'
       });
       if (res.ok) {

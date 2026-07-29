@@ -109,6 +109,24 @@
       };
     });
 
+    // Fallback: if no v1 data, check if v2 has data and redirect
+    if (!nilaiHeader) {
+      try {
+        const params = new URLSearchParams({ jenis_penilaian: 'kelulusan', mata_pelajaran: 'Tahfiz' });
+        if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+        if (paramSemId) params.set('semester_id', paramSemId);
+        const v2Res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz-v2?${params.toString()}`, { credentials: 'include' });
+        if (v2Res.ok) {
+          const v2Body = await v2Res.json();
+          if (v2Body.nilai || (v2Body.details && v2Body.details.length > 0)) {
+            const newPath = $page.url.pathname.replace('/rapor/kelulusan/', '/rapor/kelulusan-v2/');
+            goto(`${newPath}?${$page.url.searchParams.toString()}`, { replaceState: true });
+            return;
+          }
+        }
+      } catch {}
+    }
+
     loading = false;
   });
 

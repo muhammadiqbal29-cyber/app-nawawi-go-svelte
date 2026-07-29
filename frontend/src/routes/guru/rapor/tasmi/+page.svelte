@@ -80,7 +80,7 @@
       siswaList = data.data || data || [];
 
       // Fetch riwayat tasmi
-      const resRekap = await fetch(`${apiUrl}/api/guru/kelas/${kelas.id}/rekap-tasmi?rombel=${kelas.rombel || '__kosong__'}`, {
+      const resRekap = await fetch(`${apiUrl}/api/guru/kelas/${kelas.id}/rekap-tasmi?rombel=${kelas.rombel || '__kosong__'}&sekolah_id=${guruState.activeSekolahId}`, {
         credentials: 'include'
       });
       if (resRekap.ok) {

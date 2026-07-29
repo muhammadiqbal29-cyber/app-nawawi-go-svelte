@@ -70,6 +70,25 @@
     if (mSize) ttdMusyrifSize = parseInt(mSize) || 100;
 
     await Promise.all([loadSekolah(), loadNilaiTahfiz(), loadKonfigurasiTahfiz()]);
+
+    // If no data in v1, check if v2 has data and redirect
+    if (!nilaiHeader && details.length === 0) {
+      try {
+        const params = new URLSearchParams({ jenis_penilaian: 'semester', mata_pelajaran: 'Tahfiz' });
+        if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
+        if (paramSemId) params.set('semester_id', paramSemId);
+        const v2Res = await fetch(`${apiUrl}/api/guru/siswa/${siswaId}/nilai-tahfiz-v2?${params.toString()}`, { credentials: 'include' });
+        if (v2Res.ok) {
+          const v2Body = await v2Res.json();
+          if (v2Body.nilai || (v2Body.details && v2Body.details.length > 0)) {
+            const newPath = $page.url.pathname.replace('/rapor/ujian-tahfiz/', '/rapor/ujian-tahfiz-v2/');
+            goto(`${newPath}?${$page.url.searchParams.toString()}`, { replaceState: true });
+            return;
+          }
+        }
+      } catch {}
+    }
+
     loading = false;
   });
 
