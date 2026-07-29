@@ -146,7 +146,13 @@ class SyncManager {
            break;
         }
 
-        // If success or client error (except 401/403) 
+        if (res.status === 429) {
+           // Terlalu banyak request, sistem rate limiter menolak. Break loop agar tidak kehapus
+           this.lastError = "Terlalu banyak request. Menunggu sejenak...";
+           break;
+        }
+
+        // If success or client error (except 401/403/429) 
         if (res.ok || (res.status >= 400 && res.status < 500)) {
            this.queue.shift();
            this.saveQueue();
@@ -161,6 +167,9 @@ class SyncManager {
         this.lastError = "Jaringan terputus. Menunggu koneksi...";
         break;
       }
+      
+      // Memberikan jeda (delay) antar request untuk menghindari spamming / 429 dari Cloudflare
+      await new Promise(r => setTimeout(r, 300));
     }
     
     this.isSyncing = false;

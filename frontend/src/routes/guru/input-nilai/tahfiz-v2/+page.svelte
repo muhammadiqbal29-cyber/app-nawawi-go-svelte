@@ -24,7 +24,7 @@
   <div class="empty-state">
     <Icon name="grid" size={48} />
     <h3>Pilih Jenjang Sekolah</h3>
-    <p>Silakan pilih jenjang sekolah pada menu di pojok kanan atas.</p>
+    <p>Silakan klik tombol Pilih Jenjang terlebih dahulu.</p>
   </div>
 {:else if !hasAccess}
   <div class="empty-state">

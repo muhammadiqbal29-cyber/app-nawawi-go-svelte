@@ -293,7 +293,7 @@
     <div class="empty-state">
       <Icon name="grid" size={48} />
       <h3>Pilih Jenjang Sekolah</h3>
-      <p>Silakan pilih jenjang sekolah pada menu di pojok kanan atas untuk melihat dashboard.</p>
+      <p>Silakan klik tombol Pilih Jenjang terlebih dahulu untuk melihat dashboard.</p>
     </div>
   {:else}
     <!-- Tab Navigation -->
@@ -468,7 +468,7 @@
         {#if selectedSekolah}
           <b>{selectedSekolah.nama_sekolah}</b><br>Tahun Ajaran Aktif
         {:else}
-          Pilih Jenjang Sekolah di Pojok Kanan Atas
+          Silakan klik tombol Pilih Jenjang terlebih dahulu
         {/if}
       </div>
     </div>

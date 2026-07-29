@@ -1327,7 +1327,7 @@
     <div class="empty-state">
       <Icon name="grid" size={48} />
       <h3>Pilih Jenjang Sekolah</h3>
-      <p>Silakan pilih jenjang sekolah pada menu di pojok kanan atas.</p>
+      <p>Silakan klik tombol Pilih Jenjang terlebih dahulu.</p>
     </div>
   {:else}
     <!-- Tabs -->
@@ -2941,7 +2941,7 @@
 
   {#if !selectedSekolah}
     <div class="empty-state" style="border: none; margin-top: 1rem;">
-      Silakan pilih jenjang sekolah di pojok kanan atas.
+      Silakan klik tombol Pilih Jenjang terlebih dahulu.
     </div>
   {:else}
     <div class="mobile-cards-view" style="padding-bottom: 0;">

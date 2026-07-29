@@ -80,38 +80,40 @@
   }
 
   async function hydrateJumlahSiswa(jenisPenilaian = selectedJenisPenilaian(), taId = guruState.activeTahunId, semId = guruState.activeSemesterId) {
-    await Promise.all(
-      kelasList.map(async (kelas) => {
-        if (Number(kelas.jumlah_siswa || 0) > 0) return;
+    for (const kelas of kelasList) {
+      if (Number(kelas.jumlah_siswa || 0) > 0) continue;
 
-        try {
-          const params = new URLSearchParams({
-            mata_pelajaran: currentTab === 'tasmi' ? 'Ujian Tasmi' : 'Ujian Tahfiz',
-            jenis_penilaian: jenisPenilaian,
-            rombel: kelas.rombel || '__kosong__'
-          });
-          if (taId) params.append('tahun_ajaran_id', taId);
-          if (semId) params.append('semester_id', semId);
-          const res = await fetch(
-            `${apiUrl}/api/guru/kelas/${kelas.id}/nilai?${params.toString()}`,
-            {
-              credentials: 'include'
-            }
-          );
-          if (!res.ok) return;
+      try {
+        const params = new URLSearchParams({
+          mata_pelajaran: currentTab === 'tasmi' ? 'Ujian Tasmi' : 'Ujian Tahfiz',
+          jenis_penilaian: jenisPenilaian,
+          rombel: kelas.rombel || '__kosong__'
+        });
+        if (taId) params.append('tahun_ajaran_id', taId);
+        if (semId) params.append('semester_id', semId);
+        
+        const res = await fetch(
+          `${apiUrl}/api/guru/kelas/${kelas.id}/nilai?${params.toString()}`,
+          { credentials: 'include' }
+        );
+        
+        if (!res.ok) continue;
 
-          const body = await res.json();
-          const jumlahSiswa = (body.siswa || []).length;
-          kelasList = kelasList.map((item) =>
-            String(item.id) === String(kelas.id) && item.rombel === kelas.rombel
-              ? { ...item, jumlah_siswa: jumlahSiswa }
-              : item
-          );
-        } catch {
-          // Biarkan angka dari endpoint utama jika cek ulang gagal.
-        }
-      })
-    );
+        const body = await res.json();
+        const jumlahSiswa = (body.siswa || []).length;
+        
+        kelasList = kelasList.map((item) =>
+          String(item.id) === String(kelas.id) && item.rombel === kelas.rombel
+            ? { ...item, jumlah_siswa: jumlahSiswa }
+            : item
+        );
+      } catch {
+        // Biarkan angka dari endpoint utama jika cek ulang gagal.
+      }
+      
+      // Delay to avoid 429 Too Many Requests
+      await new Promise(r => setTimeout(r, 100));
+    }
   }
 
   function changeTab(tab) {
