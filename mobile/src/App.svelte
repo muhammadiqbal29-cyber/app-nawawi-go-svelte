@@ -43,6 +43,13 @@
 <ConfirmModal />
 <DeviceOrientationOverlay />
 
+{#if import.meta.env.VITE_APP_ENV === 'staging'}
+    <div class="staging-banner-mobile">
+        ⚠️ STAGING
+    </div>
+{/if}
+
+
 
 <main>
     <Route path="/">
@@ -104,4 +111,26 @@
     .splash-logo { width: 100px; height: 100px; margin-bottom: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     .splash-title { font-size: 2rem; font-weight: 800; margin: 0 0 0.5rem 0; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     .splash-subtitle { font-size: 1rem; opacity: 0.8; margin: 0; }
+
+    .staging-banner-mobile {
+        position: fixed;
+        bottom: 5rem;
+        right: 1rem;
+        background: #ef4444;
+        color: white;
+        padding: 0.35rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        letter-spacing: 0.05em;
+        z-index: 9999;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+        animation: pulse-staging-mobile 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse-staging-mobile {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
 </style>

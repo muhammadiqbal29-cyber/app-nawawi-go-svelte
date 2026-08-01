@@ -97,6 +97,12 @@
   {@render children()}
 {/if}
 
+{#if import.meta.env.VITE_APP_ENV === 'staging'}
+  <div class="staging-banner">
+    ⚠️ MODE STAGING
+  </div>
+{/if}
+
 <ToastContainer />
 <ConfirmModal />
 
@@ -126,5 +132,27 @@
     to {
       transform: rotate(360deg);
     }
+  }
+
+  .staging-banner {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    background: #ef4444;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    z-index: 9999;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    pointer-events: none;
+    animation: pulse-staging 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse-staging {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 </style>
