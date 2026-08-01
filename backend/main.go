@@ -81,7 +81,7 @@ func HandleCORS(next http.Handler) http.Handler {
 		}
 
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Sekolah-ID, X-Requested-With")
 
 		if r.Method == "OPTIONS" {
@@ -303,6 +303,7 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/mapel-diniyah", mapelDiniyah.CreateMapelDiniyahHandler).Methods("POST")
 	guruRouter.HandleFunc("/mapel-diniyah/{id:[0-9]+}", mapelDiniyah.UpdateMapelDiniyahHandler).Methods("PUT")
 	guruRouter.HandleFunc("/mapel-diniyah/{id:[0-9]+}", mapelDiniyah.DeleteMapelDiniyahHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/mapel-diniyah/{id:[0-9]+}/klaim", mapelDiniyah.KlaimMapelDiniyahHandler).Methods("PATCH")
 
 	// Rute Nilai Diniyah (Guru)
 	guruRouter.HandleFunc("/kelas/{kelas_id}/nilai-diniyah", nilaiDiniyah.GetNilaiDiniyahByKelasHandler).Methods("GET")

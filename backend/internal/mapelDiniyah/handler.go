@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/guru"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
@@ -43,7 +44,7 @@ func GetMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, mapelList)
 }
 
-// GetMapelDiniyahAktifHandler — guru: ambil mapel aktif saja per sekolah
+// GetMapelDiniyahAktifHandler — guru: ambil mapel aktif saja per sekolah (dengan nama guru pengampu)
 func GetMapelDiniyahAktifHandler(w http.ResponseWriter, r *http.Request) {
 	sekolahID, err := sekolahIDFromRequest(r)
 	if err != nil {
@@ -53,14 +54,100 @@ func GetMapelDiniyahAktifHandler(w http.ResponseWriter, r *http.Request) {
 
 	var mapelList []models.MapelDiniyah
 	if err := database.DB.
-		Where("sekolah_id = ? AND aktif = ?", sekolahID, true).
-		Order("urutan ASC, id ASC").
+		Select("mapel_diniyahs.*, gurus.nama_lengkap as guru_pengampu_nama").
+		Joins("LEFT JOIN gurus ON gurus.id = mapel_diniyahs.guru_pengampu_id").
+		Where("mapel_diniyahs.sekolah_id = ? AND mapel_diniyahs.aktif = ?", sekolahID, true).
+		Order("mapel_diniyahs.urutan ASC, mapel_diniyahs.id ASC").
 		Find(&mapelList).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil daftar mapel diniyah", err)
 		return
 	}
 
 	response.JSON(w, http.StatusOK, mapelList)
+}
+
+// KlaimMapelDiniyahHandler — guru: klaim atau lepas klaim mapel sebagai pengampu
+func KlaimMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := idFromRequest(r)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "ID tidak valid", err)
+		return
+	}
+
+	type klaimPayload struct {
+		Aksi string `json:"aksi"` // "klaim" atau "lepas"
+	}
+	var payload klaimPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		response.Error(w, http.StatusBadRequest, "Data tidak valid", err)
+		return
+	}
+	if payload.Aksi != "klaim" && payload.Aksi != "lepas" {
+		response.Error(w, http.StatusBadRequest, "Aksi harus 'klaim' atau 'lepas'", errors.New("aksi invalid"))
+		return
+	}
+
+	// Ambil mapel
+	var existing models.MapelDiniyah
+	if err := database.DB.First(&existing, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(w, http.StatusNotFound, "Mapel diniyah tidak ditemukan", err)
+			return
+		}
+		response.Error(w, http.StatusInternalServerError, "Gagal mengambil mapel diniyah", err)
+		return
+	}
+
+	// Cek akses sekolah
+	if !middleware.VerifyGuruAccessJSON(w, r, existing.SekolahID) {
+		return
+	}
+
+	// Identifikasi guru yang sedang login
+	role, _ := r.Context().Value("role").(string)
+	var guruID *int
+	if role == "guru" {
+		guruObj, err := guru.GetGuruFromContext(r)
+		if err != nil {
+			response.Error(w, http.StatusUnauthorized, "Data guru tidak ditemukan", err)
+			return
+		}
+		guruID = &guruObj.ID
+	}
+	// Admin (guruID == nil) boleh klaim/lepas atas nama sekolah
+
+	if payload.Aksi == "klaim" {
+		existing.GuruPengampuID = guruID
+	} else {
+		// Lepas klaim: hanya pemilik klaim atau admin yang boleh
+		if role == "guru" && (existing.GuruPengampuID == nil || *existing.GuruPengampuID != *guruID) {
+			response.Error(w, http.StatusForbidden, "Anda bukan pengampu mapel ini, tidak bisa melepas klaim", errors.New("bukan pengampu"))
+			return
+		}
+		existing.GuruPengampuID = nil
+	}
+
+	if err := database.DB.Save(&existing).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan perubahan klaim", err)
+		return
+	}
+
+	// Kembalikan data lengkap dengan nama guru
+	type mapelResponse struct {
+		models.MapelDiniyah
+		GuruPengampuNama string `json:"guru_pengampu_nama"`
+	}
+	var guruNama string
+	if existing.GuruPengampuID != nil {
+		var g models.Guru
+		if err := database.DB.First(&g, *existing.GuruPengampuID).Error; err == nil {
+			guruNama = g.NamaLengkap
+		}
+	}
+	response.JSON(w, http.StatusOK, mapelResponse{
+		MapelDiniyah:     existing,
+		GuruPengampuNama: guruNama,
+	})
 }
 
 // CreateMapelDiniyahHandler — admin: tambah mapel baru

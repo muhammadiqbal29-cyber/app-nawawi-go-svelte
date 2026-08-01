@@ -412,15 +412,19 @@ type AnggotaHalaqah struct {
 }
 
 type MapelDiniyah struct {
-	ID            int       `gorm:"primaryKey;autoIncrement" json:"id"`
-	SekolahID     int       `gorm:"not null;index;uniqueIndex:idx_mapel_diniyah_scope" json:"sekolah_id"`
-	NamaMapel     string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_mapel_diniyah_scope" json:"nama_mapel"`
-	NamaMapelArab string    `gorm:"type:varchar(255)" json:"nama_mapel_arab"`
-	Kategori      string    `gorm:"type:varchar(50);not null;default:'tes_tulis'" json:"kategori"`
-	Urutan        int       `gorm:"type:int;not null;default:0" json:"urutan"`
-	Aktif         bool      `gorm:"type:boolean;not null;default:true" json:"aktif"`
-	CreatedAt     time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt     time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID               int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SekolahID        int       `gorm:"not null;index;uniqueIndex:idx_mapel_diniyah_scope" json:"sekolah_id"`
+	NamaMapel        string    `gorm:"type:varchar(150);not null;uniqueIndex:idx_mapel_diniyah_scope" json:"nama_mapel"`
+	NamaMapelArab    string    `gorm:"type:varchar(255)" json:"nama_mapel_arab"`
+	Kategori         string    `gorm:"type:varchar(50);not null;default:'tes_tulis'" json:"kategori"`
+	Urutan           int       `gorm:"type:int;not null;default:0" json:"urutan"`
+	Aktif            bool      `gorm:"type:boolean;not null;default:true" json:"aktif"`
+	GuruPengampuID   *int      `gorm:"type:int;index" json:"guru_pengampu_id"`
+	CreatedAt        time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt        time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+	// Virtual field — diisi saat query dengan JOIN
+	GuruPengampuNama string `gorm:"->" json:"guru_pengampu_nama,omitempty"`
 }
 
 type NilaiDiniyah struct {

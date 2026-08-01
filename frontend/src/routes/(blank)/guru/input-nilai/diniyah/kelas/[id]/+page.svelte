@@ -5,6 +5,8 @@
   import { goto } from '$app/navigation';
   import { guruState } from '$lib/guruState.svelte.js';
   import { syncManager } from '$lib/syncManager.svelte.js';
+  import MapelCard from '$lib/components/diniyah/MapelCard.svelte';
+  import KonfirmasiMapelModal from '$lib/components/diniyah/KonfirmasiMapelModal.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -36,6 +38,44 @@
   let uhColumnCount = $state(4);
   let expandedSiswaId = $state(null);
   const KKM = 65;
+
+  // State untuk klaim & modal
+  let currentGuruId = $state(null);   // ID guru yang sedang login
+  let currentGuruNama = $state('');   // Nama guru yang sedang login
+  let showGrid = $state(true);        // true = tampilkan grid mapel, false = tampilkan tabel input
+  let showKonfirmasi = $state(false); // true = tampilkan modal konfirmasi
+  let mapelYangDipilih = $state(null); // mapel yang sedang menunggu konfirmasi
+
+  // Filter mapel: hanya milikku atau semua
+  let filterMilikku = $state(
+    typeof window !== 'undefined'
+      ? localStorage.getItem('siakad_diniyah_filter_milikku') === 'true'
+      : false
+  );
+  let filteredMapel = $derived(
+    filterMilikku && currentGuruId
+      ? mapelList.filter((m) => m.guru_pengampu_id === currentGuruId)
+      : mapelList
+  );
+  $effect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('siakad_diniyah_filter_milikku', String(filterMilikku));
+    }
+  });
+
+  // Fetch profil guru untuk mendapatkan ID dan nama guru yang sedang login
+  onMount(async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/me/profil`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        currentGuruId = data.id ?? null;
+        currentGuruNama = data.nama_lengkap ?? '';
+      }
+    } catch (e) {
+      // Abaikan error profil, fitur klaim hanya tidak bisa digunakan
+    }
+  });
 
   // OFFLINE-FIRST: Brankas Dinamis
   $effect(() => {
@@ -69,7 +109,6 @@
           const list = JSON.parse(cachedMapel);
           if (list && list.length > 0) {
             mapelList = list;
-            selectedMapel = mapelList[0];
             loadingMapel = false;
           }
         } catch(e) {}
@@ -89,13 +128,7 @@
       if (typeof window !== 'undefined') {
         localStorage.setItem(`siakad_offline_diniyah_mapel_${sekolahId}`, JSON.stringify(mapelList));
       }
-      if (mapelList.length > 0) {
-        if (!selectedMapel || !mapelList.find(m => m.id === selectedMapel.id)) {
-           selectedMapel = mapelList[0];
-        }
-
-        await loadNilai();
-      }
+      // Tidak otomatis pilih mapel pertama — biarkan guru pilih dari card grid
     } catch (err) {
       if (mapelList.length === 0) {
         error = err.message;
@@ -311,10 +344,84 @@
     nilaiMap = { ...nilaiMap };
   }
 
-  function onSelectMapel(e) {
-    const id = Number(e.target.value);
-    selectedMapel = mapelList.find((m) => m.id === id) || null;
-    if (selectedMapel) loadNilai();
+  /**
+   * Dipanggil saat guru klik card mapel.
+   * - Jika mapel milik guru lain → tampilkan modal konfirmasi
+   * - Jika mapel miliknya atau belum diklaim → langsung masuk tabel input
+   */
+  function handleSelectMapel(mapel) {
+    const isOthers =
+      mapel.guru_pengampu_id !== null &&
+      mapel.guru_pengampu_id !== undefined &&
+      mapel.guru_pengampu_id !== currentGuruId;
+
+    if (isOthers) {
+      mapelYangDipilih = mapel;
+      showKonfirmasi = true;
+    } else {
+      masukKeMapel(mapel);
+    }
+  }
+
+  function masukKeMapel(mapel) {
+    selectedMapel = mapel;
+    showGrid = false;
+    showKonfirmasi = false;
+    mapelYangDipilih = null;
+    loadNilai();
+  }
+
+  function handleBatalkanKonfirmasi() {
+    showKonfirmasi = false;
+    mapelYangDipilih = null;
+  }
+
+  function handleLanjutkanKonfirmasi() {
+    if (mapelYangDipilih) masukKeMapel(mapelYangDipilih);
+  }
+
+  function kembaliKeGrid() {
+    showGrid = true;
+    selectedMapel = null;
+    siswaList = [];
+    nilaiMap = {};
+    searchQuery = '';
+  }
+
+  /**
+   * Klaim atau lepas klaim mapel ke backend.
+   * Update mapelList secara lokal setelah berhasil.
+   */
+  async function handleKlaim(mapelId, aksi) {
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/mapel-diniyah/${mapelId}/klaim`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aksi })
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Gagal mengubah klaim mapel');
+      }
+      const updated = await res.json();
+      // Update mapelList secara reaktif
+      mapelList = mapelList.map((m) =>
+        m.id === mapelId
+          ? {
+              ...m,
+              guru_pengampu_id: updated.guru_pengampu_id,
+              guru_pengampu_nama: updated.guru_pengampu_nama || ''
+            }
+          : m
+      );
+      // Update cache offline
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`siakad_offline_diniyah_mapel_${sekolahId}`, JSON.stringify(mapelList));
+      }
+    } catch (err) {
+      error = err.message;
+    }
   }
 
   function formatDecimal(val) {
@@ -427,7 +534,14 @@
       <p>Kelas {kelasLabel}</p>
     </div>
     <div class="meta-box">
-      <span>Diniyah</span>
+      {#if !showGrid && selectedMapel}
+        <span class="selected-mapel-badge">
+          {selectedMapel.nama_mapel}
+          {selectedMapel.nama_mapel_arab ? ` (${selectedMapel.nama_mapel_arab})` : ''}
+        </span>
+      {:else}
+        <span>Diniyah</span>
+      {/if}
       <strong>{filteredSiswa.length} Siswa</strong>
       <small>{loadingNilai ? 'Memuat...' : 'Autosave aktif'}</small>
     </div>
@@ -439,42 +553,89 @@
     </div>
   {/if}
 
-  <!-- Mapel Selector -->
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <label for="select-mapel" class="toolbar-label">Mata Pelajaran:</label>
-      {#if loadingMapel}
-        <span class="text-muted">Memuat...</span>
-      {:else if mapelList.length === 0}
-        <span class="text-muted">Belum ada mapel diniyah dikonfigurasi admin.</span>
-      {:else}
-        <select id="select-mapel" class="select-mapel" onchange={onSelectMapel}>
-          {#each mapelList as m (m.id)}
-            <option value={m.id} selected={selectedMapel?.id === m.id}>
-              {m.nama_mapel}
-              {m.nama_mapel_arab ? `(${m.nama_mapel_arab})` : ''}
-            </option>
+  <!-- ===== GRID MAPEL ===== -->
+  {#if showGrid}
+    {#if loadingMapel}
+      <div class="table-loading">Memuat daftar mapel...</div>
+    {:else if mapelList.length === 0}
+      <div class="table-loading">Belum ada mapel diniyah dikonfigurasi admin.</div>
+    {:else}
+      <div class="mapel-section">
+        <div class="mapel-section-header">
+          <div>
+            <h2 class="mapel-section-title">Pilih Mata Pelajaran</h2>
+            <p class="mapel-section-desc">
+              Klik card mapel untuk mulai input nilai.
+              Tombol <strong>Klaim</strong> untuk menandai mapelmu.
+            </p>
+          </div>
+          <div class="mapel-header-right">
+            <span class="mapel-count">{filteredMapel.length} mapel</span>
+            <button
+              type="button"
+              id="btn-toggle-filter-milikku"
+              class="btn-toggle-filter"
+              class:active={filterMilikku}
+              onclick={() => (filterMilikku = !filterMilikku)}
+              title={filterMilikku ? 'Tampilkan semua mapel' : 'Tampilkan hanya mapel milikmu'}
+            >
+              {#if filterMilikku}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                Milikku
+              {:else}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>
+                Semua
+              {/if}
+            </button>
+          </div>
+        </div>
+        <div class="mapel-grid">
+          {#each filteredMapel as m (m.id)}
+            <MapelCard
+              mapel={m}
+              isSelected={selectedMapel?.id === m.id}
+              {currentGuruId}
+              {currentGuruNama}
+              onSelect={handleSelectMapel}
+              onKlaim={handleKlaim}
+            />
+          {:else}
+            <div class="mapel-empty-filter">
+              <p>Kamu belum menandai mapel apapun sebagai milikmu.</p>
+              <button type="button" onclick={() => (filterMilikku = false)}>Tampilkan semua</button>
+            </div>
           {/each}
-        </select>
-      {/if}
-    </div>
-
-    <div class="toolbar-right">
-      <div class="search-bar">
-        <Icon name="search" size={14} class="search-icon" />
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Cari nama siswa..."
-          class="search-input"
-        />
+        </div>
       </div>
-      <button class="btn-sm btn-primary" onclick={downloadTemplate}>
-        <Icon name="download" size={14} /> Template Excel
-      </button>
-      <span class="uh-info">{uhColumnCount} kolom UH</span>
+    {/if}
+
+  <!-- ===== TABEL INPUT ===== -->
+  {:else}
+    <!-- Toolbar di atas tabel -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button type="button" class="btn-back-grid" onclick={kembaliKeGrid}>
+          <Icon name="arrowLeft" size={14} />
+          Ganti Mapel
+        </button>
+      </div>
+
+      <div class="toolbar-right">
+        <div class="search-bar">
+          <Icon name="search" size={14} class="search-icon" />
+          <input
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Cari nama siswa..."
+            class="search-input"
+          />
+        </div>
+        <button class="btn-sm btn-primary" onclick={downloadTemplate}>
+          <Icon name="download" size={14} /> Template Excel
+        </button>
+        <span class="uh-info">{uhColumnCount} kolom UH</span>
+      </div>
     </div>
-  </div>
 
   <!-- Tabel Input -->
   {#if loadingNilai}
@@ -748,13 +909,171 @@
         <strong>Autosave:</strong> Nilai otomatis tersimpan saat kursor keluar dari kolom input.
       </p>
     </div>
-  {:else if selectedMapel}
-    <div class="table-loading">Belum ada siswa di kelas ini.</div>
+    {:else if selectedMapel}
+      <div class="table-loading">Belum ada siswa di kelas ini.</div>
+    {/if}
   {/if}
 </div>
 
+<!-- Modal Konfirmasi Klaim (di luar page-container agar z-index tidak conflik) -->
+<KonfirmasiMapelModal
+  isOpen={showKonfirmasi}
+  mapel={mapelYangDipilih}
+  onLanjutkan={handleLanjutkanKonfirmasi}
+  onBatalkan={handleBatalkanKonfirmasi}
+/>
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+
+  /* ===== Mapel Card Grid ===== */
+  .mapel-section {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .mapel-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .mapel-section-title {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1e293b;
+  }
+
+  .mapel-section-desc {
+    margin: 0;
+    font-size: 0.82rem;
+    color: #64748b;
+  }
+
+  .mapel-count {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #64748b;
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+
+  .mapel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+  }
+
+  /* Toolbar saat di tabel input */
+  .btn-back-grid {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+  }
+  .btn-back-grid:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+  }
+
+  .toolbar-mapel-nama {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1e293b;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 6px;
+    padding: 4px 12px;
+  }
+
+  .selected-mapel-badge {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4f46e5;
+    background: #eef2ff;
+    border-radius: 5px;
+    padding: 2px 8px;
+  }
+
+  @media (max-width: 640px) {
+    .mapel-grid {
+      grid-template-columns: 1fr;
+    }
+    .mapel-section-header {
+      flex-direction: column;
+    }
+  }
+
+  .mapel-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+  }
+
+  .btn-toggle-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn-toggle-filter:hover {
+    border-color: #4f46e5;
+    color: #4f46e5;
+  }
+  .btn-toggle-filter.active {
+    background: #4f46e5;
+    border-color: #4f46e5;
+    color: #fff;
+  }
+
+  .mapel-empty-filter {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #64748b;
+    font-size: 0.9rem;
+  }
+  .mapel-empty-filter p {
+    margin: 0 0 0.75rem;
+  }
+  .mapel-empty-filter button {
+    padding: 6px 16px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .mapel-empty-filter button:hover {
+    background: #e2e8f0;
+  }
 
   .page-container {
     display: flex;
