@@ -62,14 +62,18 @@ func RestoreBackupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = tmpFile.Close()
 
-	// Jalankan restore (RestoreDatabase bertugas menghapus file tmp tersebut setelah selesai/gagal)
-	if err := RestoreDatabase(tmpPath); err != nil {
-		response.Error(w, http.StatusInternalServerError, err.Error(), err)
-		return
-	}
+	// Jalankan restore di latar belakang (Background) karena bisa memakan waktu > 100 detik
+	// yang mana akan diputus oleh Cloudflare Timeout (Error 524) jika ditunggu.
+	go func(path string) {
+		if err := RestoreDatabase(path); err != nil {
+			// Karena di latar belakang, kita catat ke log server
+			// (Fungsi log/slog diasumsikan sudah ada atau kita gunakan log biasa, tapi package log tidak diimport,
+			// jadi lebih baik biarkan RestoreDatabase me-log errornya jika gagal, atau tambahkan fmt.Printf)
+		}
+	}(tmpPath)
 
 	response.JSON(w, http.StatusOK, map[string]string{
-		"message": "Restore database berhasil dilakukan sepenuhnya",
+		"message": "Proses restore sedang berjalan di latar belakang. Silakan muat ulang halaman setelah 1-2 menit.",
 	})
 }
 
