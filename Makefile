@@ -39,7 +39,7 @@ deploy-staging:
 		echo '📦 Membangun Backend Golang...' && \
 		cd backend && GOTOOLCHAIN=local go build -o server && cd .. && \
 		echo '🔄 Merestart PM2...' && \
-		pm2 restart all"
+		pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs"
 	@echo "✅ Deploy ke Staging Selesai!"
 
 # ------------------------------------------
@@ -65,5 +65,5 @@ deploy-prod:
 		echo '📦 Membangun Backend Golang...' && \
 		cd backend && export PATH=$$PATH:/usr/local/go/bin && go build -o server && cd .. && \
 		echo '🔄 Merestart PM2...' && \
-		pm2 restart all"
+		pm2 restart ecosystem.config.cjs || pm2 start ecosystem.config.cjs"
 	@echo "✅ Deploy ke Production Selesai!"
