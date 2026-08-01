@@ -23,7 +23,7 @@ deploy-staging:
 	@echo "🚀 Memulai Deployment ke Termux (Staging)..."
 	@echo "🎨 Membangun Aplikasi Web & Mobile di Laptop Lokal..."
 	cd frontend && cp .env.staging .env.production.local && npm install && npm run build
-	cd mobile && cp .env.staging .env.production && npm install && npm run build
+	cd mobile && cp .env.staging .env.production.local && npm install && npm run build
 	@echo "🔐 Mengirim file rahasia dan hasil build ke server..."
 	scp -P $(STAGING_PORT) .env.staging $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/.env.staging
 	scp -P $(STAGING_PORT) frontend/.env.staging $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/frontend/.env.staging
@@ -47,7 +47,7 @@ deploy-prod:
 	@echo "🚀 Memulai Deployment ke IDCloudHost (Production)..."
 	@echo "🎨 Membangun Aplikasi Web & Mobile di Laptop Lokal..."
 	cd frontend && cp .env.production .env.production.local && npm install && npm run build
-	cd mobile && cp .env.production .env.production && npm install && npm run build
+	cd mobile && cp .env.production .env.production.local && npm install && npm run build
 	@echo "🔐 Mengirim file rahasia dan hasil build ke server..."
 	scp -P $(PROD_PORT) .env.production $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/.env.production
 	scp -P $(PROD_PORT) frontend/.env.production $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/frontend/.env.production
