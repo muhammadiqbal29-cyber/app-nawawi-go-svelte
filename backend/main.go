@@ -110,6 +110,19 @@ func main() {
 	logFilePath := os.Getenv("LOG_FILE_PATH")
 	logger.Init(logFilePath)
 
+	// Mode CLI (Command Line Interface) untuk Operasi Standar Industri
+	if len(os.Args) >= 3 && os.Args[1] == "--restore" {
+		backupFile := os.Args[2]
+		slog.Info("Menjalankan restore database raksasa via CLI...", "file", backupFile)
+		database.InitDB()
+		if err := backup.RestoreDatabase(backupFile); err != nil {
+			slog.Error("Gagal restore via CLI", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("Restore via CLI berhasil dilakukan secara total!")
+		os.Exit(0)
+	}
+
 	slog.Info("Memulai server Siakad Nawawi...")
 
 	// Inisialisasi Database
