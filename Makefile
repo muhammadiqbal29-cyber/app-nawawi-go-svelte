@@ -63,7 +63,7 @@ deploy-prod:
 		cd $(PROD_DIR) && \
 		cp .env.production .env && \
 		echo '📦 Membangun Backend Golang...' && \
-		cd backend && go build -o server && cd .. && \
+		cd backend && export PATH=$$PATH:/usr/local/go/bin && go build -o server && cd .. && \
 		echo '🔄 Merestart PM2...' && \
 		pm2 restart all"
 	@echo "✅ Deploy ke Production Selesai!"
