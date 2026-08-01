@@ -265,6 +265,9 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 			// Perbaiki kueri jika mengandung datetime corrupt
 			query = reFixDate.ReplaceAllString(query, "'$1'")
 
+			// Tangani ketidakcocokan collation MySQL lama vs MariaDB baru (seperti pada IDCloudHost vs Termux)
+			query = strings.ReplaceAll(query, "utf8mb4_uca1400_ai_ci", "utf8mb4_unicode_ci")
+
 			if _, err := conn.ExecContext(ctx, query); err != nil {
 				return fmt.Errorf("gagal eksekusi kueri: %v\nKueri: %s", err, query)
 			}
