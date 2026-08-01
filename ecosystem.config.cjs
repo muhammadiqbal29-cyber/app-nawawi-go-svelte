@@ -8,8 +8,7 @@ module.exports = {
       exec_mode: 'fork',
       env: {
         APP_ENV: 'production',
-        APP_PORT: '8080',
-        SSL_CERT_FILE: '/data/data/com.termux/files/usr/etc/tls/cert.pem'
+        APP_PORT: '8080'
       }
     },
     {
