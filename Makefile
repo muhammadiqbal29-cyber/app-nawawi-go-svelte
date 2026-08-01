@@ -30,6 +30,8 @@ deploy-staging:
 	scp -P $(STAGING_PORT) .env.staging $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/.env.staging
 	scp -P $(STAGING_PORT) frontend/.env.staging $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/frontend/.env.staging
 	scp -P $(STAGING_PORT) mobile/.env.staging $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/mobile/.env.staging
+	scp -P $(STAGING_PORT) backend/oauth_credentials.json $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/backend/oauth_credentials.json
+	scp -P $(STAGING_PORT) backend/token.json $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/backend/token.json
 	scp -r -P $(STAGING_PORT) frontend/build $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/frontend/
 	scp -r -P $(STAGING_PORT) mobile/build $(STAGING_USER)@$(STAGING_IP):$(STAGING_DIR)/mobile/
 	@echo "🚀 Restarting Services..."
@@ -56,6 +58,8 @@ deploy-prod:
 	scp -P $(PROD_PORT) .env.production $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/.env.production
 	scp -P $(PROD_PORT) frontend/.env.production $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/frontend/.env.production
 	scp -P $(PROD_PORT) mobile/.env.production $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/mobile/.env.production
+	scp -P $(PROD_PORT) backend/oauth_credentials.json $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/backend/oauth_credentials.json
+	scp -P $(PROD_PORT) backend/token.json $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/backend/token.json
 	scp -r -P $(PROD_PORT) frontend/build $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/frontend/
 	scp -r -P $(PROD_PORT) mobile/build $(PROD_USER)@$(PROD_IP):$(PROD_DIR)/mobile/
 	@echo "🚀 Restarting Services..."
