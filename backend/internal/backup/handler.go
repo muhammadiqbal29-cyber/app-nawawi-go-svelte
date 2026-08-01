@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -67,8 +68,9 @@ func RestoreBackupHandler(w http.ResponseWriter, r *http.Request) {
 	go func(path string) {
 		if err := RestoreDatabase(path); err != nil {
 			// Karena di latar belakang, kita catat ke log server
-			// (Fungsi log/slog diasumsikan sudah ada atau kita gunakan log biasa, tapi package log tidak diimport,
-			// jadi lebih baik biarkan RestoreDatabase me-log errornya jika gagal, atau tambahkan fmt.Printf)
+			fmt.Printf("ERROR: Background restore failed: %v\n", err)
+		} else {
+			fmt.Println("INFO: Background restore completed successfully")
 		}
 	}(tmpPath)
 
