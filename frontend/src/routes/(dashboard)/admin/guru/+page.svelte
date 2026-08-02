@@ -6,12 +6,25 @@
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   let guruList = $state([]);
+  let sekolahList = $state([]);
   let loading = $state(true);
   let error = $state('');
 
   onMount(async () => {
-    await loadGuru();
+    await Promise.all([loadGuru(), loadSekolah()]);
   });
+
+  async function loadSekolah() {
+    try {
+      const res = await fetch(`${apiUrl}/api/sekolah?limit=100`, { credentials: 'include' });
+      if (res.ok) {
+        const body = await res.json();
+        sekolahList = body.data || [];
+      }
+    } catch (e) {
+      console.error('Gagal memuat data sekolah:', e);
+    }
+  }
 
   async function loadGuru() {
     try {
@@ -25,6 +38,26 @@
       error = e.message || 'Terjadi kesalahan jaringan';
     } finally {
       loading = false;
+    }
+  }
+
+  function getJenjangList(aksesSekolahStr) {
+    if (!aksesSekolahStr || aksesSekolahStr === '[]') return [];
+    try {
+      const aksesMap = JSON.parse(aksesSekolahStr);
+      // aksesMap is usually { "1": ["fitur1", "fitur2"], "2": [] }
+      const sekolahIds = Object.keys(aksesMap).map(id => parseInt(id, 10));
+      const jenjangSet = new Set();
+      
+      for (const sId of sekolahIds) {
+        const sekolah = sekolahList.find(s => s.id === sId);
+        if (sekolah && sekolah.jenjang) {
+          jenjangSet.add(sekolah.jenjang);
+        }
+      }
+      return Array.from(jenjangSet);
+    } catch (e) {
+      return [];
     }
   }
 
@@ -149,7 +182,7 @@
               <th>No</th>
               <th>Nama Lengkap</th>
               <th>Email</th>
-              <th>No HP</th>
+              <th>Jenjang yang Diakses</th>
               <th>Jam Kerja</th>
               <th>Status</th>
               <th>Aksi</th>
@@ -161,7 +194,15 @@
                 <td>{index + 1}</td>
                 <td class="font-bold">{guru.nama_lengkap}</td>
                 <td>{guru.user?.email || '-'}</td>
-                <td>{guru.no_hp || '-'}</td>
+                <td>
+                  <div class="jenjang-badges">
+                    {#each getJenjangList(guru.akses_sekolah) as jenjang}
+                      <span class="badge badge-jenjang">{jenjang}</span>
+                    {:else}
+                      <span class="text-muted">-</span>
+                    {/each}
+                  </div>
+                </td>
                 <td>
                   <span class="badge badge-gray"
                     >{guru.jam_masuk || '-'} - {guru.jam_pulang || '-'}</span
@@ -346,6 +387,20 @@
   .badge-error {
     background: #fee2e2;
     color: #991b1b;
+  }
+  .badge-jenjang {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+  }
+  .jenjang-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .text-muted {
+    color: #94a3b8;
+    font-size: 0.85rem;
   }
 
   .action-buttons {
