@@ -94,9 +94,7 @@ func UpsertKonfigurasiNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if len(payload.KriteriaPenilaian) > 0 {
-		konfig.KriteriaPenilaian = models.EncodeKriteria(payload.KriteriaPenilaian)
-	}
+	konfig.KriteriaPenilaian = models.EncodeKriteria(payload.KriteriaPenilaian)
 	konfig.Aktif = aktif
 	if err := database.DB.Save(&konfig).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan konfigurasi nilai diniyah", err)

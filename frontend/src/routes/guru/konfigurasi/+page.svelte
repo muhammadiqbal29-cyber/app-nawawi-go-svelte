@@ -172,6 +172,7 @@
       if (hasKeseharian) {
         loadPelanggaran();
         loadIqob();
+        loadKonfigurasiKeseharian();
       }
       loadKopLogoData();
     }
@@ -514,7 +515,7 @@
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aktif: aktifBaru })
+        body: JSON.stringify({ nama_materi: materi.nama_materi, aktif: aktifBaru })
       });
       if (!res.ok) throw new Error('Gagal mengubah status');
       await loadMateri();
@@ -748,7 +749,7 @@
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aktif: !m.aktif })
+        body: JSON.stringify({ nama_mapel: m.nama_mapel, aktif: !m.aktif })
       });
       if (!res.ok) throw new Error('Gagal mengubah status');
       await loadDiniyah();
@@ -889,7 +890,7 @@
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nama: ind.nama, aktif: !ind.aktif })
+        body: JSON.stringify({ nama: ind.nama, nilai_pengurang: ind.nilai_pengurang, aktif: !ind.aktif })
       });
       if (!res.ok) throw new Error('Gagal mengubah status');
       await loadIndikators();
@@ -952,6 +953,71 @@
       keseharianFormLoading = false;
     }
   }
+
+  // ==== KESEHARIAN KONFIGURASI KRITERIA ====
+  async function loadKonfigurasiKeseharian() {
+    if (!selectedSekolah) return;
+    keseharianKonfigurasiLoading = true;
+    keseharianKonfigurasiError = '';
+    keseharianKonfigurasiSuccess = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/konfigurasi-nilai-keseharian`,
+        {
+          credentials: 'include'
+        }
+      );
+      if (!res.ok) throw new Error('Gagal memuat pengaturan kriteria penilaian keseharian');
+      const payload = await res.json();
+      keseharianKriteriaPenilaian = payload.kriteria_penilaian || [];
+    } catch (err) {
+      keseharianKonfigurasiError = err.message;
+    } finally {
+      keseharianKonfigurasiLoading = false;
+    }
+  }
+
+  async function simpanKeseharianKonfigurasi() {
+    keseharianKonfigurasiSaving = true;
+    keseharianKonfigurasiError = '';
+    keseharianKonfigurasiSuccess = '';
+    try {
+      const res = await fetch(
+        `${apiUrl}/api/guru/sekolah/${selectedSekolah.id}/konfigurasi-nilai-keseharian`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kriteria_penilaian: keseharianKriteriaPenilaian
+          })
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Gagal menyimpan pengaturan nilai keseharian');
+      }
+      const payload = await res.json();
+      keseharianKriteriaPenilaian = payload.kriteria_penilaian || keseharianKriteriaPenilaian;
+      keseharianKonfigurasiSuccess = 'Pengaturan kriteria penilaian keseharian berhasil disimpan.';
+    } catch (err) {
+      keseharianKonfigurasiError = err.message;
+    } finally {
+      keseharianKonfigurasiSaving = false;
+    }
+  }
+
+  function tambahKeseharianKriteria() {
+    keseharianKriteriaPenilaian = [
+      ...keseharianKriteriaPenilaian,
+      { min: 0, max: 0, arab: '', indo: '' }
+    ];
+  }
+
+  function hapusKeseharianKriteria(index) {
+    keseharianKriteriaPenilaian = keseharianKriteriaPenilaian.filter((_, i) => i !== index);
+  }
+
   // ==== PELANGGARAN CRUD ====
   let pelanggaranList = $state([]);
   let loadingPelanggaran = $state(false);
@@ -1171,6 +1237,7 @@
       await loadIqob();
       await loadKonfigurasiKeseharian();
 
+
       iqobFormNama = '';
       iqobFormPoin = 0;
       iqobFormKeterangan = '';
@@ -1254,7 +1321,7 @@
       cancelIqobEdit();
       toastStore.show('Jenis Iqob berhasil diupdate', 'success');
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'error');
     } finally {
       iqobEditLoading = false;
     }
@@ -1277,12 +1344,12 @@
       await loadIqob();
       toastStore.show('Status iqob berhasil diubah', 'info');
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'error');
     }
   }
 
   async function hapusIqob(id) {
-    if (!confirm('Yakin ingin menghapus iqob ini?')) return;
+    if (!(await modalStore.show({ message: 'Yakin ingin menghapus iqob ini?' }))) return;
     iqobDeletingId = id;
     try {
       const res = await fetch(`${apiUrl}/api/guru/iqob/jenis/${id}`, {
@@ -1293,7 +1360,7 @@
       await loadIqob();
       toastStore.show('Iqob berhasil dihapus', 'info');
     } catch (err) {
-      alert(err.message);
+      toastStore.show(err.message, 'error');
     } finally {
       iqobDeletingId = null;
     }
