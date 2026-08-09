@@ -261,7 +261,7 @@
         
         // Optimistic update
         pelanggaranCatatan.push({
-           jenis_pelanggaran_nama: item.nama,
+           nama_pelanggaran: item.nama,
            tanggal: item.tanggal,
            iqob: item.iqob || '',
            poin: Number(item.poin),
@@ -341,7 +341,7 @@
         
         // Optimistic update
         iqobCatatan.push({
-           jenis_iqob_nama: item.nama,
+           nama_iqob: item.nama,
            tanggal: item.tanggal,
            poin: Number(item.poin),
            id: 'pending-' + Date.now()
@@ -570,7 +570,7 @@
                   <div class="history-item">
                     <div style="flex: 1;">
                       <div style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">
-                        {c.jenis_pelanggaran_nama}
+                        {c.nama_pelanggaran}
                       </div>
                       <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
                         {formatDate(c.tanggal)}
@@ -695,6 +695,38 @@
 
             {#if iqobFormError}
               <div class="alert-error" style="margin-top: 1rem;">{iqobFormError}</div>
+            {/if}
+          </div>
+          <hr style="margin: 2rem 0; border: none; border-top: 1px dashed #cbd5e1;" />
+
+          <!-- Histori Iqob -->
+          <div>
+            <h4 style="margin-bottom: 1rem; color: #1e293b; font-size: 1rem;">Histori Iqob</h4>
+            {#if iqobCatatan.length > 0}
+              <div class="history-list">
+                {#each iqobCatatan as c}
+                  <div class="history-item">
+                    <div style="flex: 1;">
+                      <div style="font-weight: 600; color: #0f172a; font-size: 0.9rem;">
+                        {c.nama_iqob}
+                      </div>
+                      <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
+                        {formatDate(c.tanggal)}
+                      </div>
+                    </div>
+                    <div style="font-weight: 800; color: #16a34a;">-{c.poin} Poin</div>
+                    <button
+                      class="btn-icon-soft"
+                      title="Hapus"
+                      onclick={() => hapusCatatanIqob(c.id)}
+                    >
+                      <Icon name="x" size={14} />
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="empty-text">Tidak ada histori iqob.</div>
             {/if}
           </div>
         {/if}
