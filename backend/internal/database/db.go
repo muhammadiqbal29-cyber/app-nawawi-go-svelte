@@ -78,6 +78,16 @@ func migrateAndSeed() {
 		DB.Migrator().DropIndex(&models.NilaiTasmiV2{}, "idx_nilai_tasmi_v2_scope")
 	}
 
+	// Fix: Drop old unique index idx_pengampu_mapel_kelas (tanpa kolom rombel)
+	// sehingga GORM dapat membuat ulang index baru idx_pengampu_mapel_kelas_rombel
+	if DB.Migrator().HasTable("pengampu_mapel_diniyahs") {
+		if DB.Migrator().HasIndex(&models.PengampuMapelDiniyah{}, "idx_pengampu_mapel_kelas") {
+			if err := DB.Migrator().DropIndex(&models.PengampuMapelDiniyah{}, "idx_pengampu_mapel_kelas"); err != nil {
+				slog.Warn("Gagal menghapus index lama idx_pengampu_mapel_kelas", "error", err)
+			}
+		}
+	}
+
 	// AutoMigrate
 	err := DB.AutoMigrate(
 		&models.User{},
@@ -106,6 +116,7 @@ func migrateAndSeed() {
 		&models.Halaqah{},
 		&models.AnggotaHalaqah{},
 		&models.MapelDiniyah{},
+		&models.PengampuMapelDiniyah{},
 		&models.NilaiDiniyah{},
 		&models.IndikatorKeseharian{},
 		&models.SesiKeseharian{},

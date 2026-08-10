@@ -427,6 +427,19 @@ type MapelDiniyah struct {
 	GuruPengampuNama string `gorm:"->" json:"guru_pengampu_nama,omitempty"`
 }
 
+type PengampuMapelDiniyah struct {
+	ID             int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	MapelDiniyahID int       `gorm:"not null;index;uniqueIndex:idx_pengampu_mapel_kelas_rombel" json:"mapel_diniyah_id"`
+	KelasID        int       `gorm:"not null;index;uniqueIndex:idx_pengampu_mapel_kelas_rombel" json:"kelas_id"`
+	Rombel         string    `gorm:"type:varchar(5);not null;default:'';uniqueIndex:idx_pengampu_mapel_kelas_rombel" json:"rombel"`
+	GuruID         int       `gorm:"not null;index" json:"guru_id"`
+	CreatedAt      time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt      time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+	MapelDiniyah MapelDiniyah `gorm:"foreignKey:MapelDiniyahID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"mapel_diniyah,omitempty"`
+	Guru         Guru         `gorm:"foreignKey:GuruID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"guru,omitempty"`
+}
+
 type NilaiDiniyah struct {
 	ID             int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SiswaID        int       `gorm:"not null;index;uniqueIndex:idx_nilai_diniyah_scope" json:"siswa_id"`

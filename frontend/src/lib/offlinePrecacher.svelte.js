@@ -64,12 +64,12 @@ export async function startPrecache() {
           // Sama persis dengan cacheKey di Diniyah/+page.svelte
           localStorage.setItem(`siakad_offline_kelas_${sekolahId}_${taId}_${semId}`, JSON.stringify(kelasList));
           
-          // Get mapel diniyah
-          const mapelData = await fetchWithRetry(`${apiUrl}/api/guru/sekolah/${sekolahId}/mapel-diniyah`);
-          
           // Calculate total progress correctly later, for now just increment
           for (const kls of kelasList) {
+            // Get mapel diniyah for this specific class and rombel
+            const mapelData = await fetchWithRetry(`${apiUrl}/api/guru/sekolah/${sekolahId}/mapel-diniyah?kelas_id=${kls.id}&rombel=${kls.rombel || '__kosong__'}`);
             if (mapelData && Array.isArray(mapelData)) {
+              localStorage.setItem(`siakad_offline_diniyah_mapel_kelas_${kls.id}_${kls.rombel || '__kosong__'}`, JSON.stringify(mapelData));
               for (const mapel of mapelData) {
                 const params = new URLSearchParams({ rombel: kls.rombel || '__kosong__', mata_pelajaran_id: mapel.id, tahun_ajaran_id: taId, semester_id: semId });
                 const dataSiswa = await fetchWithRetry(`${apiUrl}/api/guru/kelas/${kls.id}/nilai-diniyah?${params.toString()}`);

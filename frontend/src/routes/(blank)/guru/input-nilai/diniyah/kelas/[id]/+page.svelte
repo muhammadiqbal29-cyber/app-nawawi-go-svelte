@@ -103,7 +103,7 @@
   async function loadMapel() {
     // 0. OFFLINE-FIRST UX (Stale-While-Revalidate)
     if (typeof window !== 'undefined') {
-      const cachedMapel = localStorage.getItem(`siakad_offline_diniyah_mapel_${sekolahId}`);
+      const cachedMapel = localStorage.getItem(`siakad_offline_diniyah_mapel_kelas_${kelasId}_${rombelParam}`);
       if (cachedMapel) {
         try {
           const list = JSON.parse(cachedMapel);
@@ -120,13 +120,13 @@
     }
     
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/mapel-diniyah`, {
+      const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/mapel-diniyah?kelas_id=${kelasId}&rombel=${rombelParam}`, {
         credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat daftar mapel diniyah.');
       mapelList = await res.json();
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`siakad_offline_diniyah_mapel_${sekolahId}`, JSON.stringify(mapelList));
+        localStorage.setItem(`siakad_offline_diniyah_mapel_kelas_${kelasId}_${rombelParam}`, JSON.stringify(mapelList));
       }
       // Tidak otomatis pilih mapel pertama — biarkan guru pilih dari card grid
     } catch (err) {
@@ -398,7 +398,7 @@
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aksi })
+        body: JSON.stringify({ aksi, kelas_id: Number(kelasId), rombel: rombelParam })
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -417,7 +417,7 @@
       );
       // Update cache offline
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`siakad_offline_diniyah_mapel_${sekolahId}`, JSON.stringify(mapelList));
+        localStorage.setItem(`siakad_offline_diniyah_mapel_kelas_${kelasId}_${rombelParam}`, JSON.stringify(mapelList));
       }
     } catch (err) {
       error = err.message;

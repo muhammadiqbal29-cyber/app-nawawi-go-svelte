@@ -1,6 +1,7 @@
 package siswa
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -122,6 +123,7 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 	berhasil := 0
 	dilewati := 0
 	dimutasi := 0
+	detailDilewati := []string{}
 
 	for i := headerRowIdx + 1; i < len(records); i++ {
 		row := records[i]
@@ -142,12 +144,14 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 		namaVal := getVal("Nama Lengkap", "NAMA")
 		if namaVal == "" {
 			dilewati++
+			detailDilewati = append(detailDilewati, fmt.Sprintf("Baris %d: Nama Lengkap kosong", i+1))
 			continue // Skip baris kosong atau sub-header
 		}
 
 		nis := getVal("NIS")
 		if nis == "" {
 			dilewati++
+			detailDilewati = append(detailDilewati, fmt.Sprintf("Baris %d (%s): NIS kosong", i+1, namaVal))
 			continue // Skip jika NIS kosong
 		}
 
@@ -159,6 +163,11 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 		if errLocal == nil {
 			// Sudah ada di sekolah ini, skip
 			dilewati++
+			if existing.DeletedAt != nil {
+				detailDilewati = append(detailDilewati, fmt.Sprintf("Baris %d (%s): NIS %s sudah ada di sekolah ini namun dalam status terhapus", i+1, namaVal, nis))
+			} else {
+				detailDilewati = append(detailDilewati, fmt.Sprintf("Baris %d (%s): NIS %s sudah ada dan aktif di sekolah ini", i+1, namaVal, nis))
+			}
 			continue
 		} else if errLocal != gorm.ErrRecordNotFound {
 			tx.Rollback()
@@ -199,6 +208,7 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				// Jika status belum lulus atau di sekolah yang sama dengan NIS beda, skip
 				dilewati++
+				detailDilewati = append(detailDilewati, fmt.Sprintf("Baris %d (%s): NISN %s sudah terdaftar atas nama %s di sekolah ID %d (Status: %s)", i+1, namaVal, nisn, existing.NamaLengkap, existing.SekolahID, existing.Status))
 				continue
 			} else if err != gorm.ErrRecordNotFound {
 				tx.Rollback()
@@ -315,6 +325,7 @@ func ImportSiswaExcelHandler(w http.ResponseWriter, r *http.Request) {
 			"berhasil": berhasil,
 			"dimutasi": dimutasi,
 			"dilewati": dilewati,
+			"detail_dilewati": detailDilewati,
 		},
 	})
 }

@@ -44,6 +44,7 @@ func SetupTestDB() *gorm.DB {
 		&models.NilaiTasmiDetailV2{},
 		&models.SetoranTahfizHarian{},
 		&models.MapelDiniyah{},
+		&models.PengampuMapelDiniyah{},
 		&models.NilaiDiniyah{},
 		&models.MateriTahfiz{},
 		&models.Guru{},
