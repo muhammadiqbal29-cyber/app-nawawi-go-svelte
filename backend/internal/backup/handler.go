@@ -6,8 +6,15 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"siakad-nawawi-be/internal/response"
+)
+
+var (
+	isRestoring bool
+	restoreErr  error
+	restoreMu   sync.Mutex
 )
 
 // TriggerBackupHandler adalah endpoint manual untuk admin jika ingin backup seketika
@@ -63,11 +70,25 @@ func RestoreBackupHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = tmpFile.Close()
 
+	// Update status
+	restoreMu.Lock()
+	isRestoring = true
+	restoreErr = nil
+	restoreMu.Unlock()
+
 	// Jalankan restore di latar belakang (Background) karena bisa memakan waktu > 100 detik
 	// yang mana akan diputus oleh Cloudflare Timeout (Error 524) jika ditunggu.
 	go func(path string) {
+		defer func() {
+			restoreMu.Lock()
+			isRestoring = false
+			restoreMu.Unlock()
+		}()
+
 		if err := RestoreDatabase(path); err != nil {
-			// Karena di latar belakang, kita catat ke log server
+			restoreMu.Lock()
+			restoreErr = err
+			restoreMu.Unlock()
 			fmt.Printf("ERROR: Background restore failed: %v\n", err)
 		} else {
 			fmt.Println("INFO: Background restore completed successfully")
@@ -96,4 +117,20 @@ func DownloadBackupHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/octet-stream")
 
 	http.ServeFile(w, r, filePath)
+}
+
+// RestoreStatusHandler mengembalikan status dari proses restore yang berjalan di latar belakang
+func RestoreStatusHandler(w http.ResponseWriter, r *http.Request) {
+	restoreMu.Lock()
+	defer restoreMu.Unlock()
+
+	errStr := ""
+	if restoreErr != nil {
+		errStr = restoreErr.Error()
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"is_restoring": isRestoring,
+		"error":        errStr,
+	})
 }

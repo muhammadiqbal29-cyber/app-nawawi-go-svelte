@@ -178,6 +178,7 @@ func main() {
 	adminRouter.HandleFunc("/backup/trigger", middleware.RequireRole("admin")(backup.TriggerBackupHandler)).Methods("GET", "POST")
 	adminRouter.HandleFunc("/backup/download", middleware.RequireRole("admin")(backup.DownloadBackupHandler)).Methods("GET")
 	adminRouter.HandleFunc("/backup/restore", middleware.RequireRole("admin")(backup.RestoreBackupHandler)).Methods("POST")
+	adminRouter.HandleFunc("/backup/status", middleware.RequireRole("admin")(backup.RestoreStatusHandler)).Methods("GET")
 
 	// Routes Siswa
 	adminRouter.HandleFunc("/sekolah/{sekolah_id}/siswa", middleware.RequireRole("admin")(siswa.GetSiswaBySekolahHandler)).Methods("GET")

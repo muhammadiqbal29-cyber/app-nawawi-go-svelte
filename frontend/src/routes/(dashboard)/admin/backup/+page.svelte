@@ -121,15 +121,43 @@
       });
       const data = await res.json().catch(() => ({}));
 
-      if (res.ok) {
-        restoreMessage =
-          'Proses Restore Selesai! Database telah dipulihkan. Silakan muat ulang (refresh) halaman atau login kembali.';
-      } else {
+      if (!res.ok) {
         restoreError = data.message || 'Gagal merestore database.';
+        isRestoring = false;
+        if (fileInput) fileInput.value = '';
+        return;
       }
+
+      // Mulai polling status
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`${apiUrl}/api/backup/status`, {
+            credentials: 'include'
+          });
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (!statusData.is_restoring) {
+              clearInterval(pollInterval);
+              isRestoring = false;
+              if (fileInput) fileInput.value = '';
+              
+              if (statusData.error) {
+                restoreError = `Gagal merestore database: ${statusData.error}`;
+              } else {
+                restoreMessage = 'Proses Restore Selesai! Database telah dipulihkan. Halaman akan dimuat ulang...';
+                setTimeout(() => {
+                  window.location.reload();
+                }, 2000);
+              }
+            }
+          }
+        } catch (e) {
+          // Abaikan error polling sementara
+        }
+      }, 3000);
+
     } catch (err) {
-      restoreError = 'Terjadi kesalahan jaringan atau server terputus saat merestore.';
-    } finally {
+      restoreError = 'Terjadi kesalahan jaringan atau server terputus saat mengunggah.';
       isRestoring = false;
       if (fileInput) fileInput.value = '';
     }
