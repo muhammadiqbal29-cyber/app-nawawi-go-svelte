@@ -107,6 +107,16 @@ func fixDumpDatetime(filepath string) error {
 		if strings.Contains(line, "'&{") {
 			line = reFixDate.ReplaceAllString(line, "'$1'")
 		}
+		
+		// Ganti collation yang tidak didukung MariaDB langsung di file backup
+		// agar saat di-restore ke server lama yang belum diupdate backend-nya, tetap aman.
+		if strings.Contains(line, "utf8mb4_0900_ai_ci") {
+			line = strings.ReplaceAll(line, "utf8mb4_0900_ai_ci", "utf8mb4_unicode_ci")
+		}
+		if strings.Contains(line, "utf8mb4_uca1400_ai_ci") {
+			line = strings.ReplaceAll(line, "utf8mb4_uca1400_ai_ci", "utf8mb4_unicode_ci")
+		}
+
 		if _, err := writer.WriteString(line + "\n"); err != nil {
 			out.Close()
 			return err
@@ -267,6 +277,7 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 
 			// Tangani ketidakcocokan collation MySQL lama vs MariaDB baru (seperti pada IDCloudHost vs Termux)
 			query = strings.ReplaceAll(query, "utf8mb4_uca1400_ai_ci", "utf8mb4_unicode_ci")
+			query = strings.ReplaceAll(query, "utf8mb4_0900_ai_ci", "utf8mb4_unicode_ci")
 
 			if _, err := conn.ExecContext(ctx, query); err != nil {
 				return fmt.Errorf("gagal eksekusi kueri: %v\nKueri: %s", err, query)
