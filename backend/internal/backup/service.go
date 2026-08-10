@@ -255,6 +255,10 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 	var statementBuilder strings.Builder
 	// Regex untuk memperbaiki string format pointer struct time.Time yang corrupt dari backup sebelumnya
 	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) [^}]+\}'`)
+	// Regex untuk menghapus CONSTRAINT xxx_chk_N CHECK(...) yang duplikat dari MySQL 8.0 dump
+	reRemoveDupCheck := regexp.MustCompile(`,?\s*CONSTRAINT\s+` + "`" + `\w+_chk_\d+` + "`" + `\s+CHECK\s*\([^)]*\)`)
+	// Regex untuk membersihkan koma menggantung sebelum ) ENGINE=
+	reTrailingComma := regexp.MustCompile(`,\s*\n\s*\)`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -278,6 +282,13 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 			// Tangani ketidakcocokan collation MySQL lama vs MariaDB baru (seperti pada IDCloudHost vs Termux)
 			query = strings.ReplaceAll(query, "utf8mb4_uca1400_ai_ci", "utf8mb4_unicode_ci")
 			query = strings.ReplaceAll(query, "utf8mb4_0900_ai_ci", "utf8mb4_unicode_ci")
+
+			// Hapus named CHECK constraint duplikat dari MySQL 8.0 dump.
+			// MySQL 8.0 menulis CHECK inline di kolom DAN juga CONSTRAINT xxx_chk_N CHECK(...),
+			// MariaDB menolak karena nama constraint-nya bentrok (duplikat).
+			query = reRemoveDupCheck.ReplaceAllString(query, "")
+			// Bersihkan koma menggantung sebelum closing ) ENGINE= jika ada
+			query = reTrailingComma.ReplaceAllString(query, "\n)")
 
 			if _, err := conn.ExecContext(ctx, query); err != nil {
 				return fmt.Errorf("gagal eksekusi kueri: %v\nKueri: %s", err, query)

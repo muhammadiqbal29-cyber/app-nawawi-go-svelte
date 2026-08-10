@@ -1,6 +1,7 @@
 <script>
   import { modalStore } from '$lib/modal.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
+  import { toastStore } from '$lib/toast.svelte.js';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   let isTriggering = $state(false);
@@ -36,6 +37,7 @@
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         triggerMessage = data.message || 'Backup berhasil dilakukan dan diupload.';
+        toastStore.show('Backup sukses diunggah ke Google Drive', 'success');
       } else {
         triggerError = data.message || 'Terjadi kesalahan saat mem-backup.';
       }
@@ -76,6 +78,7 @@
         a.click();
         window.URL.revokeObjectURL(url);
         triggerMessage = 'File backup berhasil disiapkan dan mulai diunduh.';
+        toastStore.show('Download file backup dimulai...', 'success');
       } else {
         const data = await res.json().catch(() => ({}));
         triggerError = data.message || 'Terjadi kesalahan saat meracik backup.';
@@ -109,6 +112,9 @@
     isRestoring = true;
     restoreMessage = '';
     restoreError = '';
+    
+    // Tampilkan Toast Melayang (60 detik)
+    toastStore.show('Memulihkan database di background. Mohon tunggu...', 'info', 60000);
 
     const formData = new FormData();
     formData.append('backup_file', file);
