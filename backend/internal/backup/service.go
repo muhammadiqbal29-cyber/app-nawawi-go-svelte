@@ -255,10 +255,11 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 	var statementBuilder strings.Builder
 	// Regex untuk memperbaiki string format pointer struct time.Time yang corrupt dari backup sebelumnya
 	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) [^}]+\}'`)
-	// Regex untuk menghapus CONSTRAINT xxx_chk_N CHECK(...) yang duplikat dari MySQL 8.0 dump
-	reRemoveDupCheck := regexp.MustCompile(`,?\s*CONSTRAINT\s+` + "`" + `\w+_chk_\d+` + "`" + `\s+CHECK\s*\([^)]*\)`)
+	// Regex untuk menghapus CONSTRAINT xxx_chk_N CHECK(...) yang duplikat dari MySQL 8.0 dump.
+	// Menggunakan (?:[^()]*|\([^()]*\))* untuk menangani nested parens seperti CHECK(json_valid(`col`))
+	reRemoveDupCheck := regexp.MustCompile(`,?\s*CONSTRAINT\s+` + "`" + `\w+_chk_\d+` + "`" + `\s+CHECK\s*\((?:[^()]*|\([^()]*\))*\)`)
 	// Regex untuk membersihkan koma menggantung sebelum ) ENGINE=
-	reTrailingComma := regexp.MustCompile(`,\s*\n\s*\)`)
+	reTrailingComma := regexp.MustCompile(`,[\s\n]*\)`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -287,7 +288,7 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 			// MySQL 8.0 menulis CHECK inline di kolom DAN juga CONSTRAINT xxx_chk_N CHECK(...),
 			// MariaDB menolak karena nama constraint-nya bentrok (duplikat).
 			query = reRemoveDupCheck.ReplaceAllString(query, "")
-			// Bersihkan koma menggantung sebelum closing ) ENGINE= jika ada
+			// Bersihkan koma menggantung dan extra closing paren sebelum ) ENGINE=
 			query = reTrailingComma.ReplaceAllString(query, "\n)")
 
 			if _, err := conn.ExecContext(ctx, query); err != nil {
