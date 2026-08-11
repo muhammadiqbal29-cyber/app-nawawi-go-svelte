@@ -20,6 +20,12 @@ async function fetchWithRetry(url, options = {}, retries = 2) {
       if (res.ok) {
         return await res.json();
       }
+      // Jika kena rate limit (429), JANGAN retry — tunggu lama lalu kembalikan null
+      if (res.status === 429) {
+        console.warn('[Precacher] Rate limited (429), menunggu 5 detik...', url);
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+        return null;
+      }
     } catch (err) {
       if (i === retries) throw err;
     }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -47,17 +48,27 @@ func cleanupVisitors() {
 	}
 }
 
+// getRealIP mengekstrak IP asli dari request, mendukung proxy (X-Forwarded-For).
+// Jika ada chain (contoh: "client, proxy1, proxy2"), hanya IP pertama (client) yang diambil.
+func getRealIP(r *http.Request) string {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		ip = r.RemoteAddr
+	}
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		// X-Forwarded-For bisa berisi "client, proxy1, proxy2" — ambil IP pertama
+		if idx := strings.Index(forwarded, ","); idx != -1 {
+			ip = strings.TrimSpace(forwarded[:idx])
+		} else {
+			ip = strings.TrimSpace(forwarded)
+		}
+	}
+	return ip
+}
+
 func RateLimiter(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
-			ip = r.RemoteAddr
-		}
-
-		// Jika menggunakan proxy seperti Nginx, gunakan:
-		if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-			ip = forwarded
-		}
+		ip := getRealIP(r)
 
 		mtx.Lock()
 		v, exists := visitors[ip]
@@ -65,19 +76,19 @@ func RateLimiter(next http.HandlerFunc) http.HandlerFunc {
 			visitors[ip] = &Visitor{Count: 1, LastSeen: time.Now()}
 		} else {
 			if time.Since(v.LastSeen) > 1*time.Minute {
-				// Reset count after 1 minute
+				// Reset count after 1 minute (fixed window)
 				v.Count = 0
+				v.LastSeen = time.Now()
 			}
 			v.Count++
-			v.LastSeen = time.Now()
 		}
 
-		// Batas: 5 request per menit
-		if exists && v.Count > 5 {
+		// Batas ditingkatkan menjadi 100 untuk memungkinkan login bersamaan dari WiFi sekolah
+		if exists && v.Count > 100 {
 			mtx.Unlock()
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
-			_ = json.NewEncoder(w).Encode(map[string]string{"message": "Terlalu banyak percobaan. Silakan tunggu 1 menit."})
+			_ = json.NewEncoder(w).Encode(map[string]string{"message": "Terlalu banyak percobaan login. Silakan tunggu 1 menit."})
 			return
 		}
 		mtx.Unlock()
@@ -90,24 +101,35 @@ func RateLimiter(next http.HandlerFunc) http.HandlerFunc {
 func GlobalRateLimiterMiddleware(maxReqs int, duration time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip, _, err := net.SplitHostPort(r.RemoteAddr)
-			if err != nil {
-				ip = r.RemoteAddr
+			// Jangan hitung CORS preflight (OPTIONS) — browser mengirim ini
+			// secara otomatis sebelum setiap request cross-origin.
+			// Menghitungnya berarti kuota efektif pengguna terpotong setengah.
+			if r.Method == "OPTIONS" {
+				next.ServeHTTP(w, r)
+				return
 			}
-			if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-				ip = forwarded
+
+			ip := getRealIP(r)
+
+			// Gunakan token otorisasi sebagai key jika ada.
+			// Ini agar banyak guru yang menggunakan WiFi sekolah (IP yang sama)
+			// masing-masing mendapatkan limit terpisah.
+			key := ip
+			authHeader := r.Header.Get("Authorization")
+			if authHeader != "" {
+				key = authHeader
 			}
 
 			globalMtx.Lock()
-			v, exists := globalVisitors[ip]
+			v, exists := globalVisitors[key]
 			if !exists {
-				globalVisitors[ip] = &Visitor{Count: 1, LastSeen: time.Now()}
+				globalVisitors[key] = &Visitor{Count: 1, LastSeen: time.Now()}
 			} else {
 				if time.Since(v.LastSeen) > duration {
 					v.Count = 0
+					v.LastSeen = time.Now()
 				}
 				v.Count++
-				v.LastSeen = time.Now()
 			}
 
 			if exists && v.Count > maxReqs {

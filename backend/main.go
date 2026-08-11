@@ -146,9 +146,9 @@ func main() {
 
 	// Subrouter untuk /api
 	apiRouter := r.PathPrefix("/api").Subrouter()
-	apiRouter.Use(middleware.MaxBytesMiddleware(10 << 20))                    // Batas maksimum 10MB untuk semua request API
-	apiRouter.Use(middleware.GlobalRateLimiterMiddleware(300, 1*time.Minute)) // Batas 300 request per menit (Anti-DDoS)
-	apiRouter.Use(middleware.AntiCSRFMiddleware)                              // Proteksi CSRF untuk rute API
+	apiRouter.Use(middleware.MaxBytesMiddleware(10 << 20))                     // Batas maksimum 10MB untuk semua request API
+	apiRouter.Use(middleware.GlobalRateLimiterMiddleware(3000, 1*time.Minute)) // Ditingkatkan ke 3000 per menit untuk mendukung offline precacher
+	apiRouter.Use(middleware.AntiCSRFMiddleware)                               // Proteksi CSRF untuk rute API
 
 	// Endpoint terproteksi (Contoh)
 	apiRouter.HandleFunc("/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {

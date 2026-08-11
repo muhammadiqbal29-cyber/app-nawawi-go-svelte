@@ -17,7 +17,7 @@ func TestRateLimiter(t *testing.T) {
 
 	handler := RateLimiter(mockHandler)
 
-	for i := 1; i <= 6; i++ {
+	for i := 1; i <= 101; i++ {
 		req, err := http.NewRequest("POST", "/api/login", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -29,12 +29,12 @@ func TestRateLimiter(t *testing.T) {
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 
-		if i <= 5 {
+		if i <= 100 {
 			if status := rr.Code; status != http.StatusOK {
 				t.Errorf("Request ke-%d: status code salah: mendapat %v diharapkan %v", i, status, http.StatusOK)
 			}
 		} else {
-			// Percobaan ke-6 harus ditolak
+			// Percobaan ke-101 harus ditolak
 			if status := rr.Code; status != http.StatusTooManyRequests {
 				t.Errorf("Request ke-%d: status code salah: mendapat %v diharapkan %v", i, status, http.StatusTooManyRequests)
 			}
