@@ -224,23 +224,14 @@ func DeleteGuruHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = database.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Delete(&guru).Error; err != nil {
-			return err
-		}
-		if err := tx.Delete(&models.User{}, int(guru.UserID)).Error; err != nil {
-			return err
-		}
-		return nil
-	})
-
-	if err != nil {
+	// Soft delete for guru
+	if err := database.DB.Delete(&guru).Error; err != nil {
 		http.Error(w, "Failed to delete guru", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Guru deleted successfully"}); err != nil {
+	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Guru berhasil dipindahkan ke bak sampah"}); err != nil {
 		slog.Error("Gagal encode response", "error", err)
 	}
 }

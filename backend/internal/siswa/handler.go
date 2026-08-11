@@ -265,7 +265,7 @@ func UpdateSiswaHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, siswa)
 }
 
-// DeleteSiswaHandler (Hard Delete)
+// DeleteSiswaHandler (Soft Delete)
 func DeleteSiswaHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -288,18 +288,47 @@ func DeleteSiswaHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hapus data dependen terlebih dahulu karena tidak ada ON DELETE CASCADE
-	if err := database.DB.WithContext(r.Context()).Unscoped().Where("siswa_id = ?", id).Delete(&models.RiwayatKelas{}).Error; err != nil {
-		response.Error(w, http.StatusInternalServerError, "Gagal menghapus riwayat kelas siswa", err)
-		return
-	}
-
-	if err := database.DB.WithContext(r.Context()).Unscoped().Delete(&siswa).Error; err != nil {
+	if err := database.DB.WithContext(r.Context()).Delete(&siswa).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal menghapus siswa", err)
 		return
 	}
 
-	response.Success(w, "Siswa berhasil dihapus secara permanen (hard-delete)")
+	response.Success(w, "Siswa berhasil dipindahkan ke bak sampah")
+}
+
+// BulkDeleteSiswaHandler (Soft Delete Masal)
+func BulkDeleteSiswaHandler(w http.ResponseWriter, r *http.Request) {
+	sekolahIDStr := r.Header.Get("X-Sekolah-ID")
+	if sekolahIDStr == "" {
+		response.Error(w, http.StatusBadRequest, "X-Sekolah-ID header diperlukan", nil)
+		return
+	}
+
+	var input struct {
+		IDs []int `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		response.Error(w, http.StatusBadRequest, "Input tidak valid", err)
+		return
+	}
+
+	if len(input.IDs) == 0 {
+		response.Error(w, http.StatusBadRequest, "Tidak ada data yang dipilih", nil)
+		return
+	}
+
+	// Soft delete massal siswa yang milik sekolah tersebut (berdasarkan RiwayatKelas)
+	// Kita akan mendelete ID yang ada dalam subquery kepemilikan sekolah
+	err := database.DB.WithContext(r.Context()).
+		Where("id IN (?) AND id IN (SELECT siswa_id FROM riwayat_kelas WHERE sekolah_id = ?)", input.IDs, sekolahIDStr).
+		Delete(&models.Siswa{}).Error
+		
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal menghapus siswa secara masal", err)
+		return
+	}
+
+	response.Success(w, "Siswa terpilih berhasil dipindahkan ke bak sampah")
 }
 
 // MutasiSiswaHandler (Tarik Data)

@@ -25,6 +25,7 @@ import (
 	"siakad-nawawi-be/internal/konfigurasiDiniyah"
 	"siakad-nawawi-be/internal/konfigurasiKeseharian"
 	"siakad-nawawi-be/internal/logger"
+
 	"siakad-nawawi-be/internal/mapelDiniyah"
 	"siakad-nawawi-be/internal/materiTahfiz"
 	"siakad-nawawi-be/internal/middleware"
@@ -36,6 +37,8 @@ import (
 	"siakad-nawawi-be/internal/rombel"
 	"siakad-nawawi-be/internal/sekolah"
 	"siakad-nawawi-be/internal/siswa"
+	"siakad-nawawi-be/internal/system"
+	"siakad-nawawi-be/internal/trash"
 	"siakad-nawawi-be/internal/tahfiz"
 	"siakad-nawawi-be/internal/tahunajaran"
 	"siakad-nawawi-be/internal/catatanNgaji"
@@ -128,6 +131,9 @@ func main() {
 	// Inisialisasi Database
 	database.InitDB()
 
+	// Inisialisasi Konfigurasi Sistem (Maintenance)
+	system.InitSystemConfig()
+
 	// Inisialisasi Scheduler Backup Otomatis
 	backup.InitScheduler()
 
@@ -143,6 +149,7 @@ func main() {
 	r.HandleFunc("/api/auth/google/login", auth.GoogleLoginHandler).Methods("GET")
 	r.HandleFunc("/api/auth/google/callback", auth.GoogleCallbackHandler).Methods("GET")
 	r.HandleFunc("/api/logout", auth.LogoutHandler).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/system/status", system.GetSystemStatusHandler).Methods("GET")
 
 	// Subrouter untuk /api
 	apiRouter := r.PathPrefix("/api").Subrouter()
@@ -153,15 +160,37 @@ func main() {
 	// Endpoint terproteksi (Contoh)
 	apiRouter.HandleFunc("/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		role := r.Context().Value("role").(string)
+		email, _ := r.Context().Value("email").(string)
+		
+		isBypass := false
+		if role == "admin" || role == "superadmin" {
+			isBypass = true
+		} else if role == "guru" {
+			_, _, allowedGurus := system.GetMaintenanceStatus()
+			if allowedGurus != "" && email != "" {
+				list := strings.Split(allowedGurus, ",")
+				for _, g := range list {
+					if strings.TrimSpace(g) == email {
+						isBypass = true
+						break
+					}
+				}
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"message": "Berhasil mengakses data dengan token valid",
 			"role":    role,
+			"maintenance_bypass": isBypass,
 		})
 	})).Methods("GET", "OPTIONS")
 
-	// Rute Sekolah (Hanya Admin)
+	// Rute Sekolah & System (Hanya Admin)
 	adminRouter := apiRouter.PathPrefix("").Subrouter()
+	adminRouter.HandleFunc("/system/config", middleware.RequireRole("admin")(system.GetSystemConfigHandler)).Methods("GET")
+	adminRouter.HandleFunc("/system/config", middleware.RequireRole("admin")(system.UpdateSystemConfigHandler)).Methods("PUT")
+	
 	adminRouter.HandleFunc("/sekolah", middleware.RequireRole("admin")(sekolah.GetSekolahHandler)).Methods("GET")
 	adminRouter.HandleFunc("/sekolah", middleware.RequireRole("admin")(sekolah.CreateSekolahHandler)).Methods("POST")
 	adminRouter.HandleFunc("/sekolah/{id}", middleware.RequireRole("admin")(sekolah.UpdateSekolahHandler)).Methods("PUT")
@@ -188,8 +217,18 @@ func main() {
 	adminRouter.HandleFunc("/siswa/mutasi", middleware.RequireRole("admin")(siswa.MutasiSiswaHandler)).Methods("POST")
 	adminRouter.HandleFunc("/siswa/kenaikan-kelas", middleware.RequireRole("admin")(siswa.KenaikanKelasHandler)).Methods("POST")
 	adminRouter.HandleFunc("/siswa", middleware.RequireRole("admin")(siswa.CreateSiswaHandler)).Methods("POST")
+	adminRouter.HandleFunc("/siswa/bulk", middleware.RequireRole("admin")(siswa.BulkDeleteSiswaHandler)).Methods("DELETE")
 	adminRouter.HandleFunc("/siswa/{id}", middleware.RequireRole("admin")(siswa.UpdateSiswaHandler)).Methods("PUT")
 	adminRouter.HandleFunc("/siswa/{id}", middleware.RequireRole("admin")(siswa.DeleteSiswaHandler)).Methods("DELETE")
+
+	// Trash Bin (Bak Sampah) Routes
+	adminRouter.HandleFunc("/trash/siswa", middleware.RequireRole("admin")(trash.GetDeletedSiswaHandler)).Methods("GET")
+	adminRouter.HandleFunc("/trash/siswa/restore", middleware.RequireRole("admin")(trash.RestoreSiswaHandler)).Methods("POST")
+	adminRouter.HandleFunc("/trash/siswa/bulk", middleware.RequireRole("admin")(trash.HardDeleteSiswaHandler)).Methods("DELETE")
+	
+	adminRouter.HandleFunc("/trash/guru", middleware.RequireRole("admin")(trash.GetDeletedGuruHandler)).Methods("GET")
+	adminRouter.HandleFunc("/trash/guru/restore", middleware.RequireRole("admin")(trash.RestoreGuruHandler)).Methods("POST")
+	adminRouter.HandleFunc("/trash/guru/bulk", middleware.RequireRole("admin")(trash.HardDeleteGuruHandler)).Methods("DELETE")
 
 	// Rute Bank Catatan Tahfiz V2 (Admin)
 	adminRouter.HandleFunc("/bank-catatan-tahfiz-v2", middleware.RequireRole("admin")(bankCatatanTahfizV2.GetAllHandler)).Methods("GET")
@@ -238,9 +277,11 @@ func main() {
 	// Rute Guru (dilindungi middleware secara global)
 	guruRouter := apiRouter.PathPrefix("/guru").Subrouter()
 	guruRouter.Use(middleware.RequireRoleMiddleware("guru", "admin"))
+	guruRouter.Use(middleware.MaintenanceMiddleware())
 	guruRouter.Use(middleware.CheckSekolahAccessMiddleware())
 	guruRouter.Use(middleware.CheckKelasAccessMiddleware())
 	guruRouter.Use(middleware.CheckSiswaAccessMiddleware())
+	guruRouter.HandleFunc("/log-aktivitas", logger.GetLogAktivitasHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah", guru.GetSekolahForGuruHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{id}", sekolah.GetSekolahByIDHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa", siswa.GetSiswaBySekolahHandler).Methods("GET")

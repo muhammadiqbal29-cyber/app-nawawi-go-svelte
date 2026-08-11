@@ -10,6 +10,7 @@
   let hasDiniyah = $derived(fiturGuru.includes('input_diniyah'));
   let hasKonfigurasiMateri = $derived(fiturGuru.includes('konfigurasi_materi'));
   let hasKeseharian = $derived(fiturGuru.includes('rapor_keseharian'));
+  let hasLogAktivitas = $derived(fiturGuru.includes('log_aktivitas'));
 
   function navigate(path) {
     goto(path);
@@ -59,6 +60,15 @@
           <button class="nav-link" onclick={() => navigate('/guru/rapor')}>
             <Icon name="fileText" size={20} class="icon" />
             <span class="label" class:hidden={!isOpen}>Rapor</span>
+          </button>
+        </li>
+      {/if}
+
+      {#if hasLogAktivitas}
+        <li class:active={currentPath.startsWith('/guru/log-aktivitas')}>
+          <button class="nav-link" onclick={() => navigate('/guru/log-aktivitas')}>
+            <Icon name="clock" size={20} class="icon" />
+            <span class="label" class:hidden={!isOpen}>Log Aktivitas</span>
           </button>
         </li>
       {/if}

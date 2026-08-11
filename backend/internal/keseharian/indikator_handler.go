@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
@@ -72,6 +73,8 @@ func CreateIndikatorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), sekolahID, "Indikator Keseharian", "Tambah", "Menambah indikator "+indikator.Nama, r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusOK, map[string]interface{}{"data": indikator, "message": "Indikator berhasil ditambahkan"})
 }
 
@@ -117,6 +120,8 @@ func UpdateIndikatorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), indikator.SekolahID, "Indikator Keseharian", "Edit", "Memperbarui indikator "+indikator.Nama, r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusOK, map[string]interface{}{"data": indikator, "message": "Indikator berhasil diperbarui"})
 }
 
@@ -142,6 +147,8 @@ func DeleteIndikatorHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "Gagal menghapus indikator", err)
 		return
 	}
+
+	logger.LogGuruAction(r.Context(), indikator.SekolahID, "Indikator Keseharian", "Hapus", "Menghapus indikator "+indikator.Nama, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{"data": nil, "message": "Indikator berhasil dihapus"})
 }

@@ -33,13 +33,38 @@
           config.headers['X-Requested-With'] = 'XMLHttpRequest';
         }
       }
-      return originalFetch.apply(this, [resource, config]);
+      const response = await originalFetch.apply(this, [resource, config]);
+      
+      // Jika request API mengembalikan 503 (Maintenance Mode), redirect ke /maintenance
+      if (response.status === 503 && window.location.pathname !== '/maintenance') {
+         window.location.href = '/maintenance';
+      }
+      
+      return response;
     };
     // ------------------------------------------------
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 5000);
     try {
+      // 1. Cek status maintenance terlebih dahulu (kecuali jika sedang di halaman maintenance)
+      if (window.location.pathname !== '/maintenance') {
+        const sysRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/system/status`);
+        if (sysRes.ok) {
+          const sysData = await sysRes.json();
+          if (sysData.maintenance_mode === true || sysData.maintenance_mode === 'true') {
+            // Biarkan admin lewat jika kita bisa cek role nanti, tapi untuk sekarang kita redirect
+            const localRole = localStorage.getItem('siakad_role');
+            const isBypass = localStorage.getItem('siakad_maintenance_bypass') === 'true';
+            if (!isBypass && localRole !== 'admin' && localRole !== 'superadmin' && window.location.pathname !== '/login') {
+               window.location.href = '/maintenance';
+               return;
+            }
+          }
+        }
+      }
+
+      // 2. Cek Auth
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/me`, {
         credentials: 'include',
         signal: ctrl.signal
@@ -50,12 +75,34 @@
         auth.role = data.role;
         if (typeof window !== 'undefined') {
           localStorage.setItem('siakad_role', data.role);
+          if (data.maintenance_bypass) {
+            localStorage.setItem('siakad_maintenance_bypass', 'true');
+          } else {
+            localStorage.removeItem('siakad_maintenance_bypass');
+          }
+          
+          // Redirect ke maintenance jika bukan admin/bypass tapi maintenance aktif
+          if (data.maintenance_bypass !== true && data.role !== 'admin' && data.role !== 'superadmin' && window.location.pathname !== '/maintenance') {
+            const sysRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/system/status`);
+            if (sysRes.ok) {
+              const sysData = await sysRes.json();
+              if (sysData.maintenance_mode === true || sysData.maintenance_mode === 'true') {
+                window.location.href = '/maintenance';
+                return;
+              }
+            }
+          }
         }
       } else if (res.status === 401 || res.status === 403) {
         // Clear local role if explicitly unauthorized
         if (typeof window !== 'undefined') {
           localStorage.removeItem('siakad_role');
         }
+      } else if (res.status === 503) {
+         if (window.location.pathname !== '/maintenance') {
+            window.location.href = '/maintenance';
+            return;
+         }
       }
     } catch (e) {
       console.error('Network Error checking auth:', e);

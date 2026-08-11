@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
@@ -110,6 +111,8 @@ func CreateMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), sekolahID, "Konfigurasi Materi Tahfiz", "Tambah", "Menambah materi "+materi.NamaMateri, r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusCreated, materi)
 }
 
@@ -175,6 +178,8 @@ func UpdateMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Materi Tahfiz", "Edit", "Memperbarui materi "+existing.NamaMateri, r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusOK, existing)
 }
 
@@ -219,6 +224,8 @@ func DeleteMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, "Materi tidak ditemukan", errors.New("record not found"))
 		return
 	}
+
+	logger.LogGuruAction(r.Context(), materi.SekolahID, "Konfigurasi Materi Tahfiz", "Hapus", "Menghapus materi "+materi.NamaMateri, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "Materi berhasil dihapus"})
 }

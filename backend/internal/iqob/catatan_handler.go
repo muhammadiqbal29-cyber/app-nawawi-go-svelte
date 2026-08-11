@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
@@ -229,6 +230,8 @@ func CreateCatatanIqobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), req.SekolahID, "Catatan Iqob", "Tambah", "Menambah catatan iqob (poin: "+strconv.FormatFloat(catatan.Poin, 'f', -1, 64)+")", r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"data":    catatan,
 		"message": "Catatan iqob berhasil ditambahkan",
@@ -258,6 +261,8 @@ func DeleteCatatanIqobHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "Gagal menghapus catatan iqob", err)
 		return
 	}
+
+	logger.LogGuruAction(r.Context(), catatan.SekolahID, "Catatan Iqob", "Hapus", "Menghapus catatan iqob", r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{"data": nil, "message": "Catatan iqob berhasil dihapus"})
 }
@@ -361,6 +366,8 @@ func PemutihanIqobHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "Gagal menambahkan catatan iqob pemutihan", err)
 		return
 	}
+
+	logger.LogGuruAction(r.Context(), req.SekolahID, "Catatan Iqob", "Pemutihan", "Melakukan pemutihan iqob", r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{
 		"data":    catatan,

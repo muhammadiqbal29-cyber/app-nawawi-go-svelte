@@ -12,6 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
@@ -193,6 +194,19 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Logging
+		role, _ := r.Context().Value("role").(string)
+		if role == "guru" {
+			userID, _ := r.Context().Value("user_id").(int)
+			var guru models.Guru
+			if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
+				logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID, 
+					"Penilaian Diniyah", "Edit Nilai", 
+					fmt.Sprintf("Memperbarui nilai mapel ID %d", payload.MapelDiniyahID), 
+					r.RemoteAddr, r.UserAgent())
+			}
+		}
+
 		response.JSON(w, http.StatusOK, toResponse(existing))
 		return
 	}
@@ -207,6 +221,20 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan nilai diniyah", err)
 		return
 	}
+
+	// Logging
+	role, _ := r.Context().Value("role").(string)
+	if role == "guru" {
+		userID, _ := r.Context().Value("user_id").(int)
+		var guru models.Guru
+		if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
+			logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID, 
+				"Penilaian Diniyah", "Input Nilai", 
+				fmt.Sprintf("Memasukkan nilai mapel ID %d", payload.MapelDiniyahID), 
+				r.RemoteAddr, r.UserAgent())
+		}
+	}
+
 	response.JSON(w, http.StatusCreated, toResponse(nilai))
 }
 

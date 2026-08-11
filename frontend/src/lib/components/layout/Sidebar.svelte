@@ -65,6 +65,18 @@
           <span class="label" class:hidden={!isOpen}>Bank Catatan</span>
         </button>
       </li>
+      <li class:active={currentPath.startsWith('/admin/bak-sampah')}>
+        <button class="nav-link" onclick={() => goto('/admin/bak-sampah')}>
+          <Icon name="trash" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Bak Sampah</span>
+        </button>
+      </li>
+      <li class:active={currentPath.startsWith('/admin/pengaturan-sistem')}>
+        <button class="nav-link" onclick={() => goto('/admin/pengaturan-sistem')}>
+          <Icon name="settings" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Pengaturan Sistem</span>
+        </button>
+      </li>
 
       <!-- Spacer to push Profil to bottom -->
       <div style="flex-grow: 1;"></div>

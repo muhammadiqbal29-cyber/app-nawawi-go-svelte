@@ -75,7 +75,7 @@ func TestImportPresensiExcelHandler_Success(t *testing.T) {
 	// Mock DB untuk transaksi insert/update presensi
 	mock.ExpectBegin()
 	// Find Guru
-	mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE email = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+	mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE email = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 		WithArgs("guru@test.com", 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "email"}).AddRow(1, "guru@test.com"))
 

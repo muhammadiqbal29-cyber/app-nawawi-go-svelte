@@ -21,6 +21,18 @@
   let limit = $state(10);
   let statusFilter = $state('Aktif');
 
+  // Bulk action state
+  let selectedSiswa = $state([]);
+  let isAllSelected = $derived(siswaData.length > 0 && selectedSiswa.length === siswaData.length);
+
+  function toggleSelectAll(e) {
+    if (e.target.checked) {
+      selectedSiswa = siswaData.map(s => s.id);
+    } else {
+      selectedSiswa = [];
+    }
+  }
+
   // Form states
   let showModalForm = $state(false);
   let saving = $state(false);
@@ -219,7 +231,7 @@
   async function deleteSiswa(id, nama) {
     if (
       !(await modalStore.show({
-        message: `Apakah Anda yakin ingin menghapus siswa "${nama}" secara permanen?`
+        message: `Apakah Anda yakin ingin menghapus siswa "${nama}"? (Data akan dipindahkan ke bak sampah)`
       }))
     )
       return;
@@ -230,11 +242,45 @@
         credentials: 'include'
       });
       if (res.ok) {
-        toastStore.show('Siswa berhasil dihapus', 'info');
+        toastStore.show('Siswa berhasil dipindahkan ke bak sampah', 'info');
+        // Remove from selection if exists
+        selectedSiswa = selectedSiswa.filter(sId => sId !== id);
         loadData();
       } else {
         const body = await res.json();
         toastStore.show(body.message || 'Gagal menghapus siswa', 'info');
+      }
+    } catch (err) {
+      toastStore.show(`Error: ${err.message}`, 'info');
+    }
+  }
+
+  async function bulkDeleteSiswa() {
+    if (selectedSiswa.length === 0) return;
+    if (
+      !(await modalStore.show({
+        message: `Apakah Anda yakin ingin menghapus ${selectedSiswa.length} siswa terpilih? (Data akan dipindahkan ke bak sampah)`
+      }))
+    )
+      return;
+    
+    try {
+      const res = await fetch(`${apiUrl}/api/siswa/bulk`, {
+        method: 'DELETE',
+        headers: { 
+          'X-Sekolah-ID': sekolahId.toString(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids: selectedSiswa }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        toastStore.show('Siswa terpilih berhasil dipindahkan ke bak sampah', 'info');
+        selectedSiswa = [];
+        loadData();
+      } else {
+        const body = await res.json();
+        toastStore.show(body.message || 'Gagal menghapus siswa secara masal', 'info');
       }
     } catch (err) {
       toastStore.show(`Error: ${err.message}`, 'info');
@@ -296,10 +342,16 @@
     </div>
 
     <div style="display: flex; gap: 1rem; align-items: center;">
+      {#if selectedSiswa.length > 0}
+        <button class="btn-primary" style="background-color: var(--color-error, #ef4444);" onclick={bulkDeleteSiswa}>
+          <Icon name="trash" size={16} /> Hapus {selectedSiswa.length} Terpilih
+        </button>
+      {/if}
       <select
         bind:value={statusFilter}
         onchange={() => {
           page = 1;
+          selectedSiswa = [];
           loadData();
         }}
         class="form-input"
@@ -351,6 +403,9 @@
       <table class="table">
         <thead>
           <tr>
+            <th style="width: 40px; text-align: center;">
+              <input type="checkbox" checked={isAllSelected} onchange={toggleSelectAll} style="cursor: pointer;" />
+            </th>
             <th>NISN</th>
             <th>Nama Lengkap</th>
             <th>L/P</th>
@@ -362,6 +417,9 @@
         <tbody>
           {#each siswaData as s (s.id)}
             <tr>
+              <td style="text-align: center;">
+                <input type="checkbox" value={s.id} bind:group={selectedSiswa} style="cursor: pointer;" />
+              </td>
               <td><strong>{s.nisn}</strong></td>
               <td>{s.nama_lengkap}</td>
               <td>{s.jenis_kelamin}</td>
@@ -429,6 +487,7 @@
           disabled={siswaMeta.page >= siswaMeta.total_pages}
           onclick={() => {
             page++;
+            selectedSiswa = [];
             loadData();
           }}>Berikutnya</button
         >

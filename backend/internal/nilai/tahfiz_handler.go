@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
 	"siakad-nawawi-be/internal/database"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
 	"siakad-nawawi-be/internal/utils"
@@ -186,6 +187,20 @@ func AutosaveNilaiTahfizDetailHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan nilai tahfiz", err)
 		return
+	}
+
+	// Logging Aktivitas Autosave
+	role, _ := r.Context().Value("role").(string)
+	if role == "guru" {
+		userID, _ := r.Context().Value("user_id").(int)
+		var guru models.Guru
+		if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
+			// (Opsional) Cek akses log_aktivitas bisa dilakukan di dalam logger jika perlu
+			logger.LogAutosaveActivity(r.Context(), &guru, scope.SekolahID, 
+				"Penilaian Tahfiz V1", "Edit Nilai", 
+				"Memperbarui nilai tahfiz pada mata pelajaran "+scope.MataPelajaran, 
+				r.RemoteAddr, r.UserAgent())
+		}
 	}
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{

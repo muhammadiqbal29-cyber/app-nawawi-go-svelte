@@ -291,7 +291,9 @@
           ? 'Rapor'
           : currentPath.startsWith('/guru/materi-tahfiz')
             ? 'Konfigurasi Materi'
-            : 'Beranda Guru'
+            : currentPath.startsWith('/guru/log-aktivitas')
+              ? 'Log Aktivitas Guru'
+              : 'Beranda Guru'
   );
 </script>
 

@@ -702,6 +702,10 @@
                 <input type="checkbox" bind:group={sekolahForm.fitur} value="konfigurasi_materi" />
                 Konfigurasi Materi
               </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                <input type="checkbox" bind:group={sekolahForm.fitur} value="log_aktivitas" />
+                Log Aktivitas Guru
+              </label>
             </div>
             {#if enablePaketAlquran}
               <label style="margin-top: 1rem;">Metode Penilaian Paket Al-Qur'an</label>

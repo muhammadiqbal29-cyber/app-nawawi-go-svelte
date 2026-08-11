@@ -627,3 +627,24 @@ type BankCatatanKeseharian struct {
     CreatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
     UpdatedAt   time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
+
+type LogAktivitasGuru struct {
+	ID         int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	SekolahID  int       `gorm:"not null" json:"sekolah_id"`
+	GuruID     int       `gorm:"not null" json:"guru_id"`
+	Modul      string    `gorm:"type:varchar(100);not null" json:"modul"`
+	Aksi       string    `gorm:"type:varchar(100);not null" json:"aksi"`
+	Deskripsi  string    `gorm:"type:text;not null" json:"deskripsi"`
+	IPAddress  string    `gorm:"type:varchar(50)" json:"ip_address"`
+	UserAgent  string    `gorm:"type:text" json:"user_agent"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+
+	Sekolah Sekolah `gorm:"foreignKey:SekolahID" json:"sekolah"`
+	Guru    Guru    `gorm:"foreignKey:GuruID" json:"guru"`
+}
+
+type SystemConfig struct {
+	Key   string `gorm:"primaryKey;type:varchar(50)" json:"key"`
+	Value string `gorm:"type:text" json:"value"`
+}

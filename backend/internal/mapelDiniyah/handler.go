@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/guru"
+	"siakad-nawawi-be/internal/logger"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/models"
 	"siakad-nawawi-be/internal/response"
@@ -270,6 +271,8 @@ func CreateMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), sekolahID, "Konfigurasi Mapel Diniyah", "Tambah", "Menambah mapel diniyah "+mapel.NamaMapel, r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusCreated, mapel)
 }
 
@@ -331,6 +334,8 @@ func UpdateMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Mapel Diniyah", "Edit", "Memperbarui mapel diniyah "+existing.NamaMapel, r.RemoteAddr, r.UserAgent())
+
 	response.JSON(w, http.StatusOK, existing)
 }
 
@@ -369,6 +374,8 @@ func DeleteMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusNotFound, "Mapel diniyah tidak ditemukan", errors.New("record not found"))
 		return
 	}
+
+	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Mapel Diniyah", "Hapus", "Menghapus mapel diniyah "+existing.NamaMapel, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "Mapel diniyah berhasil dihapus"})
 }

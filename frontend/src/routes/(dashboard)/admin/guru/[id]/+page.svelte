@@ -166,6 +166,7 @@
     if (id === 'input_diniyah') return 'Input Nilai Diniyah';
     if (id === 'rapor_keseharian') return 'Rapor Keseharian';
     if (id === 'konfigurasi_materi') return 'Konfigurasi Materi';
+    if (id === 'log_aktivitas') return 'Log Aktivitas Guru';
     return id;
   }
 
@@ -177,6 +178,8 @@
       return 'Bisa memantau dan mengisi catatan keseharian siswa.';
     if (id === 'konfigurasi_materi')
       return 'Bisa mengelola daftar materi tahfiz dan mapel diniyah.';
+    if (id === 'log_aktivitas')
+      return 'Bisa melihat riwayat aktivitas (tambah, edit, hapus) guru di sekolah ini.';
     return '';
   }
 

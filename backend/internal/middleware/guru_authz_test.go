@@ -66,7 +66,7 @@ func TestGuruAuthz(t *testing.T) {
 			routePath:  "/api/sekolah/{sekolah_id}",
 			routeVars:  map[string]string{"sekolah_id": "1"},
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 					WithArgs(2, 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "akses_sekolah"}).AddRow(1, 2, `{"1":["mengajar"]}`))
 			},
@@ -79,7 +79,7 @@ func TestGuruAuthz(t *testing.T) {
 			routePath:  "/api/sekolah/{sekolah_id}",
 			routeVars:  map[string]string{"sekolah_id": "2"},
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 					WithArgs(2, 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "akses_sekolah"}).AddRow(1, 2, `{"1":["mengajar"]}`))
 			},
@@ -97,7 +97,7 @@ func TestGuruAuthz(t *testing.T) {
 					WithArgs("10", 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "sekolah_id"}).AddRow(10, 1))
 				// 2. Cek guru access (boleh akses sekolah_id 1)
-				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 					WithArgs(2, 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "akses_sekolah"}).AddRow(1, 2, `{"1":["mengajar"]}`))
 			},
@@ -115,7 +115,7 @@ func TestGuruAuthz(t *testing.T) {
 					WithArgs("100", 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "sekolah_id"}).AddRow(50, 1))
 				// 2. Cek guru access
-				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 					WithArgs(2, 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "akses_sekolah"}).AddRow(1, 2, `{"1":["mengajar"]}`))
 			},
@@ -128,7 +128,7 @@ func TestGuruAuthz(t *testing.T) {
 			routePath:  "/api/sekolah/{sekolah_id}",
 			routeVars:  map[string]string{"sekolah_id": "1"}, // ignored in this specific test
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 					WithArgs(2, 1).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "akses_sekolah"}).AddRow(1, 2, `{"1":["mengajar"]}`))
 			},
@@ -150,7 +150,7 @@ func TestGuruAuthz(t *testing.T) {
 			routePath:  "/api/sekolah/{sekolah_id}",
 			routeVars:  map[string]string{"sekolah_id": "1"},
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? ORDER BY `gurus`.`id` LIMIT \\?").
+				mock.ExpectQuery("SELECT \\* FROM `gurus` WHERE user_id = \\? AND `gurus`.`deleted_at` IS NULL ORDER BY `gurus`.`id` LIMIT \\?").
 					WithArgs(99, 1).
 					WillReturnError(gorm.ErrRecordNotFound)
 			},
