@@ -82,7 +82,7 @@ func SetJuzTasmiHandler(w http.ResponseWriter, r *http.Request) {
 		
 		// Set or update JuzYangDiujikan
 		h.JuzYangDiujikan = payload.JuzYangDiujikan
-		if err := tx.Save(&h).Error; err != nil {
+		if err := tx.Model(&h).Update("juz_yang_diujikan", payload.JuzYangDiujikan).Error; err != nil {
 			return err
 		}
 		

@@ -200,21 +200,21 @@ export async function startPrecache() {
       const isV2Tasmi = akses.includes('input_tasmi_v2');
       tasks.push(async () => {
         precacheState.label = 'Mengunduh Kelas Tasmi...';
-        const paramsKls = new URLSearchParams({ jenis_penilaian: 'ujian_tasmi', tahun_ajaran_id: taId, semester_id: semId });
+        const paramsKls = new URLSearchParams({ jenis_penilaian: 'semester', tahun_ajaran_id: taId, semester_id: semId });
         const kelasList = await fetchWithRetry(`${apiUrl}/api/guru/sekolah/${sekolahId}/kelas?${paramsKls.toString()}`);
         if (kelasList && Array.isArray(kelasList)) {
           // Sama persis dengan cacheKey di InputNilai.svelte jika currentTab == 'tasmi'
           localStorage.setItem(`siakad_offline_kelas_${sekolahId}_${taId}_${semId}_tasmi`, JSON.stringify(kelasList));
           
           for (const kls of kelasList) {
-            const p = new URLSearchParams({ mata_pelajaran: 'Ujian Tasmi', jenis_penilaian: 'ujian_tasmi', rombel: kls.rombel || '__kosong__', tahun_ajaran_id: taId, semester_id: semId });
+            const p = new URLSearchParams({ mata_pelajaran: 'Ujian Tasmi', jenis_penilaian: 'semester', rombel: kls.rombel || '__kosong__', tahun_ajaran_id: taId, semester_id: semId });
             const dataSiswa = await fetchWithRetry(`${apiUrl}/api/guru/kelas/${kls.id}/nilai?${p.toString()}`);
             if (dataSiswa) {
               const siswaList = (dataSiswa.siswa || []).map((s) => ({ id: s.siswa_id, nama: s.nama_lengkap || '-', nisn: s.nisn || '-' }));
               const cachedData = JSON.stringify({ siswaList, nilaiMap: dataSiswa.nilai_map || {} });
-              localStorage.setItem(`siakad_offline_tasmi_kelas_${kls.id}_ujian_tasmi`, cachedData);
+              localStorage.setItem(`siakad_offline_tasmi_kelas_${kls.id}_semester`, cachedData);
               if (isV2Tasmi) {
-                localStorage.setItem(`siakad_offline_tasmi_v2_kelas_${kls.id}_ujian_tasmi`, cachedData);
+                localStorage.setItem(`siakad_offline_tasmi_v2_kelas_${kls.id}_semester`, cachedData);
               }
               
               // PRECACHE INDIVIDUAL STUDENT DETAILS
@@ -238,7 +238,7 @@ export async function startPrecache() {
                   tahap = maxTahap < 5 ? maxTahap + 1 : 5;
                 }
 
-                const pDetail = new URLSearchParams({ mata_pelajaran: 'Ujian Tasmi', jenis_penilaian: 'ujian_tasmi', tahun_ajaran_id: taId, semester_id: semId, tahap: String(tahap) });
+                const pDetail = new URLSearchParams({ mata_pelajaran: 'Ujian Tasmi', jenis_penilaian: 'semester', tahun_ajaran_id: taId, semester_id: semId, tahap: String(tahap) });
                 if (!isV2Tasmi) {
                   const v1Res = await fetchWithRetry(`${apiUrl}/api/guru/siswa/${s.id}/nilai-tasmi?${pDetail.toString()}`);
                   if (v1Res) {
@@ -251,7 +251,7 @@ export async function startPrecache() {
                         mad: d ? d.skor_mad : '', tajwid: d ? d.skor_tajwid : '', makharijulHuruf: d ? d.skor_makharijul_huruf : '', saveStatus: ''
                       };
                     });
-                    localStorage.setItem(`siakad_offline_tasmi_v1_detail_${s.id}_ujian_tasmi`, JSON.stringify({ allRows, rows: [], selectedJuz: [], tahap, lastSavedSummary: v1Res.nilai || null, showJuzSelection: true }));
+                    localStorage.setItem(`siakad_offline_tasmi_v1_detail_${s.id}_semester`, JSON.stringify({ allRows, rows: [], selectedJuz: [], tahap, lastSavedSummary: v1Res.nilai || null, showJuzSelection: true }));
                   }
                 } else {
                   const v2Res = await fetchWithRetry(`${apiUrl}/api/guru/siswa/${s.id}/nilai-tasmi-v2?${pDetail.toString()}`);
@@ -264,7 +264,7 @@ export async function startPrecache() {
                         kelancaran: d ? d.skor_kelancaran : '', tajwid: d ? d.skor_tajwid : '', makharijulHuruf: d ? d.skor_makharijul_huruf : '', saveStatus: ''
                       };
                     });
-                    localStorage.setItem(`siakad_offline_tasmi_v2_detail_${s.id}_ujian_tasmi`, JSON.stringify({ allRows, rows: [], selectedJuz: [], tahap, lastSavedSummary: v2Res.nilai || null, showJuzSelection: true }));
+                    localStorage.setItem(`siakad_offline_tasmi_v2_detail_${s.id}_semester`, JSON.stringify({ allRows, rows: [], selectedJuz: [], tahap, lastSavedSummary: v2Res.nilai || null, showJuzSelection: true }));
                   }
                 }
                 precacheState.progress += 1;
