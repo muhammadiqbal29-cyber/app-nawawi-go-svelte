@@ -1,10 +1,12 @@
 <script>
-  let { data = [], color = '#0ea5e9', max = 100, labelFormat = (val) => val } = $props();
+  let { data = [], color = '#0ea5e9', max = 100, labelFormat = (val) => val, onBarClick = null } = $props();
 
   let animationTriggered = $state(false);
 
   $effect(() => {
-    // Small delay to trigger CSS transition on mount
+    // Reset animation when data changes, then re-trigger
+    data; // track data dependency
+    animationTriggered = false;
     setTimeout(() => {
       animationTriggered = true;
     }, 50);
@@ -24,11 +26,14 @@
     {#each data as item (item.label)}
       <div class="bar-group">
         <div class="bar-track">
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
             class="bar-fill"
+            onclick={() => onBarClick && onBarClick(item)}
             style="height: {animationTriggered
               ? (item.value / max) * 100
-              : 0}%; background-color: {color};"
+              : 0}%; background-color: {item.color || color};"
           >
             <div class="bar-tooltip">
               <span style="font-weight: 700; font-size: 14px;">{item.label}</span>

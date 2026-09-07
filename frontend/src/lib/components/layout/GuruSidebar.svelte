@@ -46,6 +46,15 @@
         </li>
       {/if}
 
+      {#if hasDiniyah}
+        <li class:active={currentPath.startsWith('/guru/analitik')}>
+          <button class="nav-link" onclick={() => navigate('/guru/analitik')}>
+            <Icon name="barChart2" size={20} class="icon" />
+            <span class="label" class:hidden={!isOpen}>Analitik AI</span>
+          </button>
+        </li>
+      {/if}
+
       {#if hasKonfigurasiMateri}
         <li class:active={currentPath.startsWith('/guru/konfigurasi')}>
           <button class="nav-link" onclick={() => navigate('/guru/konfigurasi')}>

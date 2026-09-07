@@ -28,6 +28,13 @@
         <span>Input Nilai</span>
       </button>
     {/if}
+
+    {#if hasDiniyah}
+      <button class="nav-item" class:active={currentPath.startsWith('/guru/analitik')} onclick={() => navigate('/guru/analitik')}>
+        <Icon name="barChart2" size={22} class="nav-icon" />
+        <span>Analitik</span>
+      </button>
+    {/if}
     
     {#if hasRapor}
       <button class="nav-item" class:active={currentPath.startsWith('/guru/rapor')} onclick={() => navigate('/guru/rapor')}>

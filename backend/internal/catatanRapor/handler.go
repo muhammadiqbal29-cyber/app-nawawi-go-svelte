@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/models"
@@ -249,17 +250,34 @@ func UpsertCatatanRaporHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Sync catatan to respective report headers
 	for _, item := range req.Data {
-		switch req.JenisRapor {
-		case "tasmi":
-			tx.Model(&models.NilaiTasmi{}).
-				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
-					item.SiswaID, sekolahID, tahunAjaranID, semesterID).
-				Update("catatan", item.Catatan)
-			tx.Model(&models.NilaiTasmiV2{}).
-				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
-					item.SiswaID, sekolahID, tahunAjaranID, semesterID).
-				Update("catatan", item.Catatan)
-		case "kelulusan":
+		switch {
+		case strings.HasPrefix(req.JenisRapor, "tasmi"):
+			tahapInt := 0
+			if strings.HasPrefix(req.JenisRapor, "tasmi_") {
+				tahapStr := strings.TrimPrefix(req.JenisRapor, "tasmi_")
+				tahapInt, _ = strconv.Atoi(tahapStr)
+			}
+			
+			if tahapInt > 0 {
+				tx.Model(&models.NilaiTasmi{}).
+					Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND tahap = ?",
+						item.SiswaID, sekolahID, tahunAjaranID, semesterID, tahapInt).
+					Update("catatan", item.Catatan)
+				tx.Model(&models.NilaiTasmiV2{}).
+					Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND tahap = ?",
+						item.SiswaID, sekolahID, tahunAjaranID, semesterID, tahapInt).
+					Update("catatan", item.Catatan)
+			} else {
+				tx.Model(&models.NilaiTasmi{}).
+					Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
+						item.SiswaID, sekolahID, tahunAjaranID, semesterID).
+					Update("catatan", item.Catatan)
+				tx.Model(&models.NilaiTasmiV2{}).
+					Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ?",
+						item.SiswaID, sekolahID, tahunAjaranID, semesterID).
+					Update("catatan", item.Catatan)
+			}
+		case req.JenisRapor == "kelulusan":
 			tx.Model(&models.NilaiTahfiz{}).
 				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",
 					item.SiswaID, sekolahID, tahunAjaranID, semesterID, "kelulusan").
@@ -268,7 +286,7 @@ func UpsertCatatanRaporHandler(w http.ResponseWriter, r *http.Request) {
 				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",
 					item.SiswaID, sekolahID, tahunAjaranID, semesterID, "kelulusan").
 				Update("catatan", item.Catatan)
-		case "tahfiz", "tahfiz_v2":
+		case req.JenisRapor == "tahfiz" || req.JenisRapor == "tahfiz_v2":
 			fmt.Printf("DEBUG SYNC TAHFIZ_V2: siswa_id=%d, sekolah_id=%d, ta=%d, sem=%d, catatan=%s\n", item.SiswaID, sekolahID, tahunAjaranID, semesterID, item.Catatan)
 			errTahfiz := tx.Model(&models.NilaiTahfiz{}).
 				Where("siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?",

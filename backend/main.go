@@ -12,40 +12,43 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NYTimes/gziphandler"
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"siakad-nawawi-be/internal/auth"
 	"siakad-nawawi-be/internal/backup"
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/guru"
 	"siakad-nawawi-be/internal/kelas"
 	"siakad-nawawi-be/internal/keseharian"
-	"siakad-nawawi-be/internal/konfigurasiTahfiz"
 	"siakad-nawawi-be/internal/konfigurasiDiniyah"
 	"siakad-nawawi-be/internal/konfigurasiKeseharian"
+	"siakad-nawawi-be/internal/konfigurasiTahfiz"
 	"siakad-nawawi-be/internal/logger"
 
+	"github.com/NYTimes/gziphandler"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+
+	"siakad-nawawi-be/internal/ai"
+	"siakad-nawawi-be/internal/bankCatatanDiniyah"
+	"siakad-nawawi-be/internal/bankCatatanKeseharian"
+	"siakad-nawawi-be/internal/bankCatatanTahfizV2"
+	"siakad-nawawi-be/internal/catatanNgaji"
+	"siakad-nawawi-be/internal/catatanRapor"
+	"siakad-nawawi-be/internal/iqob"
 	"siakad-nawawi-be/internal/mapelDiniyah"
 	"siakad-nawawi-be/internal/materiTahfiz"
 	"siakad-nawawi-be/internal/middleware"
 	"siakad-nawawi-be/internal/nilai"
 	"siakad-nawawi-be/internal/nilaiDiniyah"
 	"siakad-nawawi-be/internal/pelanggaran"
-	"siakad-nawawi-be/internal/iqob"
 	"siakad-nawawi-be/internal/presensi"
+	"siakad-nawawi-be/internal/redis"
 	"siakad-nawawi-be/internal/rombel"
 	"siakad-nawawi-be/internal/sekolah"
 	"siakad-nawawi-be/internal/siswa"
 	"siakad-nawawi-be/internal/system"
-	"siakad-nawawi-be/internal/trash"
 	"siakad-nawawi-be/internal/tahfiz"
 	"siakad-nawawi-be/internal/tahunajaran"
-	"siakad-nawawi-be/internal/catatanNgaji"
-	"siakad-nawawi-be/internal/catatanRapor"
-	"siakad-nawawi-be/internal/bankCatatanTahfizV2"
-	"siakad-nawawi-be/internal/bankCatatanDiniyah"
-	"siakad-nawawi-be/internal/bankCatatanKeseharian"
+	"siakad-nawawi-be/internal/trash"
 )
 
 func init() {
@@ -131,6 +134,9 @@ func main() {
 	// Inisialisasi Database
 	database.InitDB()
 
+	// Inisialisasi Redis Caching untuk AI (jika tersedia)
+	redis.Connect()
+
 	// Inisialisasi Konfigurasi Sistem (Maintenance)
 	system.InitSystemConfig()
 
@@ -161,7 +167,7 @@ func main() {
 	apiRouter.HandleFunc("/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		role := r.Context().Value("role").(string)
 		email, _ := r.Context().Value("email").(string)
-		
+
 		isBypass := false
 		if role == "admin" || role == "superadmin" {
 			isBypass = true
@@ -180,8 +186,8 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
-			"message": "Berhasil mengakses data dengan token valid",
-			"role":    role,
+			"message":            "Berhasil mengakses data dengan token valid",
+			"role":               role,
 			"maintenance_bypass": isBypass,
 		})
 	})).Methods("GET", "OPTIONS")
@@ -190,7 +196,7 @@ func main() {
 	adminRouter := apiRouter.PathPrefix("").Subrouter()
 	adminRouter.HandleFunc("/system/config", middleware.RequireRole("admin")(system.GetSystemConfigHandler)).Methods("GET")
 	adminRouter.HandleFunc("/system/config", middleware.RequireRole("admin")(system.UpdateSystemConfigHandler)).Methods("PUT")
-	
+
 	adminRouter.HandleFunc("/sekolah", middleware.RequireRole("admin")(sekolah.GetSekolahHandler)).Methods("GET")
 	adminRouter.HandleFunc("/sekolah", middleware.RequireRole("admin")(sekolah.CreateSekolahHandler)).Methods("POST")
 	adminRouter.HandleFunc("/sekolah/{id}", middleware.RequireRole("admin")(sekolah.UpdateSekolahHandler)).Methods("PUT")
@@ -225,7 +231,7 @@ func main() {
 	adminRouter.HandleFunc("/trash/siswa", middleware.RequireRole("admin")(trash.GetDeletedSiswaHandler)).Methods("GET")
 	adminRouter.HandleFunc("/trash/siswa/restore", middleware.RequireRole("admin")(trash.RestoreSiswaHandler)).Methods("POST")
 	adminRouter.HandleFunc("/trash/siswa/bulk", middleware.RequireRole("admin")(trash.HardDeleteSiswaHandler)).Methods("DELETE")
-	
+
 	adminRouter.HandleFunc("/trash/guru", middleware.RequireRole("admin")(trash.GetDeletedGuruHandler)).Methods("GET")
 	adminRouter.HandleFunc("/trash/guru/restore", middleware.RequireRole("admin")(trash.RestoreGuruHandler)).Methods("POST")
 	adminRouter.HandleFunc("/trash/guru/bulk", middleware.RequireRole("admin")(trash.HardDeleteGuruHandler)).Methods("DELETE")
@@ -306,10 +312,12 @@ func main() {
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz", nilai.GetNilaiTahfizBySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tahfiz-masal", nilai.GetNilaiTahfizMasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz/detail", nilai.AutosaveNilaiTahfizDetailHandler).Methods("POST")
-	
+
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2", nilai.GetNilaiTahfizV2BySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2/detail", nilai.AutosaveNilaiTahfizDetailV2Handler).Methods("POST")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tahfiz-v2-masal", nilai.GetNilaiTahfizV2MasalHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/tasmi-masal", nilai.GetNilaiTasmiMasalHandler).Methods("GET")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/tasmi-v2-masal", nilai.GetNilaiTasmiV2MasalHandler).Methods("GET")
 
 	// Rute Tasmi
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tasmi", nilai.GetNilaiTasmiBySiswaHandler).Methods("GET")
@@ -331,14 +339,14 @@ func main() {
 	guruRouter.HandleFunc("/kelas/{kelas_id}/siswa", rombel.GetSiswaDalamKelasHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/catatan-ngaji", catatanNgaji.GetCatatanNgajiHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/catatan-ngaji", catatanNgaji.SaveCatatanNgajiHandler).Methods("POST")
-	
+
 	// Rute Catatan Rapor (Guru)
 	guruRouter.HandleFunc("/kelas/{kelas_id}/catatan-rapor", catatanRapor.GetCatatanRaporKelasHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/catatan-rapor", catatanRapor.GetCatatanRaporSiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/catatan-rapor", catatanRapor.UpsertCatatanRaporHandler).Methods("POST")
 	guruRouter.HandleFunc("/bank-catatan-tahfiz-v2", bankCatatanTahfizV2.GetAllHandler).Methods("GET")
 	guruRouter.HandleFunc("/bank-catatan-diniyah", bankCatatanDiniyah.GetAllHandler).Methods("GET")
-	
+
 	// Rute Mapel Diniyah (Guru)
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/mapel-diniyah", mapelDiniyah.GetMapelDiniyahAktifHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/mapel-diniyah/all", mapelDiniyah.GetMapelDiniyahHandler).Methods("GET")
@@ -353,6 +361,8 @@ func main() {
 	guruRouter.HandleFunc("/nilai-diniyah", nilaiDiniyah.UpsertNilaiDiniyahHandler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/rapor-diniyah", nilaiDiniyah.GetRaporDiniyahHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/rapor-diniyah-masal", nilaiDiniyah.GetRaporDiniyahMasalHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/analitik-diniyah", ai.AnalitikSiswaDiniyahHandler).Methods("GET")
+	guruRouter.HandleFunc("/analitik-meso-diniyah", ai.AnalitikKelasDiniyahHandler).Methods("POST")
 
 	// Rute Halaqah Tahfiz Guru
 	guruRouter.HandleFunc("/me/halaqah", tahfiz.GetHalaqahKuHandler).Methods("GET")
@@ -419,7 +429,7 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/dashboard/tahfiz", guru.GetDashboardTahfizHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/dashboard/diniyah", guru.GetDashboardDiniyahHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/rapor-logo", sekolah.UpdateRaporLogoHandler).Methods("PUT")
-	
+
 	// Terapkan CORS dan Gzip Compression
 	handler := HandleCORS(r)
 	handler = gziphandler.GzipHandler(handler)

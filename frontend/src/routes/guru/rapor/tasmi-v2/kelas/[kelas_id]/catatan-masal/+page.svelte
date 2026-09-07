@@ -19,6 +19,7 @@
   let loading = $state(false);
   let saving = $state(false);
   let error = $state('');
+  let tahap = $state(1);
 
   // data = [{ siswa, mapel_nilai, rata_rata, catatan }]
   let siswaData = $state([]);
@@ -34,20 +35,20 @@
     loading = true;
     error = '';
     try {
-      // 1. Ambil data rapor tahfiz masal
+      // 1. Ambil data rapor tasmi v2 masal
       const params = new URLSearchParams({ rombel });
       if (paramTaId) params.set('tahun_ajaran_id', paramTaId);
       if (paramSemId) params.set('semester_id', paramSemId);
-      const resSiswa = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/siswa?${params.toString()}`, {
+      params.set('tahap', tahap);
+      const resRapor = await fetch(`${apiUrl}/api/guru/kelas/${kelasId}/tasmi-v2-masal?${params.toString()}`, {
         credentials: 'include'
       });
-      if (!resSiswa.ok) throw new Error('Gagal memuat data siswa');
-      const dataSiswa = await resSiswa.json();
-      const siswaList = dataSiswa.data || dataSiswa || [];
+      if (!resRapor.ok) throw new Error('Gagal memuat data rapor tasmi v2');
+      const raporData = await resRapor.json();
 
       // 2. Ambil catatan rapor yang sudah ada
       const paramsCatatan = new URLSearchParams({
-        jenis_rapor: 'tasmi',
+        jenis_rapor: `tasmi_${tahap}`,
         sekolah_id: sekolahId,
         rombel
       });
@@ -70,13 +71,26 @@
       catatanMap = map;
 
       // Process data siswa
-      siswaData = (siswaList || []).map(item => {
+      siswaData = (raporData || []).map(item => {
+        const details = item.details || [];
+        let sumKelancaran = 0, sumTajwid = 0, sumMakharij = 0;
+        let count = 0;
+        
+        details.forEach(d => {
+          sumKelancaran += (d.skor_kelancaran || 0);
+          sumTajwid += (d.skor_tajwid || 0);
+          sumMakharij += (d.skor_makharijul_huruf || 0);
+          count++;
+        });
+
         return {
-          siswa_id: item.id,
-          nama: item.nama_lengkap,
-          nisn: item.nisn,
-          rata_rata: 0,
-          catatan: map[item.id] || ''
+          siswa_id: item.siswa.id,
+          nama: item.siswa.nama_lengkap,
+          nisn: item.siswa.nisn,
+          avgKelancaran: count > 0 ? Math.round(sumKelancaran / count) : 0,
+          avgTajwid: count > 0 ? Math.round(sumTajwid / count) : 0,
+          avgMakharij: count > 0 ? Math.round(sumMakharij / count) : 0,
+          catatan: map[item.siswa.id] || ''
         };
       }).sort((a, b) => a.nama.localeCompare(b.nama));
 
@@ -87,14 +101,72 @@
     }
   }
 
-  function generateAutoCatatan() {
-    siswaData = siswaData.map(s => {
-      return { 
-        ...s, 
-        catatan: "Pencapaian yang baik dalam ujian Tasmi'. Terus murajaah dan pertahankan hafalan." 
-      };
-    });
-    toastStore.show('Catatan otomatis berhasil di-generate', 'success');
+  function scoreToPredicate(score) {
+    const rounded = Math.round(score);
+    if (rounded >= 5) return 'Mumtaz';
+    if (rounded === 4) return 'Jayyid Jiddan';
+    if (rounded === 3) return 'Jayyid';
+    if (rounded === 2) return 'Maqbul';
+    if (rounded <= 1) return "Dha'if";
+    return 'Semua Kriteria';
+  }
+
+  async function generateAutoCatatan() {
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/bank-catatan-tahfiz-v2?sekolah_id=${sekolahId}`, {
+        credentials: 'include'
+      });
+      let bankRules = [];
+      if (res.ok) {
+        bankRules = await res.json() || [];
+      } else {
+        throw new Error('Gagal memuat bank catatan');
+      }
+
+      siswaData = siswaData.map(s => {
+        const pKelancaran = scoreToPredicate(s.avgKelancaran);
+        const pTajwid = scoreToPredicate(s.avgTajwid);
+        const pMakharij = scoreToPredicate(s.avgMakharij);
+
+        // Cari rule yang paling cocok (skor exact match > skor Semua Kriteria)
+        let bestMatch = null;
+        let bestScore = -1;
+
+        for (const rule of bankRules) {
+          let matchScore = 0;
+          let isValid = true;
+
+          // Cek Kelancaran
+          if (rule.kelancaran === pKelancaran) matchScore += 1;
+          else if (rule.kelancaran !== 'Semua Kriteria') isValid = false;
+
+          // Cek Tajwid
+          if (rule.tajwid === pTajwid) matchScore += 1;
+          else if (rule.tajwid !== 'Semua Kriteria') isValid = false;
+
+          // Cek Makharij
+          if (rule.makharij === pMakharij) matchScore += 1;
+          else if (rule.makharij !== 'Semua Kriteria') isValid = false;
+
+          if (isValid && matchScore > bestScore) {
+            bestScore = matchScore;
+            bestMatch = rule;
+          }
+        }
+
+        const newCatatan = bestMatch 
+          ? bestMatch.teks_catatan 
+          : 'Pencapaian dalam ujian Tasmi\' cukup baik. Terus semangat dan jaga murajaahnya.';
+
+        return { 
+          ...s, 
+          catatan: newCatatan 
+        };
+      });
+      toastStore.show('Catatan otomatis berhasil di-generate', 'success');
+    } catch (err) {
+      toastStore.show(err.message, 'error');
+    }
   }
 
   async function simpanSemua() {
@@ -105,7 +177,7 @@
         semester_id: parseInt(paramSemId) || 0,
 
         sekolah_id: Number(sekolahId),
-        jenis_rapor: 'tasmi',
+        jenis_rapor: `tasmi_${tahap}`,
         data: siswaData.map(s => ({
           siswa_id: s.siswa_id,
           catatan: s.catatan || ''
@@ -150,6 +222,16 @@
     </div>
     
     <div class="action-buttons">
+      <div class="search-bar" style="width: auto;">
+        <span style="font-weight: 600; font-size: 0.85rem; color: #475569;">Tahap:</span>
+        <select bind:value={tahap} onchange={loadData} class="form-input" style="padding: 0.2rem 0.5rem; border: none; background: transparent; font-weight: 700; color: #4f46e5; outline: none; cursor: pointer;">
+          <option value={1}>Tahap 1</option>
+          <option value={2}>Tahap 2</option>
+          <option value={3}>Tahap 3</option>
+          <option value={4}>Tahap 4</option>
+          <option value={5}>Tahap 5</option>
+        </select>
+      </div>
       <div class="search-bar">
         <Icon name="search" size={16} class="search-icon" />
         <input type="text" bind:value={searchQuery} placeholder="Cari nama siswa..." class="search-input" />

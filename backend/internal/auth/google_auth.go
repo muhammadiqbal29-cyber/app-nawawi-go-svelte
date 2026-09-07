@@ -71,7 +71,8 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		frontendURL = "http://localhost:5173" // Default fallback
 	}
 
-	if r.FormValue("state") != oauthState.Value {
+	// Jika cookie tidak ada (expired / request tidak valid), langsung tolak
+	if oauthState == nil || r.FormValue("state") != oauthState.Value {
 		fmt.Println("invalid oauth google state")
 		http.Redirect(w, r, frontendURL+"/login?error=invalid_state", http.StatusTemporaryRedirect)
 		return

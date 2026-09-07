@@ -33,6 +33,7 @@ type DashboardDiniyahStudentScore struct {
 	Rombel  string  `json:"rombel"`
 	Mapel   string  `json:"mapel"`
 	Nilai   float64 `json:"nilai"`
+	KelasID int     `json:"kelas_id"`
 }
 
 // GetDashboardTahfizHandler mengambil rata-rata nilai Tahfiz per siswa
@@ -50,7 +51,7 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taID, _, err := tahunajaran.ResolveActivePeriod(r)
+	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "Gagal mendapatkan tahun ajaran aktif", err)
 		return
@@ -69,7 +70,7 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 				n.skor_makharijul_huruf as makhraj
 			FROM nilai_tahfizs nt
 			JOIN nilai_tahfiz_details n ON n.nilai_tahfiz_id = nt.id
-			WHERE nt.sekolah_id = ? AND nt.tahun_ajaran_id = ?
+			WHERE nt.sekolah_id = ? AND nt.tahun_ajaran_id = ? AND nt.semester_id = ?
 			
 			UNION ALL
 			
@@ -83,7 +84,7 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 				n2.skor_makharijul_huruf as makhraj
 			FROM nilai_tahfiz_v2 nt2
 			JOIN nilai_tahfiz_detail_v2 n2 ON n2.nilai_tahfiz_v2_id = nt2.id
-			WHERE nt2.sekolah_id = ? AND nt2.tahun_ajaran_id = ?
+			WHERE nt2.sekolah_id = ? AND nt2.tahun_ajaran_id = ? AND nt2.semester_id = ?
 		)
 		SELECT 
 			s.id, 
@@ -103,7 +104,7 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 		GROUP BY s.id, s.nama_lengkap, k.tingkat, rk.rombel
 	`
-	if err := database.DB.Raw(query, sekolahID, taID, sekolahID, taID, sekolahID, taID, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, taID, semID, sekolahID, taID, semID, sekolahID, taID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard tahfiz", err)
 		return
 	}
@@ -129,7 +130,7 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taID, _, err := tahunajaran.ResolveActivePeriod(r)
+	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "Gagal mendapatkan tahun ajaran aktif", err)
 		return
@@ -143,15 +144,16 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(k.tingkat, '-') as tingkat,
 			COALESCE(rk.rombel, '-') as rombel,
 			COALESCE(m.nama_mapel, 'Tanpa Mapel') as mapel,
-			COALESCE(nd.nilai_rapor, 0) as nilai
+			COALESCE(nd.nilai_rapor, 0) as nilai,
+			COALESCE(k.id, 0) as kelas_id
 		FROM siswas s
 		INNER JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
 		LEFT JOIN kelas k ON k.id = rk.kelas_id
-		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id AND nd.tahun_ajaran_id = ?
+		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id AND nd.tahun_ajaran_id = ? AND nd.semester_id = ?
 		INNER JOIN mapel_diniyahs m ON m.id = nd.mapel_diniyah_id AND m.sekolah_id = ?
 		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
 	`
-	if err := database.DB.Raw(query, sekolahID, taID, taID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
+	if err := database.DB.Raw(query, sekolahID, taID, taID, semID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard diniyah", err)
 		return
 	}
