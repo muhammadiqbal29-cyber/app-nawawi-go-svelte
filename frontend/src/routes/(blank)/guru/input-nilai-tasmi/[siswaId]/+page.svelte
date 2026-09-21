@@ -216,26 +216,7 @@
 
       const body = await res.json();
       
-      // PROTECT LOCAL EDITS
-      const hasPending = syncManager.queue.some(q => q.payload?.siswa_id === Number(siswaId) && q.url.includes('nilai-tasmi'));
-      if (hasPending) {
-        if (typeof window !== 'undefined') {
-          const cacheKey = `siakad_offline_tasmi_v1_detail_${siswaId}_${jenisPenilaian}`;
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const data = JSON.parse(cached);
-              allRows = data.allRows || allRows;
-              rows = data.rows || rows;
-              selectedJuz = data.selectedJuz || selectedJuz;
-              tahap = data.tahap || tahap;
-              lastSavedSummary = data.lastSavedSummary || lastSavedSummary;
-              showJuzSelection = data.showJuzSelection ?? showJuzSelection;
-              return; // Skip applying backend data
-            } catch (e) {}
-          }
-        }
-      }
+
 
       const detailMap = new Map((body.details || []).map((detail) => [detail.nama_materi, detail]));
       allRows = allRows.map((row) => {

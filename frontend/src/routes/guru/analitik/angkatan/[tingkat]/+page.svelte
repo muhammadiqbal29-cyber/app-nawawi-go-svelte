@@ -45,7 +45,9 @@
     const sekolahId = guruState.activeSekolahId;
     const taId = guruState.activeTahunId;
     const semId = guruState.activeSemesterId;
-    if (sekolahId && taId && semId) {
+    const currentTingkat = tingkat; // MUHAMMAD IQBAL: Lacak perubahan tingkat dari URL
+    
+    if (sekolahId && taId && semId && currentTingkat) {
       untrack(() => loadData(taId, semId));
     }
   });
@@ -248,15 +250,16 @@
     const payload = {
       filter_judul: `Tingkat ${tingkat} - ${selectedMapel} (${selectedRombel === 'all' ? 'Semua Rombel' : 'Rombel ' + selectedRombel})`,
       total_siswa: activeData.length,
-      sangat_baik: mesoData[0],
-      baik: mesoData[1],
-      cukup: mesoData[2],
-      risiko: mesoData[3],
-      remedial: mesoData[4]
+      sangat_baik: histogramData[0].value,
+      baik: histogramData[1].value,
+      cukup: histogramData[2].value,
+      risiko: histogramData[3].value,
+      remedial: histogramData[4].value
     };
 
     try {
-      let url = `${apiUrl}/api/guru/analitik-meso-diniyah`;
+      const sekolahId = guruState.activeSekolahId;
+      let url = `${apiUrl}/api/guru/sekolah/${sekolahId}/analitik-meso-diniyah`;
       if (force) url += '?force=true';
 
       const res = await fetch(url, { 
@@ -278,15 +281,16 @@
     }
   }
 
-  async function runAiSiswa(idSiswa, force = false) {
+  async function runAiSiswa(siswaId, force = false) {
     loadingAiSiswa = true;
     errorAiSiswa = '';
     aiHtmlSiswa = '';
     
     try {
+      const sekolahId = guruState.activeSekolahId;
       const taId = guruState.activeTahunId;
       const semId = guruState.activeSemesterId;
-      let url = `${apiUrl}/api/guru/siswa/${idSiswa}/analitik-diniyah?tahun_ajaran_id=${taId}&semester_id=${semId}`;
+      let url = `${apiUrl}/api/guru/sekolah/${sekolahId}/siswa/${siswaId}/analitik-diniyah?tahun_ajaran_id=${taId}&semester_id=${semId}`;
       if (force) url += '&force=true';
 
       const res = await fetch(url, { credentials: 'include' });

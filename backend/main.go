@@ -206,8 +206,17 @@ func main() {
 	adminRouter.HandleFunc("/presensi/konfigurasi", middleware.RequireRole("admin")(presensi.GetKonfigurasiHandler)).Methods("GET")
 	adminRouter.HandleFunc("/presensi/konfigurasi", middleware.RequireRole("admin")(presensi.UpdateKonfigurasiHandler)).Methods("PUT")
 	adminRouter.HandleFunc("/presensi/riwayat", middleware.RequireRole("admin")(presensi.GetRiwayatPresensiAdminHandler)).Methods("GET")
+	adminRouter.HandleFunc("/presensi/manual", middleware.RequireRole("admin")(presensi.ManualUpsertHandler)).Methods("POST")
+	adminRouter.HandleFunc("/presensi/generate-acak", middleware.RequireRole("admin")(presensi.GenerateAcakHandler)).Methods("POST")
 	adminRouter.HandleFunc("/presensi/template-import", middleware.RequireRole("admin")(presensi.DownloadTemplateImportPresensiHandler)).Methods("GET")
 	adminRouter.HandleFunc("/presensi/import", middleware.RequireRole("admin")(presensi.ImportPresensiExcelHandler)).Methods("POST")
+	adminRouter.HandleFunc("/presensi/izin", middleware.RequireRole("admin")(presensi.GetDaftarIzinAdminHandler)).Methods("GET")
+	adminRouter.HandleFunc("/presensi/izin/{id}", middleware.RequireRole("admin")(presensi.ReviewIzinAdminHandler)).Methods("PUT")
+
+	// Rute Kalender Libur
+	adminRouter.HandleFunc("/presensi/kalender", middleware.RequireRole("admin")(presensi.GetKalenderLiburHandler)).Methods("GET")
+	adminRouter.HandleFunc("/presensi/kalender", middleware.RequireRole("admin")(presensi.CreateKalenderLiburHandler)).Methods("POST")
+	adminRouter.HandleFunc("/presensi/kalender/{id}", middleware.RequireRole("admin")(presensi.DeleteKalenderLiburHandler)).Methods("DELETE")
 
 	// Rute Backup & Restore (Hanya Admin)
 	adminRouter.HandleFunc("/backup/trigger", middleware.RequireRole("admin")(backup.TriggerBackupHandler)).Methods("GET", "POST")
@@ -361,8 +370,8 @@ func main() {
 	guruRouter.HandleFunc("/nilai-diniyah", nilaiDiniyah.UpsertNilaiDiniyahHandler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/rapor-diniyah", nilaiDiniyah.GetRaporDiniyahHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/rapor-diniyah-masal", nilaiDiniyah.GetRaporDiniyahMasalHandler).Methods("GET")
-	guruRouter.HandleFunc("/siswa/{siswa_id}/analitik-diniyah", ai.AnalitikSiswaDiniyahHandler).Methods("GET")
-	guruRouter.HandleFunc("/analitik-meso-diniyah", ai.AnalitikKelasDiniyahHandler).Methods("POST")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa/{siswa_id}/analitik-diniyah", ai.AnalitikSiswaDiniyahHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/analitik-meso-diniyah", ai.AnalitikKelasDiniyahHandler).Methods("POST")
 
 	// Rute Halaqah Tahfiz Guru
 	guruRouter.HandleFunc("/me/halaqah", tahfiz.GetHalaqahKuHandler).Methods("GET")
@@ -377,8 +386,10 @@ func main() {
 	guruRouter.HandleFunc("/tahun-ajaran", tahunajaran.GetTahunAjaranHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/profil", guru.GetMeProfileHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/password", guru.UpdateMePasswordHandler).Methods("PUT")
-	guruRouter.HandleFunc("/me/presensi/masuk", guru.PresensiMasukHandler).Methods("POST")
+	guruRouter.HandleFunc("/me/presensi/hari-ini", guru.GetPresensiTodayHandler).Methods("GET", "OPTIONS")
+	guruRouter.HandleFunc("/me/presensi/masuk", guru.PresensiMasukHandler).Methods("POST", "OPTIONS")
 	guruRouter.HandleFunc("/me/presensi/pulang", guru.PresensiPulangHandler).Methods("POST")
+	guruRouter.HandleFunc("/me/presensi/izin", presensi.BuatPengajuanIzinHandler).Methods("POST")
 	guruRouter.HandleFunc("/me/presensi/riwayat", guru.GetPresensiHistoryHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/presensi/konfigurasi", presensi.GetKonfigurasiHandler).Methods("GET")
 

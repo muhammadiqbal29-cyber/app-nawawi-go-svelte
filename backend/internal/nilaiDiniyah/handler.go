@@ -27,9 +27,17 @@ type nilaiDiniyahPayload struct {
 	SemesterID     int   `json:"semester_id"`
 	MapelDiniyahID int   `json:"mapel_diniyah_id" validate:"required"`
 	UhScores       []int `json:"uh_scores"`
-	MurniPts       int   `json:"murni_pts" validate:"gte=0,lte=100"`
+	MurniPts       *int  `json:"murni_pts" validate:"omitempty,gte=0,lte=100"`
 	RemidiPts      *int  `json:"remidi_pts"`
-	Pas            int   `json:"pas" validate:"gte=0,lte=100"`
+	Pas            *int  `json:"pas" validate:"omitempty,gte=0,lte=100"`
+	KelasID        int    `json:"kelas_id"`
+	Rombel         string `json:"rombel"`
+
+	// Explicit update flags to handle partial updates and null values correctly
+	UpdateUh       bool `json:"update_uh"`
+	UpdateMurniPts bool `json:"update_murni_pts"`
+	UpdateRemidi   bool `json:"update_remidi"`
+	UpdatePas      bool `json:"update_pas"`
 }
 
 type nilaiDiniyahResponse struct {
@@ -143,6 +151,36 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// === PENGUNCIAN MAPEL ===
+	// Cek apakah mapel ini sudah diklaim/dikunci oleh guru tertentu.
+	// Jika ya, hanya guru tersebut yang boleh mengedit.
+	role, _ := r.Context().Value("role").(string)
+	if role == "guru" {
+		userID, _ := r.Context().Value("user_id").(int)
+		var currentGuru models.Guru
+		if err := database.DB.Where("user_id = ?", userID).First(&currentGuru).Error; err == nil {
+			rombel := payload.Rombel
+			if rombel == "__kosong__" {
+				rombel = ""
+			}
+
+			var pengampu models.PengampuMapelDiniyah
+			err := database.DB.Where(
+				"mapel_diniyah_id = ? AND kelas_id = ? AND rombel = ?",
+				payload.MapelDiniyahID, payload.KelasID, rombel,
+			).First(&pengampu).Error
+
+			if err == nil && pengampu.GuruID != currentGuru.ID {
+				// Mapel sudah dikunci oleh guru lain
+				var guruPemilik models.Guru
+				database.DB.First(&guruPemilik, pengampu.GuruID)
+				response.Error(w, http.StatusForbidden,
+					fmt.Sprintf("Mapel ini sudah dikunci oleh %s. Anda hanya bisa melihat, tidak bisa mengedit.", guruPemilik.NamaLengkap), nil)
+				return
+			}
+		}
+	}
+
 	// Resolve TA & Semester
 	if payload.TahunAjaranID == 0 || payload.SemesterID == 0 {
 		taID, semID, err := tahunajaran.ResolveActivePeriod(r)
@@ -158,51 +196,72 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build NilaiDiniyah
-	nilai := models.NilaiDiniyah{
-		SiswaID:        payload.SiswaID,
-		SekolahID:      payload.SekolahID,
-		TahunAjaranID:  payload.TahunAjaranID,
-		SemesterID:     payload.SemesterID,
-		MapelDiniyahID: payload.MapelDiniyahID,
-		MurniPts:       payload.MurniPts,
-		RemidiPts:      payload.RemidiPts,
-		Pas:            payload.Pas,
-	}
-
-	// Calculate
-	calculateNilaiDiniyah(&nilai, payload.UhScores)
-
-	// Upsert
+	// Upsert — cari record yang sudah ada
 	var existing models.NilaiDiniyah
 	err := database.DB.Where(
 		"siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND mapel_diniyah_id = ?",
-		nilai.SiswaID, nilai.SekolahID, nilai.TahunAjaranID, nilai.SemesterID, nilai.MapelDiniyahID,
+		payload.SiswaID, payload.SekolahID, payload.TahunAjaranID, payload.SemesterID, payload.MapelDiniyahID,
 	).First(&existing).Error
 
 	if err == nil {
-		// Update
-		existing.UhScores = nilai.UhScores
-		existing.RataUh = nilai.RataUh
-		existing.MurniPts = nilai.MurniPts
-		existing.RemidiPts = nilai.RemidiPts
-		existing.NaPts = nilai.NaPts
-		existing.Pas = nilai.Pas
-		existing.NilaiRapor = nilai.NilaiRapor
+		// === MERGE UPDATE (bukan blind overwrite) ===
+		// Gunakan flag eksplisit dari frontend untuk menghindari masalah pointer nil saat menghapus nilai (null)
+
+		if payload.UpdateUh {
+			if payload.UhScores != nil {
+				existing.UhScores = encodeUhScores(payload.UhScores)
+				filled := filterPositive(payload.UhScores)
+				if len(filled) > 0 {
+					sum := 0
+					for _, v := range filled {
+						sum += v
+					}
+					existing.RataUh = float64(sum) / float64(len(filled))
+				} else {
+					existing.RataUh = 0
+				}
+			} else {
+				existing.UhScores = "[]"
+				existing.RataUh = 0
+			}
+		}
+
+		if payload.UpdateMurniPts {
+			if payload.MurniPts != nil {
+				existing.MurniPts = *payload.MurniPts
+			} else {
+				existing.MurniPts = 0
+			}
+		}
+		
+		if payload.UpdateRemidi {
+			existing.RemidiPts = payload.RemidiPts
+		}
+		
+		if payload.UpdatePas {
+			if payload.Pas != nil {
+				existing.Pas = *payload.Pas
+			} else {
+				existing.Pas = 0
+			}
+		}
+
+		// Recalculate NA PTS & Nilai Rapor berdasarkan data terbaru (merged)
+		recalcExisting(&existing)
+
 		if err := database.DB.Save(&existing).Error; err != nil {
 			response.Error(w, http.StatusInternalServerError, "Gagal mengupdate nilai diniyah", err)
 			return
 		}
 
 		// Logging
-		role, _ := r.Context().Value("role").(string)
 		if role == "guru" {
 			userID, _ := r.Context().Value("user_id").(int)
 			var guru models.Guru
 			if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
-				logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID, 
-					"Penilaian Diniyah", "Edit Nilai", 
-					fmt.Sprintf("Memperbarui nilai mapel ID %d", payload.MapelDiniyahID), 
+				logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID,
+					"Penilaian Diniyah", "Edit Nilai",
+					fmt.Sprintf("Memperbarui nilai mapel ID %d", payload.MapelDiniyahID),
 					r.RemoteAddr, r.UserAgent())
 			}
 		}
@@ -216,26 +275,73 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create baru
+	// Create baru — gunakan semua field dari payload
+	murniPts := 0
+	if payload.MurniPts != nil {
+		murniPts = *payload.MurniPts
+	}
+	pas := 0
+	if payload.Pas != nil {
+		pas = *payload.Pas
+	}
+
+	nilai := models.NilaiDiniyah{
+		SiswaID:        payload.SiswaID,
+		SekolahID:      payload.SekolahID,
+		TahunAjaranID:  payload.TahunAjaranID,
+		SemesterID:     payload.SemesterID,
+		MapelDiniyahID: payload.MapelDiniyahID,
+		MurniPts:       murniPts,
+		RemidiPts:      payload.RemidiPts,
+		Pas:            pas,
+	}
+	calculateNilaiDiniyah(&nilai, payload.UhScores)
+
 	if err := database.DB.Create(&nilai).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan nilai diniyah", err)
 		return
 	}
 
 	// Logging
-	role, _ := r.Context().Value("role").(string)
 	if role == "guru" {
 		userID, _ := r.Context().Value("user_id").(int)
 		var guru models.Guru
 		if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
-			logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID, 
-				"Penilaian Diniyah", "Input Nilai", 
-				fmt.Sprintf("Memasukkan nilai mapel ID %d", payload.MapelDiniyahID), 
+			logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID,
+				"Penilaian Diniyah", "Input Nilai",
+				fmt.Sprintf("Memasukkan nilai mapel ID %d", payload.MapelDiniyahID),
 				r.RemoteAddr, r.UserAgent())
 		}
 	}
 
 	response.JSON(w, http.StatusCreated, toResponse(nilai))
+}
+
+// filterPositive returns only positive values from a slice
+func filterPositive(arr []int) []int {
+	var result []int
+	for _, v := range arr {
+		if v > 0 {
+			result = append(result, v)
+		}
+	}
+	return result
+}
+
+// recalcExisting recalculates NA PTS and Nilai Rapor on an existing record
+func recalcExisting(n *models.NilaiDiniyah) {
+	const KKM = 65
+
+	// NA PTS
+	naPts := n.MurniPts
+	if n.MurniPts < KKM && n.RemidiPts != nil && *n.RemidiPts > 0 {
+		naPts = KKM
+	}
+	n.NaPts = naPts
+
+	// Nilai Rapor = 40% Rata UH + 30% NA PTS + 30% PAS
+	nr := n.RataUh*0.4 + float64(n.NaPts)*0.3 + float64(n.Pas)*0.3
+	n.NilaiRapor = float64(int(nr*100)) / 100
 }
 
 // GetRaporDiniyahHandler mengambil semua nilai diniyah siswa untuk rapor

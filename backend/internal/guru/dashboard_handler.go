@@ -99,9 +99,9 @@ func GetDashboardTahfizHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(AVG(td.makhraj), 0) as makhraj
 		FROM siswas s
 		INNER JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
-		LEFT JOIN kelas k ON k.id = rk.kelas_id
+		LEFT JOIN kelas k ON k.id = rk.kelas_id AND k.deleted_at IS NULL
 		LEFT JOIN TahfizDetails td ON td.siswa_id = s.id
-		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
+		WHERE s.status = 'Aktif' AND s.sekolah_id = ? AND s.deleted_at IS NULL
 		GROUP BY s.id, s.nama_lengkap, k.tingkat, rk.rombel
 	`
 	if err := database.DB.Raw(query, sekolahID, taID, semID, sekolahID, taID, semID, sekolahID, taID, sekolahID).Scan(&results).Error; err != nil {
@@ -148,10 +148,10 @@ func GetDashboardDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			COALESCE(k.id, 0) as kelas_id
 		FROM siswas s
 		INNER JOIN riwayat_kelas rk ON rk.siswa_id = s.id AND rk.sekolah_id = ? AND rk.tahun_ajaran_id = ?
-		LEFT JOIN kelas k ON k.id = rk.kelas_id
-		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id AND nd.tahun_ajaran_id = ? AND nd.semester_id = ?
-		INNER JOIN mapel_diniyahs m ON m.id = nd.mapel_diniyah_id AND m.sekolah_id = ?
-		WHERE s.status = 'Aktif' AND s.sekolah_id = ?
+		LEFT JOIN kelas k ON k.id = rk.kelas_id AND k.deleted_at IS NULL
+		INNER JOIN nilai_diniyahs nd ON nd.siswa_id = s.id AND nd.tahun_ajaran_id = ? AND nd.semester_id = ? AND nd.deleted_at IS NULL
+		INNER JOIN mapel_diniyahs m ON m.id = nd.mapel_diniyah_id AND m.sekolah_id = ? AND m.deleted_at IS NULL
+		WHERE s.status = 'Aktif' AND s.sekolah_id = ? AND s.deleted_at IS NULL
 	`
 	if err := database.DB.Raw(query, sekolahID, taID, taID, semID, sekolahID, sekolahID).Scan(&results).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data dashboard diniyah", err)

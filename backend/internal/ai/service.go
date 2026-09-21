@@ -90,7 +90,7 @@ func AskGemini(prompt string) (string, error) {
 
 	// Coba semua key satu per satu
 	for _, apiKey := range finalKeys {
-		url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=" + apiKey
+		url := "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey
 		
 		resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
 		if err != nil {

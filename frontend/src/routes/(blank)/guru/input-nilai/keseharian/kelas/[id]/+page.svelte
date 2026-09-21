@@ -187,22 +187,7 @@
 
       const body = await res.json();
       
-      // PROTECT LOCAL EDITS
-      const hasPending = syncManager.queue.some(q => q.payload?.indikator_id === Number(selectedIndikator) && q.url.includes('keseharian/poin'));
-      if (hasPending) {
-        if (typeof window !== 'undefined') {
-          const cacheKey = `siakad_offline_keseharian_rekap_${kelasId}_${selectedIndikator}_${activeTahun}_${activeSemester}_${rombel}`;
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const data = JSON.parse(cached);
-              siswaData = data.siswaData || siswaData;
-              rekapData = data.rekapData || rekapData;
-              return; // Skip applying backend data
-            } catch(e) {}
-          }
-        }
-      }
+
       
       siswaData = body.data?.siswa || [];
       const rekaps = body.data?.rekap || [];
@@ -298,22 +283,7 @@
 
       const body = await res.json();
       
-      // PROTECT LOCAL EDITS
-      const hasPending = syncManager.queue.some(q => q.url.includes('keseharian/pelanggaran'));
-      if (hasPending) {
-        if (typeof window !== 'undefined') {
-          const cacheKey = `siakad_offline_pelanggaran_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const data = JSON.parse(cached);
-              pelanggaranSiswaList = data.pelanggaranSiswaList || pelanggaranSiswaList;
-              pelanggaranCatatanMap = data.pelanggaranCatatanMap || pelanggaranCatatanMap;
-              return;
-            } catch(e) {}
-          }
-        }
-      }
+
       
       pelanggaranSiswaList = body.data?.siswa || [];
       pelanggaranCatatanMap = body.data?.catatan || {};
@@ -371,22 +341,7 @@
 
       const body = await res.json();
       
-      // PROTECT LOCAL EDITS
-      const hasPending = syncManager.queue.some(q => q.url.includes('keseharian/iqob'));
-      if (hasPending) {
-        if (typeof window !== 'undefined') {
-          const cacheKey = `siakad_offline_iqob_kelas_${kelasId}_${activeTahun}_${activeSemester}_${rombel}`;
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const data = JSON.parse(cached);
-              iqobSiswaList = data.iqobSiswaList || iqobSiswaList;
-              iqobCatatanMap = data.iqobCatatanMap || iqobCatatanMap;
-              return;
-            } catch(e) {}
-          }
-        }
-      }
+
       
       iqobSiswaList = body.data?.siswa || [];
       iqobCatatanMap = body.data?.catatan || {};

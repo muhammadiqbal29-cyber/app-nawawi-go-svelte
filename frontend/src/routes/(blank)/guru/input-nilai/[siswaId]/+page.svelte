@@ -181,21 +181,7 @@
 
       const body = await res.json();
       
-      // PROTECT LOCAL EDITS: If there are pending offline syncs for this student, ignore backend data!
-      const hasPending = syncManager.queue.some(q => q.payload?.siswa_id === Number(siswaId) && q.url.includes('nilai-tahfiz'));
-      if (hasPending) {
-        if (typeof window !== 'undefined') {
-          const cachedRows = localStorage.getItem(`siakad_offline_nilai_tahfiz_v1_rows_${siswaId}_${jenisPenilaian}`);
-          if (cachedRows) {
-            try {
-              const data = JSON.parse(cachedRows);
-              rows = data.rows || rows;
-              lastSavedSummary = data.lastSavedSummary || lastSavedSummary;
-              return; // Skip applying backend data
-            } catch (e) {}
-          }
-        }
-      }
+
 
       if (typeof window !== 'undefined') {
         localStorage.setItem(`siakad_offline_nilai_tahfiz_${siswaId}_${jenisPenilaian}`, JSON.stringify(body));

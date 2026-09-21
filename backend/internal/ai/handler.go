@@ -27,8 +27,11 @@ func AnalitikSiswaDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sekolahIDStr, _ := vars["sekolah_id"]
+	sekolahID, _ := strconv.Atoi(sekolahIDStr)
+
 	// Panggil Service Diniyah AI
-	aiHTML, err := GenerateAnalitikSiswaDiniyah(siswaID, taID, semID, forceRefresh)
+	aiHTML, err := GenerateAnalitikSiswaDiniyah(siswaID, sekolahID, taID, semID, forceRefresh)
 	if err != nil {
 		if err.Error() == "Sekolah tidak melanggan paket Diniyah" {
 			response.Error(w, http.StatusForbidden, err.Error(), err)

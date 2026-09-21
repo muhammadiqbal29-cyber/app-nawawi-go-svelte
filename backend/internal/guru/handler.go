@@ -378,6 +378,10 @@ func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 type PresensiRequest struct {
 	Latitude  float64 `json:"latitude" validate:"required"`
 	Longitude float64 `json:"longitude" validate:"required"`
+	Accuracy  *float64 `json:"accuracy"`
+	Speed     *float64 `json:"speed"`
+	Heading   *float64 `json:"heading"`
+	IsMocked  *bool    `json:"is_mocked"`
 }
 
 func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
@@ -404,39 +408,113 @@ func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 10. Null Island Bug Fix
+	if req.Latitude == 0 && req.Longitude == 0 {
+		http.Error(w, "Koordinat lokasi tidak valid (0,0)", http.StatusBadRequest)
+		return
+	}
+
+	// 7. Radius 0 Fix
+	radiusLimit := config.RadiusMeter
+	if radiusLimit == 0 {
+		radiusLimit = 100 // default 100 meter jika tidak diset
+	}
+
 	distance := haversine(req.Latitude, req.Longitude, config.Latitude, config.Longitude)
-	if distance > float64(config.RadiusMeter) {
+
+	var suspiciousReasons []string
+	if distance > float64(radiusLimit) {
 		http.Error(w, "Anda berada di luar radius presensi", http.StatusForbidden)
 		return
 	}
 
-	today := time.Now().Format("2006-01-02")
-	currentTime := time.Now().Format("15:04:05")
+	if req.Accuracy != nil && *req.Accuracy > 150.0 {
+		suspiciousReasons = append(suspiciousReasons, "poor_gps_accuracy_checkin")
+	}
+	// 8. Speed Fraud Fix (20 m/s ~ 72 km/h)
+	if req.Speed != nil && *req.Speed > 20.0 {
+		suspiciousReasons = append(suspiciousReasons, "impossible_speed_checkin")
+	}
+	if req.IsMocked != nil && *req.IsMocked {
+		suspiciousReasons = append(suspiciousReasons, "mock_location_detected_checkin")
+	}
+	if req.Latitude == config.Latitude && req.Longitude == config.Longitude {
+		suspiciousReasons = append(suspiciousReasons, "possible_mock_location_exact_match_checkin")
+	}
+	if req.Accuracy == nil || req.Speed == nil || req.IsMocked == nil {
+		suspiciousReasons = append(suspiciousReasons, "missing_fraud_metrics_checkin")
+	}
+
+	// 4. Timezone Fix
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	now := time.Now().In(loc)
+	today := now.Format("2006-01-02")
+	currentTime := now.Format("15:04:05")
 	lokasi := strconv.FormatFloat(req.Latitude, 'f', -1, 64) + "," + strconv.FormatFloat(req.Longitude, 'f', -1, 64)
 
 	var presensi models.PresensiGuru
 	err = database.DB.Where("guru_id = ? AND tanggal = ?", guru.ID, today).First(&presensi).Error
+	
+	// 2. Izin/Sakit Terblokir Fix
 	if err == nil {
-		http.Error(w, "Anda sudah melakukan presensi masuk hari ini", http.StatusConflict)
-		return
+		if presensi.Status != "Izin" && presensi.Status != "Sakit" {
+			http.Error(w, "Anda sudah melakukan presensi masuk hari ini", http.StatusConflict)
+			return
+		}
+		// Jika Izin/Sakit, kita boleh overwrite karena dia memutuskan hadir
 	}
 
 	status := "Hadir"
-	if guru.JamMasuk != "" {
-		// bandingkan jam
-		jamMasukConfig, _ := time.Parse("15:04", guru.JamMasuk)
-		jamMasukReal, _ := time.Parse("15:04", time.Now().Format("15:04"))
-		if jamMasukReal.After(jamMasukConfig) {
-			status = "Terlambat"
+
+	jamMasukStr := guru.JamMasuk
+	if jamMasukStr == "" {
+		jamMasukStr = config.JamMasuk
+	}
+
+	if jamMasukStr != "" {
+		// 5. Silent Parsing Error & 6. Midnight Boundary Fix
+		jamMasukConfig, errParse := time.ParseInLocation("2006-01-02 15:04", today+" "+jamMasukStr, loc)
+		if errParse != nil {
+			// Jika gagal parse, kita abaikan toleransi (Hadir)
+		} else {
+			batasToleransi := jamMasukConfig.Add(time.Duration(config.BatasTelat) * time.Minute)
+			
+			// Bandingkan dengan waktu saat ini yang penuh (tanggal+jam)
+			if now.After(batasToleransi) {
+				status = "Terlambat"
+			}
 		}
 	}
 
+	deviceInfo := r.UserAgent()
+	if len(deviceInfo) > 255 {
+		deviceInfo = deviceInfo[:255]
+	}
+	ipAddress := utils.GetClientIP(r)
+
+	var suspiciousReasonsJSON *string
+	isSuspicious := len(suspiciousReasons) > 0
+	if isSuspicious {
+		b, _ := json.Marshal(suspiciousReasons)
+		str := string(b)
+		suspiciousReasonsJSON = &str
+	}
+
 	presensi = models.PresensiGuru{
-		GuruID:      guru.ID,
-		Tanggal:     today,
-		WaktuMasuk:  &currentTime,
-		Status:      status,
-		LokasiMasuk: lokasi,
+		GuruID:               guru.ID,
+		Tanggal:              today,
+		WaktuMasuk:           &currentTime,
+		Status:               status,
+		LokasiMasuk:          lokasi,
+		CheckInLatitude:      &req.Latitude,
+		CheckInLongitude:     &req.Longitude,
+		CheckInAccuracy:      req.Accuracy,
+		CheckInSpeed:         req.Speed,
+		IsSuspicious:         isSuspicious,
+		SuspiciousReasons:    suspiciousReasonsJSON,
+		DeviceInfo:           &deviceInfo,
+		IPAddress:            &ipAddress,
+		DistanceFromLocation: &distance,
 	}
 
 	if err := database.DB.Create(&presensi).Error; err != nil {
@@ -445,7 +523,11 @@ func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Presensi masuk berhasil dicatat", "status": status}); err != nil {
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Presensi masuk berhasil dicatat", 
+		"status": status,
+		"is_suspicious": isSuspicious,
+	}); err != nil {
 		slog.Error("Gagal encode response", "error", err)
 	}
 }
@@ -474,30 +556,103 @@ func PresensiPulangHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 10. Null Island Bug Fix
+	if req.Latitude == 0 && req.Longitude == 0 {
+		http.Error(w, "Koordinat lokasi tidak valid (0,0)", http.StatusBadRequest)
+		return
+	}
+
+	// 7. Radius 0 Fix
+	radiusLimit := config.RadiusMeter
+	if radiusLimit == 0 {
+		radiusLimit = 100
+	}
+
 	distance := haversine(req.Latitude, req.Longitude, config.Latitude, config.Longitude)
-	if distance > float64(config.RadiusMeter) {
+
+	var suspiciousReasons []string
+	if distance > float64(radiusLimit) {
 		http.Error(w, "Anda berada di luar radius presensi", http.StatusForbidden)
 		return
 	}
 
-	today := time.Now().Format("2006-01-02")
-	currentTime := time.Now().Format("15:04:05")
+	if req.Accuracy != nil && *req.Accuracy > 150.0 {
+		suspiciousReasons = append(suspiciousReasons, "poor_gps_accuracy_checkout")
+	}
+	// 8. Speed Fraud Fix (20 m/s ~ 72 km/h)
+	if req.Speed != nil && *req.Speed > 20.0 {
+		suspiciousReasons = append(suspiciousReasons, "impossible_speed_checkout")
+	}
+	if req.IsMocked != nil && *req.IsMocked {
+		suspiciousReasons = append(suspiciousReasons, "mock_location_detected_checkout")
+	}
+	if req.Latitude == config.Latitude && req.Longitude == config.Longitude {
+		suspiciousReasons = append(suspiciousReasons, "possible_mock_location_exact_match_checkout")
+	}
+	if req.Accuracy == nil || req.Speed == nil || req.IsMocked == nil {
+		suspiciousReasons = append(suspiciousReasons, "missing_fraud_metrics_checkout")
+	}
+
+	// 4. Timezone Fix
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	now := time.Now().In(loc)
+	today := now.Format("2006-01-02")
+	currentTime := now.Format("15:04:05")
 	lokasi := strconv.FormatFloat(req.Latitude, 'f', -1, 64) + "," + strconv.FormatFloat(req.Longitude, 'f', -1, 64)
 
 	var presensi models.PresensiGuru
 	err = database.DB.Where("guru_id = ? AND tanggal = ?", guru.ID, today).First(&presensi).Error
 	if err != nil {
-		http.Error(w, "Anda belum melakukan presensi masuk hari ini", http.StatusNotFound)
-		return
-	}
+		// 3. Lupa Absen Masuk Fix
+		// Jika belum absen masuk, buatkan record baru namun WaktuMasuk tetap null
+		presensi = models.PresensiGuru{
+			GuruID:  guru.ID,
+			Tanggal: today,
+			Status:  "Hadir", // Asumsi hadir jika dia pulang dari sekolah
+		}
+	} else {
+		// Jika sudah absen masuk, cek apakah sudah absen pulang
+		if presensi.WaktuPulang != nil {
+			http.Error(w, "Anda sudah melakukan presensi pulang hari ini", http.StatusConflict)
+			return
+		}
 
-	if presensi.WaktuPulang != nil {
-		http.Error(w, "Anda sudah melakukan presensi pulang hari ini", http.StatusConflict)
-		return
+		// 1. Bug Kutu Loncat Fix (Minimal 1 jam)
+		if presensi.WaktuMasuk != nil {
+			waktuMasukTime, errParse := time.ParseInLocation("2006-01-02 15:04:05", today+" "+*presensi.WaktuMasuk, loc)
+			if errParse == nil {
+				if now.Sub(waktuMasukTime) < 1*time.Hour {
+					http.Error(w, "Anda baru saja absen masuk. Silakan tunggu minimal 1 jam untuk absen pulang.", http.StatusForbidden)
+					return
+				}
+			}
+		}
 	}
 
 	presensi.WaktuPulang = &currentTime
 	presensi.LokasiPulang = lokasi
+	presensi.CheckOutLatitude = &req.Latitude
+	presensi.CheckOutLongitude = &req.Longitude
+	presensi.CheckOutAccuracy = req.Accuracy
+	presensi.CheckOutSpeed = req.Speed
+
+	// Gabungkan jika sebelumnya sudah suspicious
+	if len(suspiciousReasons) > 0 {
+		var existingReasons []string
+		if presensi.SuspiciousReasons != nil {
+			// 9. JSON Unmarshal Silent Fail Fix
+			errJson := json.Unmarshal([]byte(*presensi.SuspiciousReasons), &existingReasons)
+			if errJson != nil {
+				existingReasons = []string{} // Reset aman jika rusak
+			}
+		}
+		existingReasons = append(existingReasons, suspiciousReasons...)
+
+		b, _ := json.Marshal(existingReasons)
+		str := string(b)
+		presensi.SuspiciousReasons = &str
+		presensi.IsSuspicious = true
+	}
 
 	if err := database.DB.Save(&presensi).Error; err != nil {
 		http.Error(w, "Gagal mencatat presensi pulang", http.StatusInternalServerError)
@@ -505,7 +660,10 @@ func PresensiPulangHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Presensi pulang berhasil dicatat"}); err != nil {
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Presensi pulang berhasil dicatat",
+		"is_suspicious": len(suspiciousReasons) > 0,
+	}); err != nil {
 		slog.Error("Gagal encode response", "error", err)
 	}
 }
@@ -579,6 +737,31 @@ func UpdateMePasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"message": "Password berhasil diubah"}); err != nil {
+		slog.Error("Gagal encode response", "error", err)
+	}
+}
+
+// GetPresensiTodayHandler mendapatkan presensi khusus hari ini (WIB)
+func GetPresensiTodayHandler(w http.ResponseWriter, r *http.Request) {
+	guru, err := GetGuruFromContext(r)
+	if err != nil {
+		http.Error(w, "Guru not found", http.StatusUnauthorized)
+		return
+	}
+
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	today := time.Now().In(loc).Format("2006-01-02")
+
+	var presensi models.PresensiGuru
+	if err := database.DB.Where("guru_id = ? AND tanggal = ?", guru.ID, today).First(&presensi).Error; err != nil {
+		// Jika tidak ada data, kembalikan objek kosong tanpa error 404
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(nil)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(presensi); err != nil {
 		slog.Error("Gagal encode response", "error", err)
 	}
 }

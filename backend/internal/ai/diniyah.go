@@ -12,7 +12,7 @@ import (
 )
 
 // GenerateAnalitikSiswaDiniyah menghasilkan evaluasi longitudinal (Tahun Lalu vs Tahun Ini) untuk Siswa
-func GenerateAnalitikSiswaDiniyah(siswaID, taID, semID int, forceRefresh bool) (string, error) {
+func GenerateAnalitikSiswaDiniyah(siswaID, sekolahID, taID, semID int, forceRefresh bool) (string, error) {
 	cacheKey := fmt.Sprintf("ai:diniyah:siswa:%d:%d:%d", siswaID, taID, semID)
 	
 	if !forceRefresh && redis.Client != nil {
@@ -26,6 +26,10 @@ func GenerateAnalitikSiswaDiniyah(siswaID, taID, semID int, forceRefresh bool) (
 	var riwayat models.RiwayatKelas
 	if err := database.DB.Where("siswa_id = ? AND tahun_ajaran_id = ?", siswaID, taID).First(&riwayat).Error; err != nil {
 		return "", fmt.Errorf("Riwayat kelas (saat ini) tidak ditemukan")
+	}
+
+	if riwayat.SekolahID != sekolahID {
+		return "", fmt.Errorf("Siswa tidak terdaftar di sekolah Anda")
 	}
 	
 	// Cek apakah Sekolah menggunakan paket Diniyah (opsi A: sembunyikan jika tidak)
@@ -55,7 +59,10 @@ func GenerateAnalitikSiswaDiniyah(siswaID, taID, semID int, forceRefresh bool) (
 	var dataString strings.Builder
 	dataString.WriteString("Berikut adalah data nilai murni Diniyah (Tahun Ini) untuk siswa tersebut:\n")
 	for _, n := range nilaiSekarang {
-		nama := mapelMap[n.MapelDiniyahID]
+		nama, exists := mapelMap[n.MapelDiniyahID]
+		if !exists {
+			nama = fmt.Sprintf("Mapel ID %d (Dihapus)", n.MapelDiniyahID)
+		}
 		dataString.WriteString(fmt.Sprintf("- Mapel %s: PTS=%d, PAS=%d, Rapor=%.2f\n", nama, n.MurniPts, n.Pas, n.NilaiRapor))
 	}
 

@@ -41,10 +41,22 @@
         </button>
       </li>
 
-      <li class:active={currentPath.startsWith('/presensi')}>
+      <li class:active={currentPath === '/presensi' || currentPath.startsWith('/presensi/konfigurasi') || currentPath.startsWith('/presensi/riwayat')}>
         <button class="nav-link" onclick={() => goto('/presensi')}>
           <Icon name="clock" size={20} class="icon" />
-          <span class="label" class:hidden={!isOpen}>Presensi</span>
+          <span class="label" class:hidden={!isOpen}>Presensi & Config</span>
+        </button>
+      </li>
+      <li class:active={currentPath.startsWith('/presensi/izin')}>
+        <button class="nav-link" onclick={() => goto('/presensi/izin')}>
+          <Icon name="fileText" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Persetujuan Izin</span>
+        </button>
+      </li>
+      <li class:active={currentPath.startsWith('/presensi/kalender')}>
+        <button class="nav-link" onclick={() => goto('/presensi/kalender')}>
+          <Icon name="calendar" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Kalender Libur</span>
         </button>
       </li>
       <li class:active={currentPath.startsWith('/kenaikan-kelas')}>

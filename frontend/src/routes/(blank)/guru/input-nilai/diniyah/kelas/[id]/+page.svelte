@@ -41,6 +41,7 @@
 
   // State untuk klaim & modal
   let currentGuruId = $state(null);   // ID guru yang sedang login
+  let isReadOnly = $state(false);     // Apakah guru hanya bisa melihat
   let currentGuruNama = $state('');   // Nama guru yang sedang login
   let showGrid = $state(true);        // true = tampilkan grid mapel, false = tampilkan tabel input
   let showKonfirmasi = $state(false); // true = tampilkan modal konfirmasi
@@ -174,23 +175,6 @@
       );
       const body = await res.json();
       
-      // PROTECT LOCAL EDITS (Anti-Race Condition)
-      const hasPending = syncManager.queue.some(q => q.payload?.mapel_diniyah_id === selectedMapel.id && q.url.includes('nilai-diniyah'));
-      if (hasPending) {
-        if (typeof window !== 'undefined') {
-          const cacheKey = `siakad_offline_diniyah_data_${kelasId}_${selectedMapel.id}_${activeTahun}_${activeSemester}_${rombelParam}`;
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const data = JSON.parse(cached);
-              siswaList = data.siswaList || siswaList;
-              nilaiMap = data.nilaiMap || nilaiMap;
-              return; // Skip applying backend data
-            } catch(e) {}
-          }
-        }
-      }
-      
       siswaList = body.siswa || [];
 
       // Build nilaiMap: siswa_id -> nilaiData
@@ -300,19 +284,37 @@
     recalculate(siswaId);
   }
 
-  async function saveNilai(siswaId) {
+  async function saveNilai(siswaId, fields) {
     const data = getSiswaData(siswaId);
     savingCell = String(siswaId);
     try {
       const payload = {
         siswa_id: siswaId,
         sekolah_id: Number(sekolahId),
-        mapel_diniyah_id: selectedMapel.id,
-        uh_scores: data.uh_scores || [],
-        murni_pts: data.murni_pts || 0,
-        remidi_pts: data.remidi_pts,
-        pas: data.pas || 0
+        kelas_id: Number(kelasId),
+        rombel: rombelParam,
+        mapel_diniyah_id: selectedMapel.id
       };
+
+      const fieldList = Array.isArray(fields) ? fields : [fields];
+
+      if (fieldList.includes('uh')) {
+        payload.update_uh = true;
+        payload.uh_scores = data.uh_scores || [];
+      }
+      if (fieldList.includes('murni_pts')) {
+        payload.update_murni_pts = true;
+        payload.murni_pts = data.murni_pts || 0;
+      }
+      if (fieldList.includes('remidi_pts')) {
+        payload.update_remidi = true;
+        payload.remidi_pts = data.remidi_pts;
+      }
+      if (fieldList.includes('pas')) {
+        payload.update_pas = true;
+        payload.pas = data.pas || 0;
+      }
+
       if (activeTahun) payload.tahun_ajaran_id = Number(activeTahun);
       if (activeSemester) payload.semester_id = Number(activeSemester);
       
@@ -365,6 +367,7 @@
 
   function masukKeMapel(mapel) {
     selectedMapel = mapel;
+    isReadOnly = mapel.guru_pengampu_id !== null && mapel.guru_pengampu_id !== undefined && mapel.guru_pengampu_id !== currentGuruId;
     showGrid = false;
     showKonfirmasi = false;
     mapelYangDipilih = null;
@@ -457,7 +460,7 @@
     const startRowIdx = Array.from(tbody.children).indexOf(tr);
     const startColIdx = Array.from(tr.children).indexOf(td);
 
-    let currentSiswaIdxToSave = new Set();
+    let currentSiswaIdxToSave = new Map();
 
     for (let r = 0; r < rows.length; r++) {
       const targetTr = tbody.children[startRowIdx + r];
@@ -484,15 +487,17 @@
           } else if (field === 'murni_pts' || field === 'remidi_pts' || field === 'pas') {
             updateField(siswaId, field, val);
           }
-          currentSiswaIdxToSave.add(siswaId);
+          if (field) {
+            if (!currentSiswaIdxToSave.has(siswaId)) currentSiswaIdxToSave.set(siswaId, new Set());
+            currentSiswaIdxToSave.get(siswaId).add(field);
+          }
         }
       }
     }
 
-    const ids = Array.from(currentSiswaIdxToSave);
     (async () => {
-      for (const id of ids) {
-        await saveNilai(id);
+      for (const [id, fields] of currentSiswaIdxToSave.entries()) {
+        await saveNilai(id, Array.from(fields));
       }
     })();
   }
@@ -637,6 +642,13 @@
       </div>
     </div>
 
+  {#if isReadOnly}
+    <div class="alert-readonly" style="background-color: #ffebee; color: #c62828; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid #ef9a9a; font-weight: 600;">
+      <i class="ph ph-warning-circle" style="margin-right: 8px;"></i>
+      Mapel ini sudah dikunci oleh guru lain. Anda hanya bisa melihat nilainya.
+    </div>
+  {/if}
+
   <!-- Tabel Input -->
   {#if loadingNilai}
     <div class="table-loading">Memuat data nilai...</div>
@@ -683,13 +695,14 @@
                     class="input-cell"
                     min="0"
                     max="100"
+                    disabled={isReadOnly}
                     data-field="uh"
                     data-idx={i}
                     data-cell={`${idx}-${i}`}
                     value={getUhScore(siswa.siswa_id, i) || ''}
                     onblur={(e) => {
                       updateUh(siswa.siswa_id, i, e.target.value);
-                      saveNilai(siswa.siswa_id);
+                      saveNilai(siswa.siswa_id, 'uh');
                     }}
                     onchange={(e) => updateUh(siswa.siswa_id, i, e.target.value)}
                     onkeydown={(e) => moveCell(e, idx, i)}
@@ -703,12 +716,13 @@
                   class="input-cell"
                   min="0"
                   max="100"
+                  disabled={isReadOnly}
                   data-field="murni_pts"
                   data-cell={`${idx}-${uhColumnCount}`}
                   value={data.murni_pts || ''}
                   onblur={(e) => {
                     updateField(siswa.siswa_id, 'murni_pts', e.target.value);
-                    saveNilai(siswa.siswa_id);
+                    saveNilai(siswa.siswa_id, 'murni_pts');
                   }}
                   onchange={(e) => updateField(siswa.siswa_id, 'murni_pts', e.target.value)}
                   onkeydown={(e) => moveCell(e, idx, uhColumnCount)}
@@ -720,13 +734,14 @@
                   class="input-cell input-remidi"
                   min="0"
                   max="100"
+                  disabled={isReadOnly}
                   data-field="remidi_pts"
                   data-cell={`${idx}-${uhColumnCount + 1}`}
                   value={data.remidi_pts ?? ''}
                   placeholder="-"
                   onblur={(e) => {
                     updateField(siswa.siswa_id, 'remidi_pts', e.target.value);
-                    saveNilai(siswa.siswa_id);
+                    saveNilai(siswa.siswa_id, 'remidi_pts');
                   }}
                   onchange={(e) => updateField(siswa.siswa_id, 'remidi_pts', e.target.value)}
                   onkeydown={(e) => moveCell(e, idx, uhColumnCount + 1)}
@@ -739,12 +754,13 @@
                   class="input-cell"
                   min="0"
                   max="100"
+                  disabled={isReadOnly}
                   data-field="pas"
                   data-cell={`${idx}-${uhColumnCount + 2}`}
                   value={data.pas || ''}
                   onblur={(e) => {
                     updateField(siswa.siswa_id, 'pas', e.target.value);
-                    saveNilai(siswa.siswa_id);
+                    saveNilai(siswa.siswa_id, 'pas');
                   }}
                   onchange={(e) => updateField(siswa.siswa_id, 'pas', e.target.value)}
                   onkeydown={(e) => moveCell(e, idx, uhColumnCount + 2)}
@@ -815,7 +831,7 @@
                         value={getUhScore(siswa.siswa_id, i) || ''}
                         onblur={(e) => {
                           updateUh(siswa.siswa_id, i, e.target.value);
-                          saveNilai(siswa.siswa_id);
+                          saveNilai(siswa.siswa_id, 'uh');
                         }}
                         onchange={(e) => updateUh(siswa.siswa_id, i, e.target.value)}
                       />
@@ -842,7 +858,7 @@
                       value={data.murni_pts || ''}
                       onblur={(e) => {
                         updateField(siswa.siswa_id, 'murni_pts', e.target.value);
-                        saveNilai(siswa.siswa_id);
+                        saveNilai(siswa.siswa_id, 'murni_pts');
                       }}
                       onchange={(e) => updateField(siswa.siswa_id, 'murni_pts', e.target.value)}
                     />
@@ -859,7 +875,7 @@
                       value={data.remidi_pts ?? ''}
                       onblur={(e) => {
                         updateField(siswa.siswa_id, 'remidi_pts', e.target.value);
-                        saveNilai(siswa.siswa_id);
+                        saveNilai(siswa.siswa_id, 'remidi_pts');
                       }}
                       onchange={(e) => updateField(siswa.siswa_id, 'remidi_pts', e.target.value)}
                     />
@@ -884,7 +900,7 @@
                       value={data.pas || ''}
                       onblur={(e) => {
                         updateField(siswa.siswa_id, 'pas', e.target.value);
-                        saveNilai(siswa.siswa_id);
+                        saveNilai(siswa.siswa_id, 'pas');
                       }}
                       onchange={(e) => updateField(siswa.siswa_id, 'pas', e.target.value)}
                     />

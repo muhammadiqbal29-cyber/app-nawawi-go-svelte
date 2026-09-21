@@ -352,17 +352,56 @@ type Guru struct {
 	User User `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"user"`
 }
 
+type HariLibur struct {
+        ID         int       `gorm:"primaryKey;autoIncrement" json:"id"`
+        Tanggal    string    `gorm:"type:date;not null;uniqueIndex" json:"tanggal"`
+        Keterangan string    `gorm:"type:varchar(255);not null" json:"keterangan"`
+        CreatedAt  time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+}
+
+type PengajuanIzin struct {
+        ID             int       `gorm:"primaryKey;autoIncrement" json:"id"`
+        GuruID         int       `gorm:"not null;index" json:"guru_id"`
+        TanggalMulai   string    `gorm:"type:date;not null" json:"tanggal_mulai"`
+        TanggalSelesai string    `gorm:"type:date;not null" json:"tanggal_selesai"`
+        Jenis          string    `gorm:"type:varchar(20);not null" json:"jenis"` // "Sakit" atau "Izin"
+        Alasan         string    `gorm:"type:text;not null" json:"alasan"`
+        Lampiran       *string   `gorm:"type:varchar(255)" json:"lampiran"`
+        Status         string    `gorm:"type:varchar(20);not null;default:'Pending'" json:"status"` // "Pending", "Disetujui", "Ditolak"
+        AdminCatatan   *string   `gorm:"type:text" json:"admin_catatan"`
+        CreatedAt      time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+        UpdatedAt      time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+
+        Guru Guru `gorm:"foreignKey:GuruID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"guru,omitempty"`
+}
+
 type PresensiGuru struct {
-	ID           int     `gorm:"primaryKey;autoIncrement" json:"id"`
-	GuruID       int     `gorm:"not null;uniqueIndex:idx_presensi_guru_tanggal;index" json:"guru_id"`
-	Tanggal      string    `gorm:"type:date;not null;uniqueIndex:idx_presensi_guru_tanggal" json:"tanggal"`
-	WaktuMasuk   *string   `gorm:"type:varchar(10)" json:"waktu_masuk"`
-	WaktuPulang  *string   `gorm:"type:varchar(10)" json:"waktu_pulang"`
-	Status       string    `gorm:"type:varchar(20);not null;default:'Hadir'" json:"status"`
-	LokasiMasuk  string    `gorm:"type:varchar(255)" json:"lokasi_masuk"`
-	LokasiPulang string    `gorm:"type:varchar(255)" json:"lokasi_pulang"`
-	CreatedAt    time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID                   int       `gorm:"primaryKey;autoIncrement" json:"id"`
+	GuruID               int       `gorm:"not null;uniqueIndex:idx_presensi_guru_tanggal;index" json:"guru_id"`
+	Tanggal              string    `gorm:"type:date;not null;uniqueIndex:idx_presensi_guru_tanggal" json:"tanggal"`
+	WaktuMasuk           *string   `gorm:"type:varchar(10)" json:"waktu_masuk"`
+	WaktuPulang          *string   `gorm:"type:varchar(10)" json:"waktu_pulang"`
+	Status               string    `gorm:"type:varchar(20);not null;default:'Hadir'" json:"status"`
+	LokasiMasuk          string    `gorm:"type:varchar(255)" json:"lokasi_masuk"`
+	LokasiPulang         string    `gorm:"type:varchar(255)" json:"lokasi_pulang"`
+	
+	// Tambahan Anti-Fraud dari Finjer-Online
+	CheckInLatitude      *float64  `gorm:"type:decimal(10,7)" json:"check_in_latitude"`
+	CheckInLongitude     *float64  `gorm:"type:decimal(10,7)" json:"check_in_longitude"`
+	CheckInAccuracy      *float64  `gorm:"type:decimal(10,2)" json:"check_in_accuracy"`
+	CheckInSpeed         *float64  `gorm:"type:decimal(10,2)" json:"check_in_speed"`
+	CheckOutLatitude     *float64  `gorm:"type:decimal(10,7)" json:"check_out_latitude"`
+	CheckOutLongitude    *float64  `gorm:"type:decimal(10,7)" json:"check_out_longitude"`
+	CheckOutAccuracy     *float64  `gorm:"type:decimal(10,2)" json:"check_out_accuracy"`
+	CheckOutSpeed        *float64  `gorm:"type:decimal(10,2)" json:"check_out_speed"`
+	IsSuspicious         bool      `gorm:"type:tinyint(1);not null;default:0" json:"is_suspicious"`
+	SuspiciousReasons    *string   `gorm:"type:json" json:"suspicious_reasons"`
+	DeviceInfo           *string   `gorm:"type:varchar(255)" json:"device_info"`
+	IPAddress            *string   `gorm:"type:varchar(50)" json:"ip_address"`
+	DistanceFromLocation *float64  `gorm:"type:decimal(10,2)" json:"distance_from_location"`
+
+	CreatedAt            time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt            time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
 type SetoranTahfizHarian struct {

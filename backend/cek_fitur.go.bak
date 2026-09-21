@@ -1,0 +1,35 @@
+package main
+
+import (
+	"fmt"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"log"
+)
+
+type Sekolah struct {
+	ID          uint   `gorm:"primaryKey"`
+	NamaSekolah string `gorm:"column:nama_sekolah"`
+	Fitur       string `gorm:"type:json"`
+}
+
+func (Sekolah) TableName() string {
+	return "sekolah"
+}
+
+func main() {
+	dsn := "root:@tcp(127.0.0.1:3307)/siakad?charset=utf8mb4&parseTime=True&loc=Local"
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var s Sekolah
+	db.First(&s, 2) // ID 2 is usually SD, let's just query where name like SD
+	
+	var all []Sekolah
+	db.Find(&all)
+	for _, sk := range all {
+		fmt.Printf("Sekolah: %s, Fitur: %s\n", sk.NamaSekolah, sk.Fitur)
+	}
+}

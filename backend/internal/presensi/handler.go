@@ -3,7 +3,9 @@ package presensi
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
+	"strconv"
 
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/models"
@@ -82,15 +84,51 @@ type PresensiGuruWithNama struct {
 	NamaLengkap string `json:"nama_lengkap"`
 }
 
-// GetRiwayatPresensiAdminHandler mengambil seluruh riwayat presensi guru untuk halaman admin.
+// GetRiwayatPresensiAdminHandler mengambil riwayat presensi guru dengan paginasi dan filter.
 func GetRiwayatPresensiAdminHandler(w http.ResponseWriter, r *http.Request) {
-	var results []PresensiGuruWithNama
+	month := r.URL.Query().Get("month")
+	year := r.URL.Query().Get("year")
 
-	err := database.DB.WithContext(r.Context()).
-		Table("presensi_gurus").
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page := 1
+	limit := 50
+
+	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+		page = p
+	}
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
+	}
+
+	var results []PresensiGuruWithNama
+	var total int64
+
+	query := database.DB.WithContext(r.Context()).Table("presensi_gurus").
 		Select("presensi_gurus.*, gurus.nama_lengkap").
-		Joins("left join gurus on gurus.id = presensi_gurus.guru_id").
-		Order("presensi_gurus.tanggal desc, presensi_gurus.waktu_masuk desc").
+		Joins("left join gurus on gurus.id = presensi_gurus.guru_id")
+
+	if month != "" {
+		query = query.Where("MONTH(presensi_gurus.tanggal) = ?", month)
+	}
+	if year != "" {
+		query = query.Where("YEAR(presensi_gurus.tanggal) = ?", year)
+	}
+
+	// Hitung total data
+	if err := query.Count(&total).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal menghitung riwayat presensi", err)
+		return
+	}
+
+	// GORM Count() menimpa klausa Select, jadi kita harus pasang ulang Select-nya
+	query = query.Select("presensi_gurus.*, gurus.nama_lengkap")
+
+	// Terapkan paginasi
+	offset := (page - 1) * limit
+	err := query.Order("presensi_gurus.tanggal desc, presensi_gurus.waktu_masuk desc").
+		Offset(offset).Limit(limit).
 		Scan(&results).Error
 
 	if err != nil {
@@ -98,7 +136,15 @@ func GetRiwayatPresensiAdminHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, map[string]interface{}{
-		"data": results,
+	totalPages := int(math.Ceil(float64(total) / float64(limit)))
+
+	response.JSON(w, http.StatusOK, response.PaginatedPayload{
+		Data: results,
+		Meta: response.MetaPayload{
+			Total:      total,
+			Page:       page,
+			Limit:      limit,
+			TotalPages: totalPages,
+		},
 	})
 }

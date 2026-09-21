@@ -21,6 +21,27 @@
   let fileInputPresensi = $state(null);
   let loadingImport = $state(false);
 
+  // Riwayat Filter & Pagination
+  let filterMonth = $state((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  let filterYear = $state(new Date().getFullYear().toString());
+  let riwayatPage = $state(1);
+  let riwayatTotalPages = $state(1);
+  let limit = 50;
+
+  // Manual Upsert Modal
+  let showManualModal = $state(false);
+  let savingManual = $state(false);
+  let isEditingManual = $state(false);
+  let guruList = $state([]);
+  let manualForm = $state({
+    guru_id: 0,
+    nama_lengkap: '',
+    tanggal: '',
+    waktu_masuk: '',
+    waktu_pulang: '',
+    status: 'Hadir'
+  });
+
   let mapElement = $state(null);
   let mapInstance = null;
   let mapReady = false;
@@ -38,6 +59,7 @@
   onMount(() => {
     loadConfig();
     loadRiwayat();
+    loadGuru(); // MUHAMMAD IQBAL: THIS WAS MISSING!
   });
 
   function changeTab(tab) {
@@ -57,12 +79,14 @@
     loadingRiwayat = true;
     errorRiwayat = '';
     try {
-      const res = await fetchWithTimeout(`${apiUrl}/api/presensi/riwayat`, {
+      const qs = `month=${filterMonth}&year=${filterYear}&page=${riwayatPage}&limit=${limit}`;
+      const res = await fetchWithTimeout(`${apiUrl}/api/presensi/riwayat?${qs}`, {
         credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
         riwayatList = data.data || [];
+        riwayatTotalPages = data.meta?.total_pages || 1;
       } else {
         const body = await res.json().catch(() => ({}));
         errorRiwayat = body.message || 'Gagal memuat riwayat presensi.';
@@ -106,6 +130,151 @@
       if (fileInputPresensi) {
         fileInputPresensi.value = '';
       }
+    }
+  }
+
+  async function loadGuru() {
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/guru?limit=1000`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        guruList = Array.isArray(data) ? data : (data.data || []);
+      }
+    } catch (e) {
+      console.error("Gagal memuat daftar guru", e);
+    }
+  }
+
+  function formatSuspiciousReasons(jsonStr) {
+    if (!jsonStr) return 'Indikasi kecurangan terdeteksi';
+    try {
+      const arr = JSON.parse(jsonStr);
+      if (Array.isArray(arr)) {
+        return arr.map(a => a.replace(/_/g, ' ')).join(', ');
+      }
+    } catch (e) {
+      // do nothing
+    }
+    return jsonStr;
+  }
+
+  function openManualModal(riwayat = null) {
+    if (riwayat) {
+      isEditingManual = true;
+      manualForm = {
+        guru_id: riwayat.guru_id,
+        nama_lengkap: riwayat.nama_lengkap,
+        tanggal: riwayat.tanggal.split('T')[0], // format YYYY-MM-DD
+        waktu_masuk: riwayat.waktu_masuk || '',
+        waktu_pulang: riwayat.waktu_pulang || '',
+        status: riwayat.status || 'Hadir'
+      };
+    } else {
+      isEditingManual = false;
+      const d = new Date();
+      const localDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      
+      manualForm = {
+        guru_id: guruList.length > 0 ? guruList[0].id : 0,
+        nama_lengkap: '',
+        tanggal: localDate,
+        waktu_masuk: '07:00',
+        waktu_pulang: '16:00',
+        status: 'Hadir'
+      };
+    }
+    showManualModal = true;
+  }
+
+  async function handleSaveManual() {
+    if (manualForm.guru_id == 0) {
+      alert("Silakan pilih guru terlebih dahulu");
+      return;
+    }
+    savingManual = true;
+    try {
+      const payload = {
+        guru_id: parseInt(manualForm.guru_id),
+        tanggal: manualForm.tanggal,
+        waktu_masuk: manualForm.waktu_masuk ? manualForm.waktu_masuk : null,
+        waktu_pulang: manualForm.waktu_pulang ? manualForm.waktu_pulang : null,
+        status: manualForm.status
+      };
+      const res = await fetchWithTimeout(`${apiUrl}/api/presensi/manual`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showManualModal = false;
+        alert('Presensi berhasil diperbarui.');
+        loadRiwayat();
+      } else {
+        alert(data.message || 'Gagal menyimpan presensi manual.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi.');
+    } finally {
+      savingManual = false;
+    }
+  }
+
+  async function generateAcak() {
+    const isConfirm = confirm(`Generate presensi acak HARI INI untuk semua guru aktif?\nCatatan: Ini akan me-replace data hari ini.`);
+    if (!isConfirm) return;
+
+    loadingRiwayat = true;
+    errorRiwayat = '';
+    const hariIni = new Date().toISOString().split('T')[0];
+
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/presensi/generate-acak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tanggal: hariIni }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        alert('Berhasil men-generate presensi acak.');
+        loadRiwayat();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        alert(body.message || 'Gagal men-generate presensi.');
+      }
+    } catch (err) {
+      alert('Terjadi kesalahan koneksi.');
+    } finally {
+      loadingRiwayat = false;
+    }
+  }
+
+  let isExporting = $state(false);
+  async function eksporPDF() {
+    isExporting = true;
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      const element = document.getElementById('kop-surat-tabel');
+      
+      // Munculkan sementara div laporan
+      element.style.display = 'block';
+
+      const opt = {
+        margin:       [10, 10, 10, 10], // top, left, bottom, right
+        filename:     `Laporan_Presensi_Guru_${filterMonth}_${filterYear}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      alert('Gagal mengekspor PDF: ' + err.message);
+    } finally {
+      const element = document.getElementById('kop-surat-tabel');
+      if(element) element.style.display = 'none';
+      isExporting = false;
     }
   }
 
@@ -396,6 +565,15 @@
             <p class="page-subtitle">Data presensi seluruh guru terbaru.</p>
           </div>
           <div style="display: flex; gap: 8px;">
+            <button class="btn-primary" onclick={() => openManualModal(null)}>
+              <Icon name="plus" size={16} /> Tambah Manual
+            </button>
+            <button class="btn-secondary" style="background: #eab308; color: white; border: none;" onclick={generateAcak} disabled={loadingRiwayat}>
+              <Icon name="zap" size={16} /> Generate Acak
+            </button>
+            <button class="btn-secondary" style="background: #ef4444; color: white; border: none;" onclick={eksporPDF} disabled={isExporting}>
+              <Icon name="printer" size={16} /> {isExporting ? 'Mengekspor...' : 'Ekspor PDF'}
+            </button>
             <button class="btn-secondary" onclick={handleDownloadTemplate}>
               <Icon name="download" size={16} /> Template
             </button>
@@ -420,6 +598,30 @@
           </div>
         </div>
 
+        <!-- FILTER -->
+        <div class="card-tabs" style="display:flex; align-items:center; gap: 1rem; flex-wrap:wrap">
+          <div class="form-group" style="margin: 0;">
+            <select class="form-input" style="padding: 0.4rem; font-size:0.9rem;" bind:value={filterMonth} onchange={() => {riwayatPage=1; loadRiwayat();}}>
+              <option value="01">Januari</option>
+              <option value="02">Februari</option>
+              <option value="03">Maret</option>
+              <option value="04">April</option>
+              <option value="05">Mei</option>
+              <option value="06">Juni</option>
+              <option value="07">Juli</option>
+              <option value="08">Agustus</option>
+              <option value="09">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <input type="number" class="form-input" style="padding: 0.4rem; font-size:0.9rem; width: 100px;" bind:value={filterYear} onchange={() => {riwayatPage=1; loadRiwayat();}} placeholder="Tahun" />
+          </div>
+          <span class="text-sm text-muted">Halaman {riwayatPage} dari {riwayatTotalPages}</span>
+        </div>
+
         {#if errorRiwayat}
           <div class="alert-error">{errorRiwayat}</div>
         {/if}
@@ -433,6 +635,7 @@
                 <th>Jam Masuk</th>
                 <th>Jam Pulang</th>
                 <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -459,12 +662,43 @@
                       >
                         {r.status}
                       </span>
+                      {#if r.is_suspicious}
+                        <div style="margin-top: 6px;">
+                          <span class="status-badge" style="background: #fee2e2; color: #dc2626; border-color: #fca5a5; font-size: 0.7rem;" title={formatSuspiciousReasons(r.suspicious_reasons)}>
+                            ⚠️ Suspicious
+                          </span>
+                        </div>
+                      {/if}
+                    </td>
+                    <td>
+                      <button class="btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick={() => openManualModal(r)}>
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 {/each}
               {/if}
             </tbody>
           </table>
+        </div>
+
+        <!-- PAGINATION CONTROLS -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+          <button 
+            class="btn-secondary" 
+            disabled={riwayatPage <= 1} 
+            onclick={() => { riwayatPage--; loadRiwayat(); }}
+          >
+            ← Sebelumnya
+          </button>
+          <span class="text-muted text-sm">Hal {riwayatPage} / {riwayatTotalPages}</span>
+          <button 
+            class="btn-secondary" 
+            disabled={riwayatPage >= riwayatTotalPages} 
+            onclick={() => { riwayatPage++; loadRiwayat(); }}
+          >
+            Selanjutnya →
+          </button>
         </div>
       </div>
     {/if}
@@ -560,6 +794,112 @@
     </div>
   </div>
 {/if}
+
+<!-- MODAL MANUAL UPSERT -->
+{#if showManualModal}
+  <div class="modal-overlay" role="button" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) showManualModal = false; }}>
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>{isEditingManual ? 'Edit Presensi' : 'Tambah Presensi Manual'}</h3>
+        <button class="btn-close" onclick={() => showManualModal = false}>
+          <Icon name="x" size={20} />
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Guru</label>
+          {#if isEditingManual}
+            <input type="text" class="form-input" disabled value={manualForm.nama_lengkap} />
+          {:else}
+            <select class="form-input" bind:value={manualForm.guru_id}>
+              {#each guruList as g}
+                <option value={g.id}>{g.nama_lengkap}</option>
+              {/each}
+            </select>
+          {/if}
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Tanggal</label>
+          <input type="date" class="form-input" disabled={isEditingManual} bind:value={manualForm.tanggal} />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Jam Masuk</label>
+          <input type="time" class="form-input" bind:value={manualForm.waktu_masuk} />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Jam Pulang</label>
+          <input type="time" class="form-input" bind:value={manualForm.waktu_pulang} />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label>Status</label>
+          <select class="form-input" bind:value={manualForm.status}>
+            <option value="Hadir">Hadir</option>
+            <option value="Terlambat">Terlambat</option>
+            <option value="Izin">Izin</option>
+            <option value="Sakit">Sakit</option>
+            <option value="Alpha">Alpha</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick={() => showManualModal = false}>Batal</button>
+        <button class="btn-primary" onclick={handleSaveManual} disabled={savingManual}>
+          {savingManual ? 'Menyimpan...' : 'Simpan'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+  <!-- KOP SURAT HIDDEN UNTUK EKSPOR PDF -->
+  <div id="kop-surat-tabel" style="display: none; background: white; padding: 20px; color: black; width: 100%;">
+    <div style="display: flex; align-items: center; border-bottom: 3px solid black; padding-bottom: 10px; margin-bottom: 20px;">
+      <div style="flex: 1; text-align: center;">
+        <h2 style="margin: 0; font-size: 24px; text-transform: uppercase;">YAYASAN PENDIDIKAN ISLAM NAWAWI</h2>
+        <h1 style="margin: 5px 0; font-size: 28px; font-weight: bold;">SIAKAD NAWAWI</h1>
+        <p style="margin: 0; font-size: 14px;">Jl. Raya Pendidikan No. 1, Kota Pelajar, Provinsi Ilmu Pengetahuan</p>
+        <p style="margin: 0; font-size: 14px;">Telp: (021) 1234567 | Email: info@siakadnawawi.sch.id | Web: www.siakadnawawi.sch.id</p>
+      </div>
+    </div>
+    <div style="text-align: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; font-size: 18px; text-decoration: underline;">LAPORAN PRESENSI GURU</h3>
+      <p style="margin: 5px 0 0 0; font-size: 14px;">Periode: {filterMonth}/{filterYear}</p>
+    </div>
+    
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+      <thead>
+        <tr>
+          <th style="border: 1px solid black; padding: 8px; background-color: #f3f4f6;">Tanggal</th>
+          <th style="border: 1px solid black; padding: 8px; background-color: #f3f4f6;">Nama Guru</th>
+          <th style="border: 1px solid black; padding: 8px; background-color: #f3f4f6;">Jam Masuk</th>
+          <th style="border: 1px solid black; padding: 8px; background-color: #f3f4f6;">Jam Pulang</th>
+          <th style="border: 1px solid black; padding: 8px; background-color: #f3f4f6;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each riwayatList as r}
+          <tr>
+            <td style="border: 1px solid black; padding: 8px;">{new Date(r.tanggal).toLocaleDateString('id-ID')}</td>
+            <td style="border: 1px solid black; padding: 8px;">{r.nama_lengkap}</td>
+            <td style="border: 1px solid black; padding: 8px; text-align: center;">{r.waktu_masuk || '-'}</td>
+            <td style="border: 1px solid black; padding: 8px; text-align: center;">{r.waktu_pulang || '-'}</td>
+            <td style="border: 1px solid black; padding: 8px; text-align: center;">
+              {r.status}
+              {#if r.is_suspicious}
+                <br><small style="color: red;">⚠️ Suspicious</small>
+              {/if}
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    
+    <div style="margin-top: 50px; text-align: right; font-size: 14px; padding-right: 50px;">
+      <p style="margin-bottom: 60px;">Kepala Sekolah,</p>
+      <p style="font-weight: bold; text-decoration: underline; margin: 0;">( ......................................... )</p>
+      <p style="margin: 0;">NIP. ....................................</p>
+    </div>
+  </div>
 
 <style>
   .card-tabs {

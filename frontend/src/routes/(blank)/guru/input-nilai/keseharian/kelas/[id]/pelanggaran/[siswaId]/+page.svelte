@@ -179,11 +179,7 @@
         const body = await resPlg.json();
         const map = body.data?.catatan || {};
         
-        // PROTECT LOCAL EDITS
-        const hasPendingPlg = syncManager.queue.some(q => q.url.includes('pelanggaran/catatan') && q.payload?.siswa_id === Number(siswaId));
-        if (!hasPendingPlg) {
-           pelanggaranCatatan = map[siswaId] || [];
-        }
+        pelanggaranCatatan = map[siswaId] || [];
       }
       
       // Load Iqob
@@ -197,11 +193,7 @@
         const body = await resIqob.json();
         const map = body.data?.catatan || {};
         
-        // PROTECT LOCAL EDITS
-        const hasPendingIqob = syncManager.queue.some(q => q.url.includes('iqob/catatan') && q.payload?.siswa_id === Number(siswaId));
-        if (!hasPendingIqob) {
-           iqobCatatan = map[siswaId] || [];
-        }
+        iqobCatatan = map[siswaId] || [];
       }
     } catch (err) {
       pageError = 'Gagal memuat catatan siswa';

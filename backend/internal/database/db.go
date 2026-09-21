@@ -91,6 +91,8 @@ func migrateAndSeed() {
 	// AutoMigrate
 	err := DB.AutoMigrate(
 		&models.User{},
+		&models.HariLibur{},
+		&models.PengajuanIzin{},
 		&models.Sekolah{},
 		&models.KonfigurasiPresensi{},
 		&models.KonfigurasiNilaiTahfiz{},

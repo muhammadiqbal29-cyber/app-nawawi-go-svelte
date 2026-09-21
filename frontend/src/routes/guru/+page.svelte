@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/ui/Icon.svelte';
   import BarChart from '$lib/components/charts/BarChart.svelte';
+  import PresensiWidget from '$lib/components/guru/PresensiWidget.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
   import '$lib/components/guru/AlquranMobileUI.css';
 
@@ -488,6 +489,11 @@
   </div>
 
   {#if selectedSekolah}
+    <!-- WIDGET PRESENSI (Langsung Tampil di Beranda) -->
+    <div style="margin: 0 1rem;">
+      <PresensiWidget />
+    </div>
+
     {#if loadingData}
       <div class="empty-state" style="margin-top: 1rem; border: none;">
         Memuat data dashboard...
