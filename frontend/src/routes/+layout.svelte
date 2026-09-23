@@ -5,6 +5,7 @@
   import { auth } from '$lib/auth.svelte.js';
   import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
   import ConfirmModal from '$lib/components/ui/ConfirmModal.svelte';
+  import PwaInstallButton from '$lib/components/ui/PwaInstallButton.svelte';
   import '../app.css';
 
   let { children } = $props();
@@ -141,6 +142,9 @@
     <p class="loading-text">Memverifikasi sesi...</p>
   </div>
 {:else}
+  <ToastContainer />
+  <ConfirmModal />
+  <PwaInstallButton />
   {@render children()}
 {/if}
 
@@ -149,9 +153,6 @@
     ⚠️ MODE STAGING
   </div>
 {/if}
-
-<ToastContainer />
-<ConfirmModal />
 
 <style>
   .loading-screen {

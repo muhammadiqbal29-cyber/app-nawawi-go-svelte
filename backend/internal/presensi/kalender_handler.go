@@ -12,7 +12,7 @@ import (
 )
 
 func GetKalenderLiburHandler(w http.ResponseWriter, r *http.Request) {
-	var liburList []models.HariLibur
+	var liburList = []models.HariLibur{}
 	if err := database.DB.Order("tanggal desc").Find(&liburList).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data", err)
 		return

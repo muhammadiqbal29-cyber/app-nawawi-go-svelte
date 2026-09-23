@@ -21,7 +21,7 @@ func GetDaftarIzinAdminHandler(w http.ResponseWriter, r *http.Request) {
                 query = query.Where("status = ?", status)
         }
 
-	var izinList []models.PengajuanIzin
+	var izinList = []models.PengajuanIzin{}
 	if err := query.Find(&izinList).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data", err)
 		return
@@ -175,7 +175,7 @@ func GetRiwayatIzinGuruHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var izinList []models.PengajuanIzin
+	var izinList = []models.PengajuanIzin{}
 	if err := database.DB.Where("guru_id = ?", guru.ID).Order("created_at desc").Find(&izinList).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil riwayat izin", err)
 		return
