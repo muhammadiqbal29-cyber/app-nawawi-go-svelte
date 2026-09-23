@@ -11,11 +11,7 @@
   let loadingData = $state(false);
   let error = $state('');
 
-  let hasAccess = $derived(
-    guruState.activeSekolahId &&
-      guruState.aksesMap[guruState.activeSekolahId] &&
-      guruState.aksesMap[guruState.activeSekolahId].includes('input_diniyah')
-  );
+
 
   $effect(() => {
     const sekolahId = guruState.activeSekolahId;
@@ -136,14 +132,7 @@
     <h3>Pilih Jenjang Sekolah</h3>
     <p>Silakan klik tombol Pilih Jenjang terlebih dahulu.</p>
   </div>
-{:else if !hasAccess}
-  <div class="empty-state">
-    <Icon name="alertCircle" size={48} />
-    <h3>Akses Ditolak</h3>
-    <p>
-      Anda tidak memiliki hak akses <b>Analitik Diniyah</b> untuk jenjang {guruState.activeSekolahName}.
-    </p>
-  </div>
+
 {:else}
   {#key guruState.activeSekolahId}
     <div class="page-container">
