@@ -237,7 +237,7 @@
         credentials: 'include'
       });
       if (res.ok) {
-        alert('Berhasil men-generate presensi acak.');
+        alert('Berhasil men-generate presensi acak hari ini.');
         loadRiwayat();
       } else {
         const body = await res.json().catch(() => ({}));
@@ -248,6 +248,10 @@
     } finally {
       loadingRiwayat = false;
     }
+  }
+
+  function goToGenerateBulan() {
+    goto('/presensi/generate-bulan');
   }
 
   let isExporting = $state(false);
@@ -569,7 +573,10 @@
               <Icon name="plus" size={16} /> Tambah Manual
             </button>
             <button class="btn-secondary" style="background: #eab308; color: white; border: none;" onclick={generateAcak} disabled={loadingRiwayat}>
-              <Icon name="zap" size={16} /> Generate Acak
+              <Icon name="zap" size={16} /> Generate Acak Harian
+            </button>
+            <button class="btn-secondary" style="background: #a855f7; color: white; border: none;" onclick={goToGenerateBulan} disabled={loadingRiwayat}>
+              <Icon name="zap" size={16} /> Generate 1 Bulan
             </button>
             <button class="btn-secondary" style="background: #ef4444; color: white; border: none;" onclick={eksporPDF} disabled={isExporting}>
               <Icon name="printer" size={16} /> {isExporting ? 'Mengekspor...' : 'Ekspor PDF'}
@@ -579,6 +586,7 @@
             </button>
             <button
               class="btn-secondary"
+              title="Mendukung template Siakad & file export dari Finjer Online"
               onclick={() => fileInputPresensi.click()}
               disabled={loadingImport}
             >
@@ -900,6 +908,8 @@
       <p style="margin: 0;">NIP. ....................................</p>
     </div>
   </div>
+
+
 
 <style>
   .card-tabs {

@@ -15,6 +15,7 @@ import (
 
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/models"
+	"siakad-nawawi-be/internal/response"
 	"siakad-nawawi-be/internal/utils"
 )
 
@@ -671,13 +672,13 @@ func PresensiPulangHandler(w http.ResponseWriter, r *http.Request) {
 func GetPresensiHistoryHandler(w http.ResponseWriter, r *http.Request) {
 	guru, err := GetGuruFromContext(r)
 	if err != nil {
-		http.Error(w, "Guru not found", http.StatusUnauthorized)
+		response.Error(w, http.StatusUnauthorized, "Guru not found", err)
 		return
 	}
 
 	var presensis []models.PresensiGuru
 	if err := database.DB.Where("guru_id = ?", guru.ID).Order("tanggal desc").Limit(500).Find(&presensis).Error; err != nil {
-		http.Error(w, "Gagal mengambil data", http.StatusInternalServerError)
+		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data", err)
 		return
 	}
 

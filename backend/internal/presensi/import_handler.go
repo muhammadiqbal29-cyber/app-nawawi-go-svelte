@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -91,6 +92,12 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	headerRow := rows[0]
+	isFinjerFormat := false
+	if len(headerRow) >= 3 && strings.ToLower(headerRow[0]) == "tanggal" && strings.ToLower(headerRow[2]) == "email" {
+		isFinjerFormat = true
+	}
+
 	successCount := 0
 	skipCount := 0
 
@@ -103,26 +110,63 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Extract columns
 			emailGuru := ""
-			if len(row) > 0 {
-				emailGuru = row[0]
-			}
 			tanggal := ""
-			if len(row) > 1 {
-				tanggal = row[1]
-			}
 			jamMasuk := ""
-			if len(row) > 2 {
-				jamMasuk = row[2]
-			}
 			jamPulang := ""
-			if len(row) > 3 {
-				jamPulang = row[3]
-			}
 			status := "Hadir"
-			if len(row) > 4 && row[4] != "" {
-				status = row[4]
+
+			if isFinjerFormat {
+				// Format Finjer Online
+				// 0: Tanggal
+				// 1: Guru
+				// 2: Email
+				// 3: Lokasi
+				// 4: Status
+				// 5: Check-in
+				// 6: Check-out
+				if len(row) > 2 {
+					emailGuru = row[2]
+				}
+				if len(row) > 0 {
+					tanggal = row[0]
+				}
+				if len(row) > 4 && row[4] != "" {
+					statusStr := strings.ToLower(row[4])
+					if statusStr == "hadir" || statusStr == "izin" || statusStr == "sakit" || statusStr == "alpa" {
+						// Capitalize first letter properly
+						if statusStr == "hadir" { status = "Hadir" }
+						if statusStr == "izin" { status = "Izin" }
+						if statusStr == "sakit" { status = "Sakit" }
+						if statusStr == "alpa" { status = "Alpa" }
+					} else {
+						status = "Hadir" // Default if unknown
+					}
+				}
+				if len(row) > 5 {
+					jamMasuk = row[5]
+				}
+				if len(row) > 6 {
+					jamPulang = row[6]
+				}
+			} else {
+				// Format Siakad Nawawi
+				// 0: Email Guru, 1: Tanggal, 2: Jam Masuk, 3: Jam Pulang, 4: Status
+				if len(row) > 0 {
+					emailGuru = row[0]
+				}
+				if len(row) > 1 {
+					tanggal = row[1]
+				}
+				if len(row) > 2 {
+					jamMasuk = row[2]
+				}
+				if len(row) > 3 {
+					jamPulang = row[3]
+				}
+				if len(row) > 4 && row[4] != "" {
+					status = row[4]
+				}
 			}
 
 			if emailGuru == "" || tanggal == "" {
@@ -130,7 +174,7 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 				continue // Skip if mandatory field is empty
 			}
 
-			// Validate tanggal format
+			// Validate tanggal format (Finjer online sometimes uses YYYY-MM-DD)
 			_, err := time.Parse("2006-01-02", tanggal)
 			if err != nil {
 				skipCount++
@@ -147,7 +191,7 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 
 			// Validate jam format if provided
 			var waktuMasuk *string
-			if jamMasuk != "" {
+			if jamMasuk != "" && jamMasuk != "-" {
 				if _, err := time.Parse("15:04", jamMasuk); err == nil {
 					// Some excel formats give seconds, e.g. 07:00:00. Let's make sure it's valid enough or just save string
 					// Since DB is time, string is fine if it matches time format
@@ -159,13 +203,19 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var waktuPulang *string
-			if jamPulang != "" {
+			if jamPulang != "" && jamPulang != "-" {
 				if _, err := time.Parse("15:04", jamPulang); err == nil {
 					val := jamPulang + ":00"
 					waktuPulang = &val
 				} else if _, err := time.Parse("15:04:05", jamPulang); err == nil {
 					waktuPulang = &jamPulang
 				}
+			}
+			
+			// Jika format Finjer online statusnya HADIR tapi jam kosong
+			if isFinjerFormat && status != "Hadir" {
+			    waktuMasuk = nil
+			    waktuPulang = nil
 			}
 
 			// Find existing presensi

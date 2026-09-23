@@ -37,6 +37,13 @@
         </button>
       </li>
 
+      <li class:active={currentPath.startsWith('/guru/presensi')}>
+        <button class="nav-link" onclick={() => navigate('/guru/presensi')}>
+          <Icon name="clock" size={20} class="icon" />
+          <span class="label" class:hidden={!isOpen}>Riwayat & Izin</span>
+        </button>
+      </li>
+
       {#if hasPaketAlquran || hasDiniyah || hasKeseharian}
         <li class:active={currentPath.startsWith('/guru/input-nilai')}>
           <button class="nav-link" onclick={() => navigate('/guru/input-nilai')}>

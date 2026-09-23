@@ -21,6 +21,11 @@
       <Icon name="grid" size={22} class="nav-icon" />
       <span>Beranda</span>
     </button>
+
+    <button class="nav-item" class:active={currentPath.startsWith('/guru/presensi')} onclick={() => navigate('/guru/presensi')}>
+      <Icon name="clock" size={22} class="nav-icon" />
+      <span>Presensi</span>
+    </button>
     
     {#if hasInputNilai}
       <button class="nav-item" class:active={currentPath.startsWith('/guru/input-nilai')} onclick={() => navigate('/guru/input-nilai')}>

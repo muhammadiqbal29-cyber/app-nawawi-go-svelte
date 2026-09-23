@@ -297,6 +297,11 @@
       <p>Silakan klik tombol Pilih Jenjang terlebih dahulu untuk melihat dashboard.</p>
     </div>
   {:else}
+    <!-- WIDGET PRESENSI (Langsung Tampil di Beranda Desktop) -->
+    <div style="margin-bottom: 2rem;">
+      <PresensiWidget />
+    </div>
+
     <!-- Tab Navigation -->
     <div class="tabs">
       <button

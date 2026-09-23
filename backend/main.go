@@ -208,6 +208,7 @@ func main() {
 	adminRouter.HandleFunc("/presensi/riwayat", middleware.RequireRole("admin")(presensi.GetRiwayatPresensiAdminHandler)).Methods("GET")
 	adminRouter.HandleFunc("/presensi/manual", middleware.RequireRole("admin")(presensi.ManualUpsertHandler)).Methods("POST")
 	adminRouter.HandleFunc("/presensi/generate-acak", middleware.RequireRole("admin")(presensi.GenerateAcakHandler)).Methods("POST")
+	adminRouter.HandleFunc("/presensi/generate-acak-bulan", middleware.RequireRole("admin")(presensi.GenerateAcakBulanHandler)).Methods("POST")
 	adminRouter.HandleFunc("/presensi/template-import", middleware.RequireRole("admin")(presensi.DownloadTemplateImportPresensiHandler)).Methods("GET")
 	adminRouter.HandleFunc("/presensi/import", middleware.RequireRole("admin")(presensi.ImportPresensiExcelHandler)).Methods("POST")
 	adminRouter.HandleFunc("/presensi/izin", middleware.RequireRole("admin")(presensi.GetDaftarIzinAdminHandler)).Methods("GET")
@@ -390,6 +391,7 @@ func main() {
 	guruRouter.HandleFunc("/me/presensi/masuk", guru.PresensiMasukHandler).Methods("POST", "OPTIONS")
 	guruRouter.HandleFunc("/me/presensi/pulang", guru.PresensiPulangHandler).Methods("POST")
 	guruRouter.HandleFunc("/me/presensi/izin", presensi.BuatPengajuanIzinHandler).Methods("POST")
+	guruRouter.HandleFunc("/me/presensi/izin", presensi.GetRiwayatIzinGuruHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/presensi/riwayat", guru.GetPresensiHistoryHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/presensi/konfigurasi", presensi.GetKonfigurasiHandler).Methods("GET")
 
