@@ -368,10 +368,9 @@
     const lat = lokasiList[0]?.latitude ?? -6.2;
     const lng = lokasiList[0]?.longitude ?? 106.816666;
     mapInstance = window.L.map(mapElement).setView([lat, lng], 15);
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OSM &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
+    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
     }).addTo(mapInstance);
     renderAllLocations();
     setTimeout(() => mapInstance.invalidateSize(), 400);
@@ -441,10 +440,9 @@
     if (window._modalMap) window._modalMap.remove();
     const map = window.L.map(el).setView([form.latitude, form.longitude], 16);
     window._modalMap = map;
-    window.L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OSM &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 20
+    window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
     }).addTo(map);
     const marker = window.L.marker([form.latitude, form.longitude], { draggable: true }).addTo(map);
     window._modalMarker = marker;
