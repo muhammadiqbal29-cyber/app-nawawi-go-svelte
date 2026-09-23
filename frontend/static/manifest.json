@@ -2,6 +2,7 @@
   "name": "SIAKAD Nawawi",
   "short_name": "SIAKAD",
   "description": "Sistem Informasi Akademik Ponpes Nawawi",
+  "id": "/",
   "start_url": "/login",
   "scope": "/",
   "display": "standalone",

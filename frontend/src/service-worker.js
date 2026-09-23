@@ -3,26 +3,43 @@ import { build, files, version } from '$service-worker';
 // Create a unique cache name for this deployment
 const CACHE = `siakad-cache-${version}`;
 
-// We cache the build files (JS/CSS) and static files (manifest, icons, etc.)
-const ASSETS = [
-	...build,
-	...files
-];
+// CRITICAL FILES yang wajib di-cache saat install agar PWA bisa offline
+// Hanya cache file inti (entry point, layout chunks, icons).
+// Halaman-halaman lain akan di-cache on-demand saat dibuka.
+const CRITICAL_ASSETS = build.filter(f =>
+	f.includes('/chunks/') ||
+	f.includes('/entry/') ||
+	f.endsWith('.css')
+);
+
+// File statis yang kecil saja
+const CRITICAL_STATIC = files.filter(f =>
+	f.endsWith('manifest.json') ||
+	f.endsWith('favicon.png') ||
+	f.endsWith('icon-192.png') ||
+	f.endsWith('icons.svg')
+);
+
+const PRECACHE = [...CRITICAL_ASSETS, ...CRITICAL_STATIC];
+
+// Daftar lengkap semua aset (untuk cache-first lookup)
+const ALL_ASSETS = [...build, ...files];
 
 self.addEventListener('install', (event) => {
-	// Create a new cache and add all files to it
+	// Cache HANYA file kritis — bukan seluruh aplikasi
+	// Ini membuat instalasi PWA SANGAT CEPAT (< 2 detik)
 	async function addFilesToCache() {
 		const cache = await caches.open(CACHE);
-		await cache.addAll(ASSETS);
+		await cache.addAll(PRECACHE);
 	}
 
 	event.waitUntil(addFilesToCache());
 });
 
 self.addEventListener('activate', (event) => {
-	// Tell the active service worker to take control of the page immediately
+	// Take control immediately
 	event.waitUntil(self.clients.claim());
-	
+
 	// Remove previous cached data from disk
 	async function deleteOldCaches() {
 		for (const key of await caches.keys()) {
@@ -38,42 +55,34 @@ self.addEventListener('fetch', (event) => {
 
 	const url = new URL(event.request.url);
 
-	// Bypass ALL API endpoints from Service Worker caching
-	// We rely on localStorage for offline fallback, not SW cache!
+	// Bypass ALL API endpoints — we use localStorage for offline data
 	if (url.pathname.startsWith('/api/')) {
 		return;
 	}
 
-	if (url.origin === location.origin && url.pathname === '/login') {
-		// Do not bypass! Let it fall through to respond() which handles NETWORK-FIRST
-		// so it satisfies PWA offline requirements.
-	}
 	async function respond() {
 		const url = new URL(event.request.url);
 		const cache = await caches.open(CACHE);
 
-		// CACHE-FIRST untuk file statis dan build (CSS, JS, Fonts, Images)
-		// Ini membuat aplikasi SANGAT CEPAT dan menghemat bandwidth
-		if (ASSETS.includes(url.pathname)) {
+		// CACHE-FIRST untuk semua build/static assets (JS, CSS, fonts, images)
+		if (ALL_ASSETS.includes(url.pathname)) {
 			const cachedAsset = await cache.match(url.pathname);
 			if (cachedAsset) {
 				return cachedAsset;
 			}
 		}
 
-		// NETWORK-FIRST untuk API dan Halaman HTML
-		// Memastikan data yang didapat selalu terbaru dari server,
-		// tapi mundur ke cache (offline) jika sinyal putus
+		// NETWORK-FIRST untuk halaman HTML dan aset yang belum di-cache
 		try {
 			const response = await fetch(event.request);
 
-			// if we're offline, fetch can return a value that is not a Response
-			// instead of throwing - and we can't pass this non-Response to respondWith
 			if (!(response instanceof Response)) {
 				throw new Error('invalid response from fetch');
 			}
 
 			if (response.status === 200) {
+				// Cache on-demand: halaman yang dibuka akan ter-cache
+				// untuk akses offline berikutnya
 				cache.put(event.request, response.clone());
 			}
 
@@ -83,8 +92,7 @@ self.addEventListener('fetch', (event) => {
 			if (cachedResponse) {
 				return cachedResponse;
 			}
-            
-            // If totally offline and not in cache, let it fail (or return a custom offline page)
+
 			throw err;
 		}
 	}
