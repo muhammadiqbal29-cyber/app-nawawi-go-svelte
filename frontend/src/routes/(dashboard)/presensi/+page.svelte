@@ -1,5 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import { goto } from '$app/navigation';
   import Icon from '$lib/components/ui/Icon.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -255,6 +256,34 @@
   }
 
   let isExporting = $state(false);
+
+  function eksporExcel() {
+    if (riwayatList.length === 0) {
+      alert("Tidak ada data untuk diekspor");
+      return;
+    }
+    
+    const headers = ["Tanggal", "Nama Lengkap", "Waktu Masuk", "Waktu Pulang", "Status Kehadiran"];
+    const rows = riwayatList.map(r => {
+      const tanggal = new Date(r.tanggal).toLocaleDateString('id-ID');
+      const nama = `"${r.nama_lengkap || ''}"`;
+      const masuk = r.waktu_masuk || '-';
+      const pulang = r.waktu_pulang || '-';
+      const status = r.is_suspicious ? `${r.status} (Suspicious)` : r.status;
+      return [tanggal, nama, masuk, pulang, status].join(',');
+    });
+    
+    const csvContent = headers.join(',') + '\n' + rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Laporan_Kehadiran_Guru_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
   async function eksporPDF() {
     isExporting = true;
     try {
@@ -576,7 +605,10 @@
               <Icon name="zap" size={16} /> Generate Acak Harian
             </button>
             <button class="btn-secondary" style="background: #a855f7; color: white; border: none;" onclick={goToGenerateBulan} disabled={loadingRiwayat}>
-              <Icon name="zap" size={16} /> Generate 1 Bulan
+              <Icon name="calendar" size={16} /> Generate 1 Bulan
+            </button>
+            <button class="btn-secondary" style="background: #10b981; color: white; border: none;" onclick={eksporExcel} disabled={loadingRiwayat}>
+              <Icon name="download" size={16} /> Ekspor Excel
             </button>
             <button class="btn-secondary" style="background: #ef4444; color: white; border: none;" onclick={eksporPDF} disabled={isExporting}>
               <Icon name="printer" size={16} /> {isExporting ? 'Mengekspor...' : 'Ekspor PDF'}
