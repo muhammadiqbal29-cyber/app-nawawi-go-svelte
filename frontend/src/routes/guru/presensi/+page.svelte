@@ -26,7 +26,7 @@
     loadingRiwayat = true;
     try {
       const res = await fetch(`${apiUrl}/api/guru/me/presensi/riwayat`, {
-        headers: { 'Authorization': `Bearer ${auth.loggedInUser?.token}` }
+        credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal mengambil riwayat presensi');
       riwayatList = await res.json();
@@ -41,7 +41,7 @@
     loadingIzin = true;
     try {
       const res = await fetch(`${apiUrl}/api/guru/me/presensi/izin`, {
-        headers: { 'Authorization': `Bearer ${auth.loggedInUser?.token}` }
+        credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal mengambil riwayat izin');
       izinList = await res.json();
@@ -71,31 +71,13 @@
 
     isSubmitting = true;
     try {
-      // Decode JWT for teacher ID locally just for the payload, 
-      // or we can pass 0 if backend doesn't strictly need it from JSON?
-      // Wait, backend explicitly validates `req.GuruID == 0` in BuatPengajuanIzinHandler!
-      // This means the frontend must send the GuruID.
-      // We can get it from the JWT payload.
-      const token = auth.loggedInUser?.token;
-      if (!token) throw new Error("Sesi tidak valid");
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-      const parsedToken = JSON.parse(jsonPayload);
-      const guruId = parsedToken.guru_id;
-
-      if (!guruId) throw new Error("ID Guru tidak ditemukan di profil Anda.");
-
       const res = await fetch(`${apiUrl}/api/guru/me/presensi/izin`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          guru_id: guruId,
           tanggal_mulai: formTanggalMulai,
           tanggal_selesai: formTanggalSelesai,
           jenis: formJenis,

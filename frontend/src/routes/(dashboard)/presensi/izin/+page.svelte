@@ -24,9 +24,7 @@
         : `${apiUrl}/api/presensi/izin?status=${filterStatus}`;
         
       const res = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${auth.loggedInUser?.token}`
-        }
+        credentials: 'include'
       });
       
       if (!res.ok) throw new Error('Gagal memuat data');
@@ -54,9 +52,9 @@
     try {
       const res = await fetch(`${apiUrl}/api/presensi/izin/${selectedIzin.id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.loggedInUser?.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           status: actionType,

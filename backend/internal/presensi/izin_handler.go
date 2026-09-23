@@ -139,7 +139,27 @@ func BuatPengajuanIzinHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.GuruID == 0 || req.TanggalMulai == "" || req.TanggalSelesai == "" || req.Jenis == "" || req.Alasan == "" {
+	email, ok := r.Context().Value("email").(string)
+	if !ok || email == "" {
+		response.Error(w, http.StatusUnauthorized, "Unauthorized", nil)
+		return
+	}
+
+	var user models.User
+	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		response.Error(w, http.StatusUnauthorized, "User not found", err)
+		return
+	}
+
+	var guru models.Guru
+	if err := database.DB.Where("user_id = ?", user.ID).First(&guru).Error; err != nil {
+		response.Error(w, http.StatusUnauthorized, "Guru not found", err)
+		return
+	}
+
+	req.GuruID = guru.ID
+
+	if req.TanggalMulai == "" || req.TanggalSelesai == "" || req.Jenis == "" || req.Alasan == "" {
 		response.Error(w, http.StatusBadRequest, "Data tidak lengkap", nil)
 		return
 	}

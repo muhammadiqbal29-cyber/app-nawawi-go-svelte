@@ -19,9 +19,7 @@
     errorMsg = '';
     try {
       const res = await fetch(`${apiUrl}/api/presensi/kalender`, {
-        headers: {
-          'Authorization': `Bearer ${auth.loggedInUser?.token}`
-        }
+        credentials: 'include'
       });
       if (!res.ok) throw new Error('Gagal memuat kalender libur');
       kalenderList = await res.json();
@@ -47,9 +45,9 @@
     try {
       const res = await fetch(`${apiUrl}/api/presensi/kalender`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${auth.loggedInUser?.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           tanggal: formTanggal,
@@ -79,9 +77,7 @@
     try {
       const res = await fetch(`${apiUrl}/api/presensi/kalender/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${auth.loggedInUser?.token}`
-        }
+        credentials: 'include'
       });
       
       if (!res.ok) throw new Error('Gagal menghapus');
