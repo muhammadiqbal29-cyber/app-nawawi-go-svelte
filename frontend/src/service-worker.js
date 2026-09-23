@@ -45,7 +45,8 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	if (url.origin === location.origin && url.pathname === '/login') {
-		return;
+		// Do not bypass! Let it fall through to respond() which handles NETWORK-FIRST
+		// so it satisfies PWA offline requirements.
 	}
 	async function respond() {
 		const url = new URL(event.request.url);
