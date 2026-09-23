@@ -826,6 +826,7 @@
                         class="input-cell"
                         min="0"
                         max="100"
+                        disabled={isReadOnly}
                         data-field="uh"
                         data-idx={i}
                         value={getUhScore(siswa.siswa_id, i) || ''}
@@ -854,6 +855,7 @@
                       class="input-cell"
                       min="0"
                       max="100"
+                      disabled={isReadOnly}
                       data-field="murni_pts"
                       value={data.murni_pts || ''}
                       onblur={(e) => {
@@ -870,6 +872,7 @@
                       class="input-cell input-remidi"
                       min="0"
                       max="100"
+                      disabled={isReadOnly}
                       data-field="remidi_pts"
                       placeholder="-"
                       value={data.remidi_pts ?? ''}
@@ -896,6 +899,7 @@
                       class="input-cell"
                       min="0"
                       max="100"
+                      disabled={isReadOnly}
                       data-field="pas"
                       value={data.pas || ''}
                       onblur={(e) => {
