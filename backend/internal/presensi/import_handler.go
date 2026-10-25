@@ -87,8 +87,8 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, http.StatusBadRequest, "File Excel kosong atau hanya berisi header", nil)
 		return
 	}
-	if len(rows) > 501 {
-		response.Error(w, http.StatusBadRequest, "Terlalu banyak data. Maksimal 500 baris data per file (DDoS protection).", nil)
+	if len(rows) > 5000 {
+		response.Error(w, http.StatusBadRequest, "Terlalu banyak data. Maksimal 5000 baris data per file (DDoS protection).", nil)
 		return
 	}
 
@@ -182,8 +182,14 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// Find Guru by Email
+			var user models.User
+			if err := tx.Where("email = ?", emailGuru).First(&user).Error; err != nil {
+				skipCount++
+				continue
+			}
+			
 			var guru models.Guru
-			if err := tx.Where("email = ?", emailGuru).First(&guru).Error; err != nil {
+			if err := tx.Where("user_id = ?", user.ID).First(&guru).Error; err != nil {
 				// Guru not found, skip
 				skipCount++
 				continue

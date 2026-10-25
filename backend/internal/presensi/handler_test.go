@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/xuri/excelize/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"siakad-nawawi-be/internal/database"
@@ -49,6 +50,41 @@ func konfigurasiColumns() []string {
 }
 
 // ======================== Test GetKonfigurasiHandler ========================
+
+func TestBuildPresensiManagerWorkbook(t *testing.T) {
+	waktuMasuk := "07:15"
+	waktuPulang := "16:45"
+	data, err := buildPresensiManagerWorkbook([]PresensiGuruWithNama{
+		{
+			PresensiGuru: models.PresensiGuru{GuruID: 1, Tanggal: "2026-10-05", Status: "Hadir", WaktuMasuk: &waktuMasuk, WaktuPulang: &waktuPulang},
+			NamaLengkap:  "Budi Santoso",
+		},
+	})
+	if err != nil {
+		t.Fatalf("build workbook gagal: %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("workbook tidak boleh kosong")
+	}
+
+	file, err := excelize.OpenReader(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("open xlsx gagal: %v", err)
+	}
+
+	if value, _ := file.GetCellValue("Sheet1", "A1"); value != "Tanggal" {
+		t.Fatalf("header tanggal salah: %q", value)
+	}
+	if value, _ := file.GetCellValue("Sheet1", "B1"); value != "Nama Guru" {
+		t.Fatalf("header nama guru salah: %q", value)
+	}
+	if value, _ := file.GetCellValue("Sheet1", "A2"); value != "2026-10-05" {
+		t.Fatalf("data tanggal salah: %q", value)
+	}
+	if value, _ := file.GetCellValue("Sheet1", "B2"); value != "Budi Santoso" {
+		t.Fatalf("data nama guru salah: %q", value)
+	}
+}
 
 func TestGetKonfigurasiHandler(t *testing.T) {
 	tests := []struct {

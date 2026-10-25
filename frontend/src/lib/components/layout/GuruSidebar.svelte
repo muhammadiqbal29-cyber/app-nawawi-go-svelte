@@ -11,6 +11,7 @@
   let hasKonfigurasiMateri = $derived(fiturGuru.includes('konfigurasi_materi'));
   let hasKeseharian = $derived(fiturGuru.includes('rapor_keseharian'));
   let hasLogAktivitas = $derived(fiturGuru.includes('log_aktivitas'));
+  let hasPresensiManager = $derived(fiturGuru.includes('presensi_manager'));
 
   function navigate(path) {
     goto(path);
@@ -43,6 +44,15 @@
           <span class="label" class:hidden={!isOpen}>Riwayat & Izin</span>
         </button>
       </li>
+
+      {#if hasPresensiManager}
+        <li class:active={currentPath.startsWith('/guru/kelola-presensi')}>
+          <button class="nav-link" onclick={() => navigate('/guru/kelola-presensi')}>
+            <Icon name="calendar" size={20} class="icon" />
+            <span class="label" class:hidden={!isOpen}>Kelola Absensi</span>
+          </button>
+        </li>
+      {/if}
 
       {#if hasPaketAlquran || hasDiniyah || hasKeseharian}
         <li class:active={currentPath.startsWith('/guru/input-nilai')}>

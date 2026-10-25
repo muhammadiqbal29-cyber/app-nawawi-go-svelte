@@ -145,7 +145,7 @@
                 } catch {}
 
                 // Intersect guru features with school features (school features act as a master toggle)
-                let f = guruFeatures.filter(feat => schoolFeatures.includes(feat));
+                let f = guruFeatures.filter(feat => feat === 'presensi_manager' || schoolFeatures.includes(feat));
 
                 // Ensure cetak_rapor is always available
                 if (!f.includes('cetak_rapor')) f.push('cetak_rapor');
@@ -298,7 +298,6 @@
 </script>
 
 <svelte:head>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 </svelte:head>
 
 <div class="layout-wrapper" class:sidebar-closed={!sidebarOpen}>

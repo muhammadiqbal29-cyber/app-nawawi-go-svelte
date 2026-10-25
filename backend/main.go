@@ -394,6 +394,11 @@ func main() {
 	guruRouter.HandleFunc("/me/presensi/izin", presensi.GetRiwayatIzinGuruHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/presensi/riwayat", guru.GetPresensiHistoryHandler).Methods("GET")
 	guruRouter.HandleFunc("/me/presensi/konfigurasi", presensi.GetKonfigurasiHandler).Methods("GET")
+	// Pengelolaan presensi untuk guru yang ditunjuk admin per sekolah.
+	guruRouter.HandleFunc("/presensi/kelola/guru", middleware.RequirePresensiManager(presensi.GetGuruPresensiManagerHandler)).Methods("GET")
+	guruRouter.HandleFunc("/presensi/kelola/riwayat", middleware.RequirePresensiManager(presensi.GetRiwayatPresensiManagerHandler)).Methods("GET")
+	guruRouter.HandleFunc("/presensi/kelola/export", middleware.RequirePresensiManager(presensi.ExportRiwayatPresensiManagerHandler)).Methods("GET")
+	guruRouter.HandleFunc("/presensi/kelola/generate-bulan", middleware.RequirePresensiManager(presensi.GenerateBulanPresensiManagerHandler)).Methods("POST")
 
 	// Rute Rapor Keseharian (Guru/Mobile)
 	guruRouter.HandleFunc("/keseharian/sesi", keseharian.SubmitSesiKeseharianHandler).Methods("POST")

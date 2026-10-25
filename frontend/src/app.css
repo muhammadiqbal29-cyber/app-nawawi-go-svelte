@@ -52,19 +52,62 @@
   padding: 0;
 }
 
+/* Hapus outline biru bawaan browser yang terkesan murahan saat elemen ditekan */
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Sembunyikan Scrollbar Bawaan (Membuat tampilan bersih ala aplikasi Native) */
+::-webkit-scrollbar {
+  display: none;
+}
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Warna seleksi teks yang branded (tidak biru default) */
+::selection {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+html {
+  overscroll-behavior-y: none; /* Mencegah efek mantul pull-to-refresh di iOS/Android */
+  overscroll-behavior-x: none; /* Mencegah swipe kiri-kanan (Back/Forward) khas browser */
+  background-color: var(--color-bg-body); /* Cegah kedipan putih saat transisi */
+}
+
 body {
   background-color: var(--color-bg-body);
   color: var(--color-text-main);
   min-height: 100vh;
-  padding: 0;
+  /* Tambahkan padding untuk Safe Area (Notch / Home Indicator) */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   line-height: 1.5;
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
+  -webkit-overflow-scrolling: touch;
   -webkit-font-smoothing: antialiased;
   font-family: 'Poppins', 'Inter', sans-serif;
+  
+  /* PWA Enhancements: Mencegah perilaku native browser */
+  -webkit-touch-callout: none; /* Nonaktifkan context menu iOS saat long press */
+  -webkit-user-select: none; /* Nonaktifkan text selection untuk Safari */
+  user-select: none; /* Nonaktifkan text selection secara global */
+  -webkit-tap-highlight-color: transparent; /* Hilangkan highlight biru saat tap di HP */
 }
 
 a {
   text-decoration: none;
   color: inherit;
+  -webkit-touch-callout: none !important; /* Blokir link preview di iOS */
+  -webkit-user-drag: none;
+  touch-action: manipulation; /* Hilangkan delay 300ms saat disentuh */
 }
 
 button {
@@ -72,12 +115,24 @@ button {
   border: none;
   background: none;
   font-family: inherit;
+  -webkit-touch-callout: none !important;
+  -webkit-user-drag: none;
+  touch-action: manipulation; /* Hilangkan delay 300ms saat disentuh */
+}
+
+img {
+  -webkit-user-drag: none; /* Cegah gambar bisa didrag */
+  -webkit-touch-callout: none !important;
 }
 
 input,
 select,
 textarea {
   font-family: inherit;
+  
+  /* Kembalikan fitur text selection pada input form agar tetap bisa diketik/dicopy */
+  -webkit-user-select: auto;
+  user-select: auto;
 }
 
 /* Utility Classes */

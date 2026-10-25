@@ -111,6 +111,7 @@
     if (id === 'rapor_keseharian') return 'Rapor Keseharian';
     if (id === 'konfigurasi_materi') return 'Konfigurasi Materi';
     if (id === 'log_aktivitas') return 'Log Aktivitas Guru';
+    if (id === 'presensi_manager') return 'Pengelola Absensi';
     return id;
   }
 
@@ -124,6 +125,7 @@
       return 'Bisa mengelola daftar materi tahfiz dan mapel diniyah.';
     if (id === 'log_aktivitas')
       return 'Bisa melihat riwayat aktivitas (tambah, edit, hapus) guru di sekolah ini.';
+    if (id === 'presensi_manager') return 'Bisa memeriksa riwayat dan membuat absensi bulanan di sekolah ini.';
     return '';
   }
 
@@ -253,7 +255,7 @@
       <div class="nested-grid">
         {#each sekolahList as sekolah (sekolah.id)}
           {@const sFiturRaw = getSekolahFitur(sekolah.fitur)}
-          {@const sFitur = sFiturRaw}
+          {@const sFitur = [...sFiturRaw, 'presensi_manager']}
           <div class="school-group {aksesMap[sekolah.id] ? 'active-group' : ''}">
             <label class="checkbox-card main-school-card">
               <input

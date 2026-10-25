@@ -88,6 +88,8 @@ type PresensiGuruWithNama struct {
 func GetRiwayatPresensiAdminHandler(w http.ResponseWriter, r *http.Request) {
 	month := r.URL.Query().Get("month")
 	year := r.URL.Query().Get("year")
+	startDate := r.URL.Query().Get("start_date")
+	endDate := r.URL.Query().Get("end_date")
 
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
@@ -98,7 +100,9 @@ func GetRiwayatPresensiAdminHandler(w http.ResponseWriter, r *http.Request) {
 	if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
 		page = p
 	}
-	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+	if limitStr == "all" {
+		limit = -1
+	} else if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
 		limit = l
 	}
 
@@ -109,11 +113,15 @@ func GetRiwayatPresensiAdminHandler(w http.ResponseWriter, r *http.Request) {
 		Select("presensi_gurus.*, gurus.nama_lengkap").
 		Joins("left join gurus on gurus.id = presensi_gurus.guru_id")
 
-	if month != "" {
-		query = query.Where("MONTH(presensi_gurus.tanggal) = ?", month)
-	}
-	if year != "" {
-		query = query.Where("YEAR(presensi_gurus.tanggal) = ?", year)
+	if startDate != "" && endDate != "" {
+		query = query.Where("presensi_gurus.tanggal BETWEEN ? AND ?", startDate, endDate)
+	} else {
+		if month != "" {
+			query = query.Where("MONTH(presensi_gurus.tanggal) = ?", month)
+		}
+		if year != "" {
+			query = query.Where("YEAR(presensi_gurus.tanggal) = ?", year)
+		}
 	}
 
 	// Hitung total data
@@ -127,6 +135,9 @@ func GetRiwayatPresensiAdminHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Terapkan paginasi
 	offset := (page - 1) * limit
+	if limit == -1 {
+		offset = 0
+	}
 	err := query.Order("presensi_gurus.tanggal desc, presensi_gurus.waktu_masuk desc").
 		Offset(offset).Limit(limit).
 		Scan(&results).Error

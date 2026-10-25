@@ -256,32 +256,63 @@
   }
 
   let isExporting = $state(false);
+  let showExportModal = $state(false);
+  let exportStartDate = $state('');
+  let exportEndDate = $state('');
 
-  function eksporExcel() {
-    if (riwayatList.length === 0) {
-      alert("Tidak ada data untuk diekspor");
+  function openExportModal() {
+    const today = new Date().toISOString().split('T')[0];
+    exportStartDate = today;
+    exportEndDate = today;
+    showExportModal = true;
+  }
+
+  async function eksporExcel() {
+    if (!exportStartDate || !exportEndDate) {
+      alert("Harap pilih rentang tanggal");
       return;
     }
     
-    const headers = ["Tanggal", "Nama Lengkap", "Waktu Masuk", "Waktu Pulang", "Status Kehadiran"];
-    const rows = riwayatList.map(r => {
-      const tanggal = new Date(r.tanggal).toLocaleDateString('id-ID');
-      const nama = `"${r.nama_lengkap || ''}"`;
-      const masuk = r.waktu_masuk || '-';
-      const pulang = r.waktu_pulang || '-';
-      const status = r.is_suspicious ? `${r.status} (Suspicious)` : r.status;
-      return [tanggal, nama, masuk, pulang, status].join(',');
-    });
-    
-    const csvContent = headers.join(',') + '\n' + rows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Laporan_Kehadiran_Guru_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    isExporting = true;
+    try {
+      const res = await fetchWithTimeout(`${apiUrl}/api/presensi/riwayat?start_date=${exportStartDate}&end_date=${exportEndDate}&limit=all`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error("Gagal mengambil data");
+      const data = await res.json();
+      const list = data.data || [];
+      
+      if (list.length === 0) {
+        alert("Tidak ada data pada rentang tanggal tersebut");
+        isExporting = false;
+        return;
+      }
+
+      const headers = ["Tanggal", "Nama Lengkap", "Waktu Masuk", "Waktu Pulang", "Status Kehadiran"];
+      const rows = list.map(r => {
+        const tanggal = new Date(r.tanggal).toLocaleDateString('id-ID');
+        const nama = `"${r.nama_lengkap || ''}"`;
+        const masuk = r.waktu_masuk || '-';
+        const pulang = r.waktu_pulang || '-';
+        const status = r.is_suspicious ? `${r.status} (Suspicious)` : r.status;
+        return [tanggal, nama, masuk, pulang, status].join(',');
+      });
+      
+      const csvContent = headers.join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Laporan_Kehadiran_Guru_${exportStartDate}_sd_${exportEndDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showExportModal = false;
+    } catch (err) {
+      alert("Terjadi kesalahan saat mengekspor: " + err.message);
+    } finally {
+      isExporting = false;
+    }
   }
 
   async function eksporPDF() {
@@ -605,7 +636,7 @@
             <button class="btn-secondary" style="background: #a855f7; color: white; border: none;" onclick={goToGenerateBulan} disabled={loadingRiwayat}>
               <Icon name="calendar" size={16} /> Generate 1 Bulan
             </button>
-            <button class="btn-secondary" style="background: #10b981; color: white; border: none;" onclick={eksporExcel} disabled={loadingRiwayat}>
+            <button class="btn-secondary" style="background: #10b981; color: white; border: none;" onclick={openExportModal} disabled={loadingRiwayat}>
               <Icon name="download" size={16} /> Ekspor Excel
             </button>
             <button class="btn-secondary" style="background: #ef4444; color: white; border: none;" onclick={eksporPDF} disabled={isExporting}>
@@ -940,6 +971,47 @@
   </div>
 
 
+
+<!-- MODAL EKSPOR -->
+{#if showExportModal}
+  <div
+    class="modal-overlay"
+    role="button"
+    tabindex="-1"
+    onclick={(e) => {
+      if (e.target === e.currentTarget) showExportModal = false;
+    }}
+  >
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3>Ekspor Riwayat Absensi</h3>
+        <button class="btn-close" onclick={() => showExportModal = false}>
+          <Icon name="x" size={20} />
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="text-sm text-muted" style="margin-bottom: 1rem;">
+          Pilih rentang tanggal riwayat absensi yang ingin Anda unduh (format Excel / CSV).
+        </p>
+        <div class="form-group">
+          <label>Dari Tanggal</label>
+          <input type="date" class="form-input" bind:value={exportStartDate} />
+        </div>
+        <div class="form-group">
+          <label>Sampai Tanggal</label>
+          <input type="date" class="form-input" bind:value={exportEndDate} />
+        </div>
+        
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.5rem;">
+          <button class="btn-secondary" onclick={() => showExportModal = false}>Batal</button>
+          <button class="btn-primary" onclick={eksporExcel} disabled={isExporting}>
+            {isExporting ? 'Mengekspor...' : 'Unduh File'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .card-tabs {

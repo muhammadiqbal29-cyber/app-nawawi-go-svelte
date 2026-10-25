@@ -126,6 +126,48 @@ func verifyGuruAccess(w http.ResponseWriter, r *http.Request, sekolahIDStr strin
 	return true
 }
 
+// RequirePresensiManager allows administrators and teachers explicitly assigned
+// the presensi_manager feature for the requested school.
+func RequirePresensiManager(next http.HandlerFunc) http.HandlerFunc {
+	return RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		role, _ := r.Context().Value("role").(string)
+		if role == "admin" || role == "superadmin" {
+			next(w, r)
+			return
+		}
+		if role != "guru" {
+			http.Error(w, `{"message":"Akses ditolak"}`, http.StatusForbidden)
+			return
+		}
+		sekolahID := r.URL.Query().Get("sekolah_id")
+		if sekolahID == "" {
+			sekolahID = r.Header.Get("X-Sekolah-ID")
+		}
+		if sekolahID == "" {
+			http.Error(w, `{"message":"sekolah_id wajib diisi"}`, http.StatusBadRequest)
+			return
+		}
+		uid, ok := r.Context().Value("user_id").(int)
+		var g models.Guru
+		if !ok || database.DB.Where("user_id = ? AND status_aktif = ?", uid, true).First(&g).Error != nil {
+			http.Error(w, `{"message":"Akun guru tidak aktif atau tidak ditemukan"}`, http.StatusForbidden)
+			return
+		}
+		var access map[string][]string
+		if json.Unmarshal([]byte(g.AksesSekolah), &access) != nil {
+			http.Error(w, `{"message":"Akses ditolak"}`, http.StatusForbidden)
+			return
+		}
+		for _, feature := range access[sekolahID] {
+			if feature == "presensi_manager" {
+				next(w, r)
+				return
+			}
+		}
+		http.Error(w, `{"message":"Akses pengelolaan presensi ditolak"}`, http.StatusForbidden)
+	})
+}
+
 // VerifyGuruAccessJSON is exported so handlers can use it to verify payload data
 func VerifyGuruAccessJSON(w http.ResponseWriter, r *http.Request, sekolahID int) bool {
 	return verifyGuruAccess(w, r, strconv.Itoa(sekolahID))

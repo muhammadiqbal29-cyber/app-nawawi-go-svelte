@@ -279,6 +279,11 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 			
 			// Perbaiki kueri jika mengandung datetime corrupt
 			query = reFixDate.ReplaceAllString(query, "'$1'")
+			
+			// Perbaiki tanggal nol (0000-00-00) yang ditolak oleh strict mode
+			query = strings.ReplaceAll(query, "'0000-00-00 00:00:00.000'", "'2000-01-01 00:00:00'")
+			query = strings.ReplaceAll(query, "'0000-00-00 00:00:00'", "'2000-01-01 00:00:00'")
+			query = strings.ReplaceAll(query, "'0000-00-00'", "'2000-01-01'")
 
 			// Tangani ketidakcocokan collation MySQL lama vs MariaDB baru (seperti pada IDCloudHost vs Termux)
 			query = strings.ReplaceAll(query, "utf8mb4_uca1400_ai_ci", "utf8mb4_unicode_ci")

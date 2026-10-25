@@ -300,6 +300,9 @@ func GetSekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filterFitur := r.URL.Query().Get("fitur")
+	if filterFitur == "" {
+		filterFitur = r.Header.Get("X-Filter-Fitur")
+	}
 	var allowedIDs []int
 
 	if guruObj.AksesSekolah != "" {
@@ -310,7 +313,7 @@ func GetSekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 				if filterFitur != "" {
 					hasAccess = false
 					for _, f := range fiturs {
-						if f == filterFitur {
+						if f == filterFitur || (filterFitur == "presensi_manager" && f == "presensi_manager") {
 							hasAccess = true
 							break
 						}
@@ -377,8 +380,8 @@ func haversine(lat1, lon1, lat2, lon2 float64) float64 {
 }
 
 type PresensiRequest struct {
-	Latitude  float64 `json:"latitude" validate:"required"`
-	Longitude float64 `json:"longitude" validate:"required"`
+	Latitude  float64  `json:"latitude" validate:"required"`
+	Longitude float64  `json:"longitude" validate:"required"`
 	Accuracy  *float64 `json:"accuracy"`
 	Speed     *float64 `json:"speed"`
 	Heading   *float64 `json:"heading"`
@@ -455,7 +458,7 @@ func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
 
 	var presensi models.PresensiGuru
 	err = database.DB.Where("guru_id = ? AND tanggal = ?", guru.ID, today).First(&presensi).Error
-	
+
 	// 2. Izin/Sakit Terblokir Fix
 	if err == nil {
 		if presensi.Status != "Izin" && presensi.Status != "Sakit" {
@@ -479,7 +482,7 @@ func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
 			// Jika gagal parse, kita abaikan toleransi (Hadir)
 		} else {
 			batasToleransi := jamMasukConfig.Add(time.Duration(config.BatasTelat) * time.Minute)
-			
+
 			// Bandingkan dengan waktu saat ini yang penuh (tanggal+jam)
 			if now.After(batasToleransi) {
 				status = "Terlambat"
@@ -525,8 +528,8 @@ func PresensiMasukHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "Presensi masuk berhasil dicatat", 
-		"status": status,
+		"message":       "Presensi masuk berhasil dicatat",
+		"status":        status,
 		"is_suspicious": isSuspicious,
 	}); err != nil {
 		slog.Error("Gagal encode response", "error", err)
@@ -662,7 +665,7 @@ func PresensiPulangHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "Presensi pulang berhasil dicatat",
+		"message":       "Presensi pulang berhasil dicatat",
 		"is_suspicious": len(suspiciousReasons) > 0,
 	}); err != nil {
 		slog.Error("Gagal encode response", "error", err)
