@@ -61,13 +61,33 @@
   outline-offset: 2px;
 }
 
-/* Sembunyikan Scrollbar Bawaan (Membuat tampilan bersih ala aplikasi Native) */
-::-webkit-scrollbar {
-  display: none;
+/* Scrollbar yang terlihat agar halaman desktop bisa di-scroll dari sisi kanan seperti aplikasi biasa */
+html,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.9) transparent;
 }
-* {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.9);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.95);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 /* Warna seleksi teks yang branded (tidak biru default) */
@@ -86,6 +106,8 @@ body {
   background-color: var(--color-bg-body);
   color: var(--color-text-main);
   min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
   /* Tambahkan padding untuk Safe Area (Notch / Home Indicator) */
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   line-height: 1.5;
