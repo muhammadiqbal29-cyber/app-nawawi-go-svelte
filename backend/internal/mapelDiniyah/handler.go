@@ -271,7 +271,7 @@ func CreateMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), sekolahID, "Konfigurasi Mapel Diniyah", "Tambah", "Menambah mapel diniyah "+mapel.NamaMapel, r.RemoteAddr, r.UserAgent())
+	logger.LogGuruAction(r.Context(), sekolahID, "Konfigurasi Mapel Diniyah", "Tambah", "Menambah mapel diniyah: "+mapel.NamaMapel, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusCreated, mapel)
 }
@@ -309,8 +309,11 @@ func UpdateMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	oldName := existing.NamaMapel
+	newName := existing.NamaMapel
 	if payload.NamaMapel != "" {
 		existing.NamaMapel = payload.NamaMapel
+		newName = payload.NamaMapel
 	}
 	if payload.NamaMapelArab != "" {
 		existing.NamaMapelArab = payload.NamaMapelArab
@@ -334,7 +337,11 @@ func UpdateMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Mapel Diniyah", "Edit", "Memperbarui mapel diniyah "+existing.NamaMapel, r.RemoteAddr, r.UserAgent())
+	logMessage := "Memperbarui mapel diniyah: " + newName
+	if oldName != "" && newName != oldName {
+		logMessage = "Memperbarui mapel diniyah: " + oldName + " -> " + newName
+	}
+	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Mapel Diniyah", "Edit", logMessage, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, existing)
 }
@@ -375,7 +382,7 @@ func DeleteMapelDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Mapel Diniyah", "Hapus", "Menghapus mapel diniyah "+existing.NamaMapel, r.RemoteAddr, r.UserAgent())
+	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Mapel Diniyah", "Hapus", "Menghapus mapel diniyah: "+existing.NamaMapel, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "Mapel diniyah berhasil dihapus"})
 }

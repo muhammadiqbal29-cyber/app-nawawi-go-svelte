@@ -12,29 +12,28 @@ import (
 	"gorm.io/gorm"
 )
 
-// isLogAktivitasEnabled mengecek apakah guru memiliki akses log_aktivitas di sekolah tersebut
-func isLogAktivitasEnabled(guru *models.Guru, sekolahID int) bool {
-	if guru.AksesSekolah == "" || guru.AksesSekolah == "[]" {
+func hasSekolahAccess(aksesSekolah string, sekolahID int) bool {
+	if aksesSekolah == "" || aksesSekolah == "[]" || aksesSekolah == "{}" {
 		return false
 	}
+
 	var aksesMap map[string][]string
-	if err := json.Unmarshal([]byte(guru.AksesSekolah), &aksesMap); err != nil {
+	if err := json.Unmarshal([]byte(aksesSekolah), &aksesMap); err != nil {
 		return false
 	}
-	
-	// keys di json map usually string
-	sekolahIDStr := strconv.Itoa(sekolahID)
-	fiturList, ok := aksesMap[sekolahIDStr]
-	if !ok {
+
+	_, ok := aksesMap[strconv.Itoa(sekolahID)]
+	return ok
+}
+
+// isLogAktivitasEnabled mengecek apakah guru memiliki akses ke sekolah tersebut.
+// Log aktivitas mengikuti akses sekolah, bukan fitur terpisah, supaya guru yang diberi
+// wewenang mengelola sekolah bisa melihat log guru lain di sekolah yang sama.
+func isLogAktivitasEnabled(guru *models.Guru, sekolahID int) bool {
+	if guru == nil {
 		return false
 	}
-	
-	for _, f := range fiturList {
-		if f == "log_aktivitas" {
-			return true
-		}
-	}
-	return false
+	return hasSekolahAccess(guru.AksesSekolah, sekolahID)
 }
 
 // LogActivity merekam aktivitas satu kali klik (bukan autosave)

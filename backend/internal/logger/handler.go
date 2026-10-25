@@ -13,6 +13,52 @@ import (
 // GetLogAktivitasHandler mengambil daftar aktivitas guru
 // Admin dapat melihat semua log (opsional filter by guru_id atau sekolah_id)
 // Guru hanya dapat melihat log miliknya sendiri
+func GetDaftarGuruLogAktivitasHandler(w http.ResponseWriter, r *http.Request) {
+	role, okRole := r.Context().Value("role").(string)
+	if !okRole {
+		response.Error(w, http.StatusUnauthorized, "Tidak ada akses", nil)
+		return
+	}
+
+	if role != "guru" && role != "admin" && role != "superadmin" {
+		response.Error(w, http.StatusForbidden, "Tidak memiliki izin melihat daftar guru", nil)
+		return
+	}
+
+	sekolahIDStr := r.URL.Query().Get("sekolah_id")
+	if sekolahIDStr == "" {
+		response.Error(w, http.StatusBadRequest, "sekolah_id wajib diisi", nil)
+		return
+	}
+
+	sekolahID, err := strconv.Atoi(sekolahIDStr)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "sekolah_id tidak valid", nil)
+		return
+	}
+
+	var gurus []models.Guru
+	if err := database.DB.Where("status_aktif = ?", true).Preload("User").Find(&gurus).Error; err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal mengambil daftar guru", err)
+		return
+	}
+
+	filtered := make([]map[string]interface{}, 0)
+	for _, g := range gurus {
+		if !hasSekolahAccess(g.AksesSekolah, sekolahID) {
+			continue
+		}
+
+		filtered = append(filtered, map[string]interface{}{
+			"id":           g.ID,
+			"nama_lengkap": g.NamaLengkap,
+			"status_aktif": g.StatusAktif,
+		})
+	}
+
+	response.JSON(w, http.StatusOK, filtered)
+}
+
 func GetLogAktivitasHandler(w http.ResponseWriter, r *http.Request) {
 	role, okRole := r.Context().Value("role").(string)
 	if !okRole {
@@ -40,9 +86,33 @@ func GetLogAktivitasHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Filter berdasarkan peran pengguna
 	if role == "guru" {
-		// Guru yang memiliki akses fitur log_aktivitas bisa melihat seluruh aktivitas di sekolah tersebut.
-		// (Pengecekan akses fitur sudah dilakukan di frontend, atau bisa juga diperkuat di middleware).
-		// Kita tidak melakukan filter by guru_id agar Kepala Sekolah/Guru terpilih bisa memantau.
+		userID, okUser := r.Context().Value("user_id").(int)
+		if !okUser {
+			response.Error(w, http.StatusUnauthorized, "User ID tidak valid", nil)
+			return
+		}
+
+		var currentGuru models.Guru
+		if err := database.DB.Where("user_id = ?", userID).First(&currentGuru).Error; err != nil {
+			response.Error(w, http.StatusForbidden, "Akses sekolah tidak valid", nil)
+			return
+		}
+
+		if sekolahIDStr == "" {
+			response.Error(w, http.StatusBadRequest, "sekolah_id wajib diisi", nil)
+			return
+		}
+		sekolahID, err := strconv.Atoi(sekolahIDStr)
+		if err != nil {
+			response.Error(w, http.StatusBadRequest, "sekolah_id tidak valid", nil)
+			return
+		}
+
+		if !hasSekolahAccess(currentGuru.AksesSekolah, sekolahID) {
+			response.Error(w, http.StatusForbidden, "Anda tidak memiliki akses ke sekolah ini", nil)
+			return
+		}
+
 		if filterGuruIDStr != "" {
 			query = query.Where("guru_id = ?", filterGuruIDStr)
 		}

@@ -111,7 +111,7 @@ func CreateMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), sekolahID, "Konfigurasi Materi Tahfiz", "Tambah", "Menambah materi "+materi.NamaMateri, r.RemoteAddr, r.UserAgent())
+	logger.LogGuruAction(r.Context(), sekolahID, "Konfigurasi Materi Tahfiz", "Tambah", "Menambah materi tahfiz: "+materi.NamaMateri, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusCreated, materi)
 }
@@ -149,6 +149,8 @@ func UpdateMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	oldName := existing.NamaMateri
+	newName := existing.NamaMateri
 	if payload.NamaMateri != "" {
 		if payload.NamaMateri != existing.NamaMateri {
 			var count int64
@@ -162,6 +164,7 @@ func UpdateMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		existing.NamaMateri = payload.NamaMateri
+		newName = payload.NamaMateri
 	}
 	if payload.Juz >= 0 {
 		existing.Juz = payload.Juz
@@ -178,7 +181,11 @@ func UpdateMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Materi Tahfiz", "Edit", "Memperbarui materi "+existing.NamaMateri, r.RemoteAddr, r.UserAgent())
+	logMessage := "Memperbarui materi tahfiz: " + newName
+	if oldName != "" && newName != oldName {
+		logMessage = "Memperbarui materi tahfiz: " + oldName + " -> " + newName
+	}
+	logger.LogGuruAction(r.Context(), existing.SekolahID, "Konfigurasi Materi Tahfiz", "Edit", logMessage, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, existing)
 }
@@ -225,7 +232,7 @@ func DeleteMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), materi.SekolahID, "Konfigurasi Materi Tahfiz", "Hapus", "Menghapus materi "+materi.NamaMateri, r.RemoteAddr, r.UserAgent())
+	logger.LogGuruAction(r.Context(), materi.SekolahID, "Konfigurasi Materi Tahfiz", "Hapus", "Menghapus materi tahfiz: "+materi.NamaMateri, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]string{"message": "Materi berhasil dihapus"})
 }

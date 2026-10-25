@@ -111,6 +111,8 @@ func UpdateIndikatorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	oldName := indikator.Nama
+	newName := req.Nama
 	indikator.Nama = req.Nama
 	indikator.NilaiPengurang = req.NilaiPengurang
 	indikator.Aktif = req.Aktif
@@ -120,7 +122,11 @@ func UpdateIndikatorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.LogGuruAction(r.Context(), indikator.SekolahID, "Indikator Keseharian", "Edit", "Memperbarui indikator "+indikator.Nama, r.RemoteAddr, r.UserAgent())
+	logMessage := "Memperbarui indikator: " + newName
+	if oldName != "" && newName != oldName {
+		logMessage = "Memperbarui indikator: " + oldName + " -> " + newName
+	}
+	logger.LogGuruAction(r.Context(), indikator.SekolahID, "Indikator Keseharian", "Edit", logMessage, r.RemoteAddr, r.UserAgent())
 
 	response.JSON(w, http.StatusOK, map[string]interface{}{"data": indikator, "message": "Indikator berhasil diperbarui"})
 }

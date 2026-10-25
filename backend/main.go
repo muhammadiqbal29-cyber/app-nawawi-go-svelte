@@ -298,6 +298,7 @@ func main() {
 	guruRouter.Use(middleware.CheckKelasAccessMiddleware())
 	guruRouter.Use(middleware.CheckSiswaAccessMiddleware())
 	guruRouter.HandleFunc("/log-aktivitas", logger.GetLogAktivitasHandler).Methods("GET")
+	guruRouter.HandleFunc("/log-aktivitas/guru", logger.GetDaftarGuruLogAktivitasHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah", guru.GetSekolahForGuruHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{id}", sekolah.GetSekolahByIDHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/siswa", siswa.GetSiswaBySekolahHandler).Methods("GET")

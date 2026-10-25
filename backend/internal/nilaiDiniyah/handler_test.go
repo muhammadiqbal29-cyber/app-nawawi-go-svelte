@@ -22,9 +22,30 @@ func setupTestDB() {
 	database.DB.Create(&models.Semester{TipeSemester: "Ganjil", StatusAktif: true, TahunAjaranID: 1})
 }
 
+func intPtr(v int) *int {
+	return &v
+}
+
 func setAdminContext(req *http.Request) *http.Request {
 	ctx := context.WithValue(req.Context(), "role", "admin")
 	return req.WithContext(ctx)
+}
+
+func TestMapelDiniyahDisplayName(t *testing.T) {
+	setupTestDB()
+
+	mapel := models.MapelDiniyah{SekolahID: 1, NamaMapel: "Fikih", Aktif: true}
+	if err := database.DB.Create(&mapel).Error; err != nil {
+		t.Fatalf("failed to seed mapel: %v", err)
+	}
+
+	if got := getMapelDiniyahDisplayName(int(mapel.ID)); got != "Fikih" {
+		t.Fatalf("expected mapel name to be used, got %q", got)
+	}
+
+	if got := getMapelDiniyahDisplayName(9999); got != "mapel tidak ditemukan" {
+		t.Fatalf("expected fallback label for missing mapel, got %q", got)
+	}
 }
 
 func TestGetNilaiDiniyahByKelasHandler(t *testing.T) {
@@ -113,8 +134,8 @@ func TestUpsertNilaiDiniyahHandler(t *testing.T) {
 			SekolahID:      1,
 			MapelDiniyahID: 1,
 			UhScores:       []int{80, 90},
-			MurniPts:       85,
-			Pas:            90,
+			MurniPts:       intPtr(85),
+			Pas:            intPtr(90),
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/nilai-diniyah", bytes.NewBuffer(body))
@@ -136,8 +157,8 @@ func TestUpsertNilaiDiniyahHandler(t *testing.T) {
 			SekolahID:      1,
 			MapelDiniyahID: 1,
 			UhScores:       []int{100, 100},
-			MurniPts:       100,
-			Pas:            100,
+			MurniPts:       intPtr(100),
+			Pas:            intPtr(100),
 		}
 		body, _ := json.Marshal(payload)
 		req, _ := http.NewRequest("POST", "/api/nilai-diniyah", bytes.NewBuffer(body))

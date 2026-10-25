@@ -52,6 +52,19 @@ func toResponse(n models.NilaiDiniyah) nilaiDiniyahResponse {
 	}
 }
 
+func getMapelDiniyahDisplayName(mapelID int) string {
+	if mapelID <= 0 {
+		return "mapel belum dipilih"
+	}
+
+	var mapel models.MapelDiniyah
+	if err := database.DB.Where("id = ?", mapelID).First(&mapel).Error; err == nil && mapel.NamaMapel != "" {
+		return mapel.NamaMapel
+	}
+
+	return "mapel tidak ditemukan"
+}
+
 // GetNilaiDiniyahByKelasHandler mengambil semua nilai diniyah siswa di suatu kelas
 func GetNilaiDiniyahByKelasHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -261,7 +274,7 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 			if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
 				logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID,
 					"Penilaian Diniyah", "Edit Nilai",
-					fmt.Sprintf("Memperbarui nilai mapel ID %d", payload.MapelDiniyahID),
+					fmt.Sprintf("Memperbarui nilai mapel %s", getMapelDiniyahDisplayName(payload.MapelDiniyahID)),
 					r.RemoteAddr, r.UserAgent())
 			}
 		}
@@ -309,7 +322,7 @@ func UpsertNilaiDiniyahHandler(w http.ResponseWriter, r *http.Request) {
 		if err := database.DB.Where("user_id = ?", userID).First(&guru).Error; err == nil {
 			logger.LogAutosaveActivity(r.Context(), &guru, payload.SekolahID,
 				"Penilaian Diniyah", "Input Nilai",
-				fmt.Sprintf("Memasukkan nilai mapel ID %d", payload.MapelDiniyahID),
+				fmt.Sprintf("Memasukkan nilai mapel %s", getMapelDiniyahDisplayName(payload.MapelDiniyahID)),
 				r.RemoteAddr, r.UserAgent())
 		}
 	}

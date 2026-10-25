@@ -6,6 +6,10 @@
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
   let logs = $state([]);
+  let teacherOptions = $state([]);
+  let selectedGuruId = $state('');
+  let teacherQuery = $state('');
+  let showTeacherMenu = $state(false);
   let loading = $state(false);
   let errorMsg = $state('');
   let page = $state(1);
@@ -13,6 +17,36 @@
   let hasMore = $state(true);
 
   let activeSekolahId = $derived(guruState.activeSekolahId);
+
+  let filteredTeachers = $derived.by(() => {
+    const q = teacherQuery.trim().toLowerCase();
+    if (!q) return teacherOptions;
+    return teacherOptions.filter((teacher) => teacher.nama_lengkap.toLowerCase().includes(q));
+  });
+
+  async function fetchTeacherOptions() {
+    if (!activeSekolahId) {
+      teacherOptions = [];
+      return;
+    }
+
+    try {
+      const res = await fetch(`${apiUrl}/api/guru/log-aktivitas/guru?sekolah_id=${activeSekolahId}`, {
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        teacherOptions = [];
+        return;
+      }
+      const data = await res.json();
+      teacherOptions = Array.isArray(data) ? data : [];
+      if (!selectedGuruId && teacherOptions.length > 0) {
+        teacherQuery = 'Semua guru';
+      }
+    } catch (e) {
+      teacherOptions = [];
+    }
+  }
 
   async function fetchLogs(reset = false) {
     if (!activeSekolahId) return;
@@ -28,7 +62,16 @@
     errorMsg = '';
 
     try {
-      const res = await fetch(`${apiUrl}/api/guru/log-aktivitas?sekolah_id=${activeSekolahId}&page=${page}&limit=${limit}`, {
+      const qs = new URLSearchParams({
+        sekolah_id: String(activeSekolahId),
+        page: String(page),
+        limit: String(limit)
+      });
+      if (selectedGuruId) {
+        qs.set('guru_id', String(selectedGuruId));
+      }
+
+      const res = await fetch(`${apiUrl}/api/guru/log-aktivitas?${qs.toString()}`, {
         credentials: 'include'
       });
       if (res.ok) {
@@ -73,13 +116,41 @@
     return 'info';
   }
 
+  function getPelakuNama(log) {
+    if (log?.guru?.nama_lengkap) return log.guru.nama_lengkap;
+    if (log?.guru?.User?.nama_lengkap) return log.guru.User.nama_lengkap;
+    if (log?.guru?.user?.nama_lengkap) return log.guru.user.nama_lengkap;
+    if (log?.guru?.user?.email) return log.guru.user.email;
+    return 'Guru';
+  }
+
+  function getLogSummary(log) {
+    const aksi = (log?.aksi || 'Aktivitas').trim();
+    const deskripsi = (log?.deskripsi || '').trim();
+    const modul = log?.modul || 'Aktivitas';
+
+    if (!deskripsi) return `${aksi} · ${modul}`;
+    const prefix = deskripsi.toLowerCase().startsWith('mem') || deskripsi.toLowerCase().startsWith('meng') || deskripsi.toLowerCase().startsWith('men')
+      ? deskripsi
+      : `${aksi} · ${deskripsi}`;
+    return `${modul}: ${prefix}`;
+  }
+
   $effect(() => {
     if (activeSekolahId) {
       untrack(() => {
+        fetchTeacherOptions();
         fetchLogs(true);
       });
     }
   });
+
+  function selectTeacher(teacherId, nama) {
+    selectedGuruId = teacherId;
+    teacherQuery = nama;
+    showTeacherMenu = false;
+    fetchLogs(true);
+  }
 </script>
 
 <div class="page-container">
@@ -96,6 +167,52 @@
       <span>{errorMsg}</span>
     </div>
   {/if}
+
+  <div class="filter-bar">
+    <div class="teacher-picker">
+      <input
+        type="text"
+        value={teacherQuery || 'Semua guru'}
+        placeholder="Cari guru..."
+        oninput={(event) => {
+          teacherQuery = event.currentTarget.value;
+          showTeacherMenu = true;
+        }}
+        onfocus={() => (showTeacherMenu = true)}
+      />
+
+      {#if showTeacherMenu}
+        <div class="teacher-menu" role="listbox" aria-label="Daftar guru log">
+          <button
+            type="button"
+            class:active={!selectedGuruId}
+            onclick={() => {
+              selectedGuruId = '';
+              teacherQuery = 'Semua guru';
+              showTeacherMenu = false;
+              fetchLogs(true);
+            }}
+          >
+            Semua guru
+          </button>
+
+          {#if filteredTeachers.length > 0}
+            {#each filteredTeachers as teacher}
+              <button
+                type="button"
+                class:active={String(teacher.id) === String(selectedGuruId)}
+                onclick={() => selectTeacher(String(teacher.id), teacher.nama_lengkap)}
+              >
+                {teacher.nama_lengkap}
+              </button>
+            {/each}
+          {:else}
+            <div class="teacher-empty">Tidak ada guru yang cocok</div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  </div>
 
   <div class="log-container">
     {#if logs.length === 0 && !loading}
@@ -115,17 +232,15 @@
             <div class="log-header">
               <div class="header-left">
                 <span class="log-module badge">{log.modul}</span>
-                {#if log.guru?.user?.nama_lengkap}
-                  <span class="guru-name">
-                    <Icon name="user" size={12} />
-                    {log.guru.user.nama_lengkap}
-                  </span>
-                {/if}
+                <span class="guru-name">
+                  <Icon name="user" size={12} />
+                  {getPelakuNama(log)}
+                </span>
               </div>
               <span class="log-date">{formatDate(log.updated_at)}</span>
             </div>
             <h3 class="log-action">{log.aksi}</h3>
-            <p class="log-desc">{log.deskripsi}</p>
+            <p class="log-desc">{getLogSummary(log)}</p>
           </div>
         </div>
       {/each}
@@ -149,6 +264,57 @@
     max-width: 800px;
     margin: 0 auto;
     padding-bottom: 2rem;
+  }
+  .filter-bar {
+    margin-bottom: 1.25rem;
+  }
+  .teacher-picker {
+    position: relative;
+    max-width: 360px;
+  }
+  .teacher-picker input {
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.95rem;
+    background: white;
+  }
+  .teacher-menu {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    left: 0;
+    right: 0;
+    z-index: 20;
+    max-height: 220px;
+    overflow: auto;
+    background: white;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+  }
+  .teacher-menu button {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    text-align: left;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    background: transparent;
+    color: #1e293b;
+    cursor: pointer;
+  }
+  .teacher-menu button:last-child {
+    border-bottom: 0;
+  }
+  .teacher-menu button:hover,
+  .teacher-menu button.active {
+    background: #eff6ff;
+  }
+  .teacher-empty {
+    padding: 0.8rem;
+    color: #64748b;
+    font-size: 0.85rem;
   }
   .header {
     margin-bottom: 2rem;
