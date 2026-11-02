@@ -110,6 +110,7 @@ func ReviewIzinAdminHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				// Update jika sudah ada (mungkin sebelumnya Alpa)
+				pres.Tanggal = tglStr
 				pres.Status = izin.Jenis
 				pres.LokasiMasuk = "Sistem (Izin)"
 				pres.LokasiPulang = "Sistem (Izin)"

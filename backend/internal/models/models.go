@@ -359,6 +359,20 @@ type HariLibur struct {
         CreatedAt  time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 }
 
+func (h *HariLibur) BeforeSave(tx *gorm.DB) (err error) {
+	if len(h.Tanggal) > 10 {
+		h.Tanggal = h.Tanggal[:10]
+	}
+	return nil
+}
+
+func (h *HariLibur) AfterFind(tx *gorm.DB) (err error) {
+	if len(h.Tanggal) > 10 {
+		h.Tanggal = h.Tanggal[:10]
+	}
+	return nil
+}
+
 type PengajuanIzin struct {
         ID             int       `gorm:"primaryKey;autoIncrement" json:"id"`
         GuruID         int       `gorm:"not null;index" json:"guru_id"`
@@ -373,6 +387,26 @@ type PengajuanIzin struct {
         UpdatedAt      time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
         Guru Guru `gorm:"foreignKey:GuruID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT;" json:"guru,omitempty"`
+}
+
+func (p *PengajuanIzin) BeforeSave(tx *gorm.DB) (err error) {
+	if len(p.TanggalMulai) > 10 {
+		p.TanggalMulai = p.TanggalMulai[:10]
+	}
+	if len(p.TanggalSelesai) > 10 {
+		p.TanggalSelesai = p.TanggalSelesai[:10]
+	}
+	return nil
+}
+
+func (p *PengajuanIzin) AfterFind(tx *gorm.DB) (err error) {
+	if len(p.TanggalMulai) > 10 {
+		p.TanggalMulai = p.TanggalMulai[:10]
+	}
+	if len(p.TanggalSelesai) > 10 {
+		p.TanggalSelesai = p.TanggalSelesai[:10]
+	}
+	return nil
 }
 
 type PresensiGuru struct {
@@ -404,6 +438,20 @@ type PresensiGuru struct {
 	UpdatedAt            time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
 }
 
+func (p *PresensiGuru) BeforeSave(tx *gorm.DB) (err error) {
+	if len(p.Tanggal) > 10 {
+		p.Tanggal = p.Tanggal[:10]
+	}
+	return nil
+}
+
+func (p *PresensiGuru) AfterFind(tx *gorm.DB) (err error) {
+	if len(p.Tanggal) > 10 {
+		p.Tanggal = p.Tanggal[:10]
+	}
+	return nil
+}
+
 type SetoranTahfizHarian struct {
 	ID                  int       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SiswaID             int       `gorm:"not null;index" json:"siswa_id"`
@@ -423,6 +471,20 @@ type SetoranTahfizHarian struct {
 	Catatan             string    `gorm:"type:text" json:"catatan"`
 	CreatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"created_at"`
 	UpdatedAt           time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP" json:"updated_at"`
+}
+
+func (s *SetoranTahfizHarian) BeforeSave(tx *gorm.DB) (err error) {
+	if len(s.Tanggal) > 10 {
+		s.Tanggal = s.Tanggal[:10]
+	}
+	return nil
+}
+
+func (s *SetoranTahfizHarian) AfterFind(tx *gorm.DB) (err error) {
+	if len(s.Tanggal) > 10 {
+		s.Tanggal = s.Tanggal[:10]
+	}
+	return nil
 }
 
 type Halaqah struct {

@@ -229,6 +229,7 @@ func ImportPresensiExcelHandler(w http.ResponseWriter, r *http.Request) {
 			err = tx.Where("guru_id = ? AND tanggal = ?", guru.ID, tanggal).First(&presensi).Error
 			if err == nil {
 				// Update existing
+				presensi.Tanggal = tanggal
 				presensi.WaktuMasuk = waktuMasuk
 				presensi.WaktuPulang = waktuPulang
 				presensi.Status = status

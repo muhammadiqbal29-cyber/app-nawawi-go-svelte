@@ -658,6 +658,7 @@ func PresensiPulangHandler(w http.ResponseWriter, r *http.Request) {
 		presensi.IsSuspicious = true
 	}
 
+	presensi.Tanggal = today
 	if err := database.DB.Save(&presensi).Error; err != nil {
 		http.Error(w, "Gagal mencatat presensi pulang", http.StatusInternalServerError)
 		return

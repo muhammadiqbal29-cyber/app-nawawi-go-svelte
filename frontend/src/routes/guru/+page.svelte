@@ -4,7 +4,7 @@
   import { guruState } from '$lib/guruState.svelte.js';
 
   let selectedSekolah = $derived(
-    guruState.sekolahList.find((s) => s.id == guruState.activeSekolahId) || null
+    guruState.sekolahList.find((s) => s.id == guruState.activeSekolahId) || guruState.sekolahList[0] || null
   );
 </script>
 

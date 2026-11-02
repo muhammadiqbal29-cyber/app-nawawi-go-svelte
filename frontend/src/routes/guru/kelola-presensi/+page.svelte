@@ -7,7 +7,7 @@
   let rows = $state([]);
   let teacherId = $state('');
   let exportTeacherId = $state('');
-  let month = $state(new Date().getMonth() + 1);
+  let month = $state('');
   let year = $state(new Date().getFullYear());
   let busy = $state(false);
   let message = $state('');
@@ -65,15 +65,26 @@
     }
   });
 
-  $effect(() => { if (schoolId) load(); });
+  $effect(() => {
+    if (!schoolId) return;
+    void load();
+  });
+
+  function applyHistoryFilter() {
+    void load();
+  }
+
   async function load() {
     if (!schoolId) return;
     error = '';
     try {
-      const qs = `sekolah_id=${encodeURIComponent(schoolId)}`;
+      const qs = new URLSearchParams({ sekolah_id: String(schoolId) });
+      if (month) qs.set('month', String(month));
+      if (year) qs.set('year', String(year));
+
       const [tRes, rRes] = await Promise.all([
-        fetch(`${api}/api/guru/presensi/kelola/guru?${qs}`, {credentials:'include'}),
-        fetch(`${api}/api/guru/presensi/kelola/riwayat?${qs}&month=${month}&year=${year}`, {credentials:'include'})
+        fetch(`${api}/api/guru/presensi/kelola/guru?sekolah_id=${encodeURIComponent(schoolId)}`, {credentials:'include'}),
+        fetch(`${api}/api/guru/presensi/kelola/riwayat?${qs.toString()}`, {credentials:'include'})
       ]);
       if (!tRes.ok || !rRes.ok) throw new Error('Tidak dapat memuat data pengelolaan absensi. Periksa hak akses sekolah ini.');
       teachers = await tRes.json(); rows = await rRes.json();
@@ -119,7 +130,7 @@
     <section class="card">
       <div class="row">
         <h2>Generate Absensi</h2>
-        <button class="secondary" onclick={() => goto('/guru/kelola-presensi/generate')}>Buat absensi baru</button>
+        <button type="button" class="secondary" onclick={() => goto('/guru/kelola-presensi/generate')}>Buat absensi baru</button>
       </div>
       <p class="muted">Untuk membuat absensi bulanan, buka halaman terpisah agar prosesnya tidak tercampur dengan riwayat dan export.</p>
     </section>
@@ -127,6 +138,30 @@
       <div class="row">
         <h2>Riwayat Absensi Sekolah</h2>
         <div class="row-actions">
+          <div class="filter-group">
+            <label>
+              <span>Bulan</span>
+              <select bind:value={month} onchange={applyHistoryFilter}>
+                <option value="">Semua tanggal</option>
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maret</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Agustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+              </select>
+            </label>
+            <label>
+              <span>Tahun</span>
+              <input type="number" min="2000" bind:value={year} oninput={applyHistoryFilter} onchange={applyHistoryFilter} />
+            </label>
+          </div>
           <div class="export-choice">
             <span>Unduh untuk</span>
             <div class="export-picker">
@@ -166,11 +201,11 @@
               {/if}
             </div>
           </div>
-          <button class="secondary" onclick={exportXlsx}>Download Excel</button>
-          <button class="secondary" onclick={load}>Muat ulang</button>
+          <button type="button" class="secondary" onclick={exportXlsx}>Download Excel</button>
+          <button type="button" class="secondary" onclick={load}>Muat ulang</button>
         </div>
       </div>
-      {#if rows.length === 0}<p>Belum ada data untuk bulan ini.</p>{:else}
+      {#if rows.length === 0}<p>Belum ada data untuk periode yang dipilih.</p>{:else}
         <div class="table-shell">
           <table><thead><tr><th>Tanggal</th><th>Guru</th><th>Status</th><th>Masuk</th><th>Pulang</th></tr></thead><tbody>
             {#each rows as row}<tr><td>{formatTanggal(row.tanggal)}</td><td>{row.nama_lengkap}</td><td>{row.status}</td><td>{row.waktu_masuk || '—'}</td><td>{row.waktu_pulang || '—'}</td></tr>{/each}

@@ -59,6 +59,7 @@ func ManualUpsertHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err == nil {
 		// Data sudah ada, update waktunya saja
+		existing.Tanggal = payload.Tanggal
 		existing.WaktuMasuk = payload.WaktuMasuk
 		existing.WaktuPulang = payload.WaktuPulang
 		existing.Status = payload.Status
@@ -164,12 +165,17 @@ func GenerateAcakHandler(w http.ResponseWriter, r *http.Request) {
 		
 		if err == nil {
 			// Update
+			existing.Tanggal = payload.Tanggal
 			existing.Status = status
 			existing.WaktuMasuk = masukPtr
 			existing.WaktuPulang = pulangPtr
 			existing.LokasiMasuk = "Generator Acak"
 			existing.LokasiPulang = "Generator Acak"
-			tx.Save(&existing)
+			if err := tx.Save(&existing).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal menyimpan presensi", err)
+				return
+			}
 		} else {
 			// Create
 			presensi := models.PresensiGuru{
@@ -181,7 +187,11 @@ func GenerateAcakHandler(w http.ResponseWriter, r *http.Request) {
 				LokasiMasuk:  "Generator Acak",
 				LokasiPulang: "Generator Acak",
 			}
-			tx.Create(&presensi)
+			if err := tx.Create(&presensi).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal membuat presensi", err)
+				return
+			}
 		}
 	}
 
@@ -306,12 +316,17 @@ func GenerateAcakBulanHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil {
 			// Update
+			existing.Tanggal = tanggalStr
 			existing.Status = status
 			existing.WaktuMasuk = masukPtr
 			existing.WaktuPulang = pulangPtr
 			existing.LokasiMasuk = "Generator Bulan Acak"
 			existing.LokasiPulang = "Generator Bulan Acak"
-			tx.Save(&existing)
+			if err := tx.Save(&existing).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal menyimpan presensi bulanan", err)
+				return
+			}
 			summaryUpdated++
 		} else {
 			// Create
@@ -324,7 +339,11 @@ func GenerateAcakBulanHandler(w http.ResponseWriter, r *http.Request) {
 				LokasiMasuk:  "Generator Bulan Acak",
 				LokasiPulang: "Generator Bulan Acak",
 			}
-			tx.Create(&presensi)
+			if err := tx.Create(&presensi).Error; err != nil {
+				tx.Rollback()
+				response.Error(w, http.StatusInternalServerError, "Gagal membuat presensi bulanan", err)
+				return
+			}
 			summaryCreated++
 		}
 	}

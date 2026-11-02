@@ -7,6 +7,8 @@
 
   let teachers = $state([]);
   let teacherId = $state('');
+  let teacherQuery = $state('');
+  let showTeacherMenu = $state(false);
   let busy = $state(false);
   let error = $state('');
   let message = $state('');
@@ -21,6 +23,12 @@
     year: new Date().getFullYear()
   });
 
+  let filteredTeachers = $derived.by(() => {
+    const q = teacherQuery.trim().toLowerCase();
+    if (!q) return teachers;
+    return teachers.filter((teacher) => teacher.nama_lengkap.toLowerCase().includes(q));
+  });
+
   async function loadTeachers() {
     if (!schoolId) return;
     try {
@@ -31,6 +39,7 @@
       teachers = await res.json();
       if (!teacherId && teachers.length > 0) {
         teacherId = String(teachers[0].id);
+        teacherQuery = teachers[0].nama_lengkap;
       }
     } catch (e) {
       error = e.message;
@@ -39,6 +48,15 @@
 
   $effect(() => {
     if (schoolId) loadTeachers();
+  });
+
+  $effect(() => {
+    if (teacherId) {
+      const selectedTeacher = teachers.find((teacher) => String(teacher.id) === String(teacherId));
+      if (selectedTeacher && teacherQuery !== selectedTeacher.nama_lengkap) {
+        teacherQuery = selectedTeacher.nama_lengkap;
+      }
+    }
   });
 
   async function generate() {
@@ -89,7 +107,7 @@
 
 <div class="page">
   <div class="topbar">
-    <button class="secondary" onclick={() => goto('/guru/kelola-presensi')}>Kembali</button>
+    <button type="button" class="secondary" onclick={() => goto('/guru/kelola-presensi')}>Kembali</button>
     <h1>Generate Absensi Bulanan</h1>
   </div>
 
@@ -101,15 +119,43 @@
       {#if message}<div class="alert success">{message}</div>{/if}
 
       <div class="grid">
-        <label>
-          Guru
-          <select bind:value={teacherId}>
-            <option value="">Pilih guru</option>
-            {#each teachers as teacher}
-              <option value={teacher.id}>{teacher.nama_lengkap}</option>
-            {/each}
-          </select>
-        </label>
+        <div class="teacher-picker">
+          <label>Guru</label>
+          <input
+            type="text"
+            value={teacherQuery}
+            placeholder="Cari guru..."
+            oninput={(event) => {
+              teacherQuery = event.currentTarget.value;
+              showTeacherMenu = true;
+            }}
+            onfocus={() => (showTeacherMenu = true)}
+          />
+          {#if showTeacherMenu}
+            <div class="teacher-menu" role="listbox" aria-label="Daftar guru generate">
+              <button type="button" class:active={!teacherId} onclick={() => { teacherId = ''; teacherQuery = ''; showTeacherMenu = false; }}>
+                Pilih guru
+              </button>
+              {#if filteredTeachers.length > 0}
+                {#each filteredTeachers as teacher}
+                  <button
+                    type="button"
+                    class:active={String(teacher.id) === String(teacherId)}
+                    onclick={() => {
+                      teacherId = String(teacher.id);
+                      teacherQuery = teacher.nama_lengkap;
+                      showTeacherMenu = false;
+                    }}
+                  >
+                    {teacher.nama_lengkap}
+                  </button>
+                {/each}
+              {:else}
+                <div class="teacher-empty">Tidak ada guru yang cocok</div>
+              {/if}
+            </div>
+          {/if}
+        </div>
 
         <label>
           Bulan
@@ -145,7 +191,7 @@
       <label class="check"><input type="checkbox" bind:checked={config.skip_sundays} /> Lewati hari Minggu</label>
       <label class="check"><input type="checkbox" bind:checked={config.overwrite_existing} /> Timpa absensi yang sudah ada</label>
 
-      <button class="primary" disabled={busy || !teacherId} onclick={generate}>
+      <button type="button" class="primary" disabled={busy || !teacherId} onclick={generate}>
         {busy ? 'Memproses…' : 'Generate Absensi'}
       </button>
     </section>
@@ -189,6 +235,65 @@
     display: grid;
     gap: 0.45rem;
     font-size: 0.9rem;
+  }
+
+  .teacher-picker {
+    position: relative;
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+  }
+
+  .teacher-picker input {
+    width: 100%;
+    padding: 0.7rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font: inherit;
+  }
+
+  .teacher-menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+    max-height: 220px;
+    overflow: auto;
+  }
+
+  .teacher-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.7rem 0.8rem;
+    background: transparent;
+    color: #1e293b;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .teacher-menu button:last-child {
+    border-bottom: 0;
+  }
+
+  .teacher-menu button:hover,
+  .teacher-menu button.active {
+    background: #eff6ff;
+    color: #0f172a;
+  }
+
+  .teacher-empty {
+    padding: 0.8rem;
+    color: #64748b;
+    font-size: 0.85rem;
   }
 
   input,

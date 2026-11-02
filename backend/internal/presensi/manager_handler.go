@@ -234,6 +234,7 @@ func GenerateBulanPresensiManagerHandler(w http.ResponseWriter, r *http.Request)
 		wi := time.Date(2000, 1, 1, ci/60, ci%60, 0, 0, time.UTC).Format("15:04")
 		wo := time.Date(2000, 1, 1, co/60, co%60, 0, 0, time.UTC).Format("15:04")
 		if err == nil {
+			p.Tanggal = date
 			p.Status = "Hadir"
 			p.WaktuMasuk = &wi
 			p.WaktuPulang = &wo
