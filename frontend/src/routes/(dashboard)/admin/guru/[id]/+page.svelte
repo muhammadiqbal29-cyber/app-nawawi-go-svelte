@@ -65,7 +65,7 @@
               for (const [sekId, fiturs] of Object.entries(parsedSekolah)) {
                 let hasPaket = fiturs.includes('paket_alquran');
                 const newFiturs = fiturs.filter(f => {
-                  if (f.startsWith('input_tahfiz') || f.startsWith('input_tasmi')) {
+                  if (f.startsWith('input_tahfiz') || f.startsWith('input_tasmi') || f.startsWith('input_tahsin')) {
                     hasPaket = true;
                     return false;
                   }
@@ -162,7 +162,7 @@
   }
 
   function getFiturLabel(id) {
-    if (id === 'paket_alquran') return "Paket Al-Qur'an (Tahfiz, Tasmi, Kelulusan)";
+    if (id === 'paket_alquran') return "Paket Al-Qur'an (Tahfiz, Tasmi, Tahsin, Kelulusan)";
     if (id === 'input_diniyah') return 'Input Nilai Diniyah';
     if (id === 'rapor_keseharian') return 'Rapor Keseharian';
     if (id === 'konfigurasi_materi') return 'Konfigurasi Materi';
@@ -172,7 +172,7 @@
   }
 
   function getFiturDesc(id) {
-    if (id === 'paket_alquran') return "Bisa menginput dan mengubah nilai Tahfiz, Tasmi', dan ujian kelulusan Al-Qur'an.";
+    if (id === 'paket_alquran') return "Bisa menginput dan mengubah nilai Tahfiz, Tasmi', Tahsin, dan ujian kelulusan Al-Qur'an.";
     if (id === 'input_diniyah')
       return 'Bisa menginput dan mengubah nilai mata pelajaran diniyah siswa.';
     if (id === 'rapor_keseharian')

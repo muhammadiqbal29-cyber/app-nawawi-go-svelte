@@ -21,6 +21,7 @@ import (
 	"siakad-nawawi-be/internal/konfigurasiDiniyah"
 	"siakad-nawawi-be/internal/konfigurasiKeseharian"
 	"siakad-nawawi-be/internal/konfigurasiTahfiz"
+	"siakad-nawawi-be/internal/konfigurasiTahsin"
 	"siakad-nawawi-be/internal/logger"
 
 	"github.com/NYTimes/gziphandler"
@@ -318,6 +319,15 @@ func main() {
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/konfigurasi-nilai-keseharian", konfigurasiKeseharian.GetKonfigurasiNilaiKeseharianHandler).Methods("GET")
 	guruRouter.HandleFunc("/sekolah/{sekolah_id}/konfigurasi-nilai-keseharian", konfigurasiKeseharian.UpsertKonfigurasiNilaiKeseharianHandler).Methods("POST")
 
+	// Rute Konfigurasi Indikator & Jilid Tahsin (Iqro 1-6)
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/tahsin/indikator", konfigurasiTahsin.GetIndikatorTahsinHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/tahsin/indikator", konfigurasiTahsin.CreateIndikatorTahsinHandler).Methods("POST")
+	guruRouter.HandleFunc("/tahsin/indikator/{id:[0-9]+}", konfigurasiTahsin.UpdateIndikatorTahsinHandler).Methods("PUT")
+	guruRouter.HandleFunc("/tahsin/indikator/{id:[0-9]+}", konfigurasiTahsin.DeleteIndikatorTahsinHandler).Methods("DELETE")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/tahsin/jilid", konfigurasiTahsin.GetJilidTahsinHandler).Methods("GET")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/tahsin/jilid/{jilid:[0-9]+}", konfigurasiTahsin.UpdateJilidTahsinHandler).Methods("PUT")
+	guruRouter.HandleFunc("/sekolah/{sekolah_id}/tahsin/reset-template", konfigurasiTahsin.ResetTemplateTahsinHandler).Methods("POST")
+
 	guruRouter.HandleFunc("/kelas/{kelas_id}/nilai", nilai.GetNilaiByKelasHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai", nilai.GetNilaiBySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz", nilai.GetNilaiTahfizBySiswaHandler).Methods("GET")
@@ -344,6 +354,22 @@ func main() {
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tasmi-v2", nilai.GetNilaiTasmiV2BySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tasmi-v2/juz", nilai.SetJuzTasmiV2Handler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tasmi-v2/detail", nilai.AutosaveNilaiTasmiDetailV2Handler).Methods("POST")
+
+	// Rute Nilai Tahsin V1
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin", nilai.GetNilaiTahsinBySiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin/detail", nilai.AutosaveNilaiTahsinDetailHandler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin/jilid", nilai.SaveTahsinJilidHandler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin/catatan", nilai.SaveCatatanTahsinHandler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin/reset", nilai.ResetNilaiTahsinHandler).Methods("POST")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/tahsin-masal", nilai.GetNilaiTahsinMasalHandler).Methods("GET")
+
+	// Rute Nilai Tahsin V2
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin-v2", nilai.GetNilaiTahsinV2BySiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin-v2/detail", nilai.AutosaveNilaiTahsinDetailV2Handler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin-v2/jilid", nilai.SaveTahsinV2JilidHandler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin-v2/catatan", nilai.SaveCatatanTahsinV2Handler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahsin-v2/reset", nilai.ResetNilaiTahsinV2Handler).Methods("POST")
+	guruRouter.HandleFunc("/kelas/{kelas_id}/tahsin-v2-masal", nilai.GetNilaiTahsinV2MasalHandler).Methods("GET")
 
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.GetRiwayatTahfizHarianHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/tahfiz/harian", nilai.PostSetoranTahfizHarianHandler).Methods("POST")

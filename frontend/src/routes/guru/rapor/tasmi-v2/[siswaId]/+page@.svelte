@@ -22,7 +22,7 @@
       year: 'numeric'
     })
   );
-  let customKota = $state('Jakarta');
+  let customKota = $state('Palangka Raya');
   let customGuruPembimbing = $state('Ust. Muhammad Rasyid, S.Pd.I');
   let customSubJudul = $state("Laporan Pencapaian Hafalan Al-Qur'an");
   let tahap = $state(1);

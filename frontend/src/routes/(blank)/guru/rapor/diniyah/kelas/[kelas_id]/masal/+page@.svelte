@@ -53,9 +53,10 @@
   let raporList = $state([]);
 
   // Dynamic Print Settings
+  let customKota = $state('Palangka Raya');
   let customTanggalRapor = $state('');
   let customKoordinator = $state('AJI SYAFAAT');
-  let customKepalaSekolah = $state('');
+  let customKepalaSekolah = $state('M. HUSAINI, S.Pd.I.');
 
   let logoX = $state(600);
   let logoY = $state(20);
@@ -318,7 +319,7 @@
       'Desember'
     ];
     const now = new Date();
-    return `Palangka Raya, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+    return `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
   }
 
   // Group mapel by kategori
@@ -462,6 +463,10 @@
     <div class="settings-box no-print">
       <h4 style="margin-top: 0;">Pengaturan Cetak (Tidak ikut terprint)</h4>
       <div class="settings-grid">
+        <label>
+          Kota:
+          <input type="text" class="form-input" bind:value={customKota} />
+        </label>
         <label>
           Tanggal Rapor:
           <input type="text" class="form-input" bind:value={customTanggalRapor} />
@@ -674,14 +679,14 @@
             <p class="sig-name">{customKoordinator || '____________________'}</p>
           </div>
           <div class="sig-col">
-            <p>{customTanggalRapor}</p>
+            <p>{customKota}, {customTanggalRapor}</p>
             <p>Kepala Sekolah</p>
             <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
               {#if ttdKepala}
                 <img src={ttdKepala} alt="Ttd Kepala" style="max-height: 100%; max-width: 100%; object-fit: contain; transform: scale({ttdKepalaSize / 100}); transform-origin: center;" />
               {/if}
             </div>
-            <p class="sig-name">{customKepalaSekolah || '____________________'}</p>
+            <p class="sig-name">{customKepalaSekolah || 'M. HUSAINI, S.Pd.I.'}</p>
           </div>
         </div>
       </div>

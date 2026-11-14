@@ -9,6 +9,7 @@
       sessionStorage.removeItem('rapor_ujian_tahfiz_v2_kelas');
       sessionStorage.removeItem('rapor_diniyah_kelas');
       sessionStorage.removeItem('rapor_keseharian_kelas');
+      sessionStorage.removeItem('rapor_tahsin_kelas');
     }
   });
   import { guruState } from '$lib/guruState.svelte.js';
@@ -22,10 +23,37 @@
       fiturGuru.includes('input_tahfiz') ||
       fiturGuru.includes('input_tahfiz_v2')
   );
-  let isV2 = $derived(fiturGuru.includes('input_tahfiz_v2'));
+  let hasTahsin = $derived(
+    hasPaketAlquran ||
+      fiturGuru.includes('input_tahsin') ||
+      fiturGuru.includes('input_tahsin_v2')
+  );
+  let isV2 = $derived.by(() => {
+    if (fiturGuru.includes('input_tahfiz_v2') || fiturGuru.includes('input_tasmi_v2') || fiturGuru.includes('input_tahsin_v2')) {
+      return true;
+    }
+    const sekolah = guruState.sekolahList.find((s) => s.id == guruState.activeSekolahId);
+    if (!sekolah || !sekolah.fitur) return false;
+    try {
+      const sf = JSON.parse(sekolah.fitur);
+      return sf.includes('input_tahfiz_v2') || sf.includes('input_tasmi_v2') || sf.includes('input_tahsin_v2');
+    } catch {
+      return false;
+    }
+  });
 
   let reportCards = $derived(
     [
+      hasTahsin && {
+        title: 'Ujian Tahsin',
+        fullTitle: 'Rapor Ujian Tahsin',
+        description: "Lihat rapor hasil ujian tahsin bacaan Iqro Al-Qur'an siswa.",
+        href: '/guru/rapor/tahsin',
+        icon: 'book',
+        abbr: 'TH',
+        gradient: 'linear-gradient(155deg,#0284c7,#0369a1)',
+        shadow: 'rgba(3,105,161,.4)'
+      },
       hasPaketAlquran && {
         title: 'Ujian Tahfiz',
         fullTitle: 'Rapor Ujian Tahfiz',
@@ -46,16 +74,6 @@
         gradient: 'linear-gradient(155deg,#3FC97E,#0FA85E)',
         shadow: 'rgba(15,168,94,.4)'
       },
-      hasPaketAlquran && {
-        title: 'Ujian Kelulusan',
-        fullTitle: 'Rapor Ujian Kelulusan',
-        description: 'Lihat rapor ujian kelulusan siswa serta status kelulusan dan rekomendasi.',
-        href: isV2 ? '/guru/rapor/kelulusan-v2' : '/guru/rapor/kelulusan',
-        icon: 'checkSquare',
-        abbr: 'UK',
-        gradient: 'linear-gradient(155deg,#FFB25E,#F2942A)',
-        shadow: 'rgba(242,148,42,.4)'
-      },
       fiturGuru.includes('input_diniyah') && {
         title: 'Diniyah',
         fullTitle: 'Rapor Diniyah',
@@ -75,6 +93,16 @@
         abbr: 'RK',
         gradient: 'linear-gradient(155deg,#F373B8,#DB4C9E)',
         shadow: 'rgba(219,76,158,.4)'
+      },
+      hasPaketAlquran && {
+        title: 'Ujian Lulus Sekolah',
+        fullTitle: 'Rapor Ujian Lulus Sekolah',
+        description: 'Lihat rapor ujian lulus sekolah siswa serta status kelulusan dan rekomendasi.',
+        href: isV2 ? '/guru/rapor/kelulusan-v2' : '/guru/rapor/kelulusan',
+        icon: 'checkSquare',
+        abbr: 'ULS',
+        gradient: 'linear-gradient(155deg,#FFB25E,#F2942A)',
+        shadow: 'rgba(242,148,42,.4)'
       },
       {
         title: 'Lainnya',

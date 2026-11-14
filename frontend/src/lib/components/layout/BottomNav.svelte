@@ -4,7 +4,15 @@
 
   let { currentPath = '/guru', fiturGuru = [] } = $props();
 
-  let hasPaketAlquran = $derived(fiturGuru.includes('paket_alquran') || fiturGuru.includes('input_tahfiz') || fiturGuru.includes('input_tahfiz_v2'));
+  let hasPaketAlquran = $derived(
+    fiturGuru.includes('paket_alquran') ||
+      fiturGuru.includes('input_tahfiz') ||
+      fiturGuru.includes('input_tahfiz_v2') ||
+      fiturGuru.includes('input_tasmi') ||
+      fiturGuru.includes('input_tasmi_v2') ||
+      fiturGuru.includes('input_tahsin') ||
+      fiturGuru.includes('input_tahsin_v2')
+  );
   let hasRapor = $derived(fiturGuru.includes('cetak_rapor'));
   let hasDiniyah = $derived(fiturGuru.includes('input_diniyah'));
   let hasKeseharian = $derived(fiturGuru.includes('rapor_keseharian'));

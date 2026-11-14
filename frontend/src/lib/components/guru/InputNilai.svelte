@@ -2,11 +2,11 @@
   import Icon from '$lib/components/ui/Icon.svelte';
   import { guruState } from '$lib/guruState.svelte.js';
 
-  let { sekolahId = 1, isV2 = false, isTasmi = false } = $props();
+  let { sekolahId = 1, isV2 = false, isTasmi = false, initialTab = '' } = $props();
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-  let currentTab = $state(isTasmi ? 'tasmi' : 'tahfiz');
+  let currentTab = $state(initialTab || (isTasmi ? 'tasmi' : 'tahfiz'));
   let kelasList = $state([]);
   let loadingKelas = $state(false);
   let error = $state('');
@@ -57,7 +57,8 @@
       const params = new URLSearchParams({ jenis_penilaian: jenisPenilaian });
       if (taId) params.append('tahun_ajaran_id', taId);
       if (semId) params.append('semester_id', semId);
-      params.append('mata_pelajaran', currentTab === 'tasmi' ? 'Ujian Tasmi' : 'Tahfiz');
+      const mapelName = currentTab === 'tasmi' ? 'Ujian Tasmi' : (currentTab === 'tahsin' ? 'Tahsin' : 'Tahfiz');
+      params.append('mata_pelajaran', mapelName);
       const res = await fetch(
         `${apiUrl}/api/guru/sekolah/${sekolahId}/kelas?${params.toString()}`,
         {
@@ -85,8 +86,9 @@
       if (Number(kelas.jumlah_siswa || 0) > 0) continue;
 
       try {
+        const checkMapel = currentTab === 'tasmi' ? 'Ujian Tasmi' : (currentTab === 'tahsin' ? 'Tahsin' : 'Tahfiz');
         const params = new URLSearchParams({
-          mata_pelajaran: currentTab === 'tasmi' ? 'Ujian Tasmi' : 'Ujian Tahfiz',
+          mata_pelajaran: checkMapel,
           jenis_penilaian: jenisPenilaian,
           rombel: kelas.rombel || '__kosong__'
         });
@@ -119,7 +121,7 @@
 
   function changeTab(tab) {
     currentTab = tab;
-    if (tab === 'tahfiz' || tab === 'kelulusan' || tab === 'tasmi') {
+    if (tab === 'tahfiz' || tab === 'kelulusan' || tab === 'tasmi' || tab === 'tahsin') {
       loadKelas(tab === 'kelulusan' ? 'kelulusan' : 'semester');
     }
   }
@@ -160,6 +162,10 @@
     let basePath = isV2 ? '/guru/input-nilai/tahfiz-v2' : '/guru/input-nilai/tahfiz';
     if (currentTab === 'tasmi') {
       basePath = isV2 ? '/guru/input-nilai/tasmi-v2' : '/guru/input-nilai/tasmi';
+    } else if (currentTab === 'tahsin') {
+      basePath = isV2 ? '/guru/input-nilai/tahsin-v2' : '/guru/input-nilai/tahsin';
+    } else if (currentTab === 'kelulusan') {
+      basePath = isV2 ? '/guru/input-nilai/tahfiz-v2' : '/guru/input-nilai/tahfiz';
     }
     return `${basePath}/kelas/${kelas.id}?${params.toString()}`;
   }
@@ -169,7 +175,13 @@
   <div class="sticky-header">
     <div class="page-header-actions">
       <div>
-        <h1 class="page-title">{currentTab === 'tasmi' ? (isV2 ? 'Input Nilai Tasmi ' : 'Input Nilai Tasmi ') : (isV2 ? 'Input Nilai Tahfiz ' : 'Input Nilai ')}</h1>
+        <h1 class="page-title">
+          {currentTab === 'tasmi'
+            ? 'Input Nilai Tasmi'
+            : currentTab === 'tahsin'
+              ? 'Input Nilai Tahsin'
+              : (isV2 ? 'Input Nilai Tahfiz' : 'Input Nilai')}
+        </h1>
       </div>
     </div>
 
@@ -187,17 +199,10 @@
       </button>
       <button
         class="tab-btn"
-        class:active={currentTab === 'kelulusan'}
-        onclick={() => changeTab('kelulusan')}
-      >
-        Ujian Kelulusan
-      </button>
-      <button
-        class="tab-btn"
         class:active={currentTab === 'tahsin'}
         onclick={() => changeTab('tahsin')}
       >
-        Penilaian Tahsin
+        Ujian Tahsin
       </button>
       <button
         class="tab-btn"
@@ -206,12 +211,19 @@
       >
         Ujian Tasmi'
       </button>
+      <button
+        class="tab-btn"
+        class:active={currentTab === 'kelulusan'}
+        onclick={() => changeTab('kelulusan')}
+      >
+        Ujian Lulus Sekolah
+      </button>
     </div>
   </div>
 
 
 
-  {#if currentTab === 'tahfiz' || currentTab === 'kelulusan' || currentTab === 'tasmi'}
+  {#if currentTab === 'tahfiz' || currentTab === 'kelulusan' || currentTab === 'tasmi' || currentTab === 'tahsin'}
     <div class="kelas-section">
       <div class="section-heading">
         <div>
@@ -272,7 +284,7 @@
       {:else}
         <div class="kelas-loading">
           {currentTab === 'kelulusan'
-            ? 'Belum ada kelas yang dikonfigurasi untuk ujian kelulusan.'
+            ? 'Belum ada kelas yang dikonfigurasi untuk ujian lulus sekolah.'
             : 'Belum ada kelas tersedia.'}
         </div>
       {/if}
@@ -282,7 +294,7 @@
       <Icon name="info" size={48} />
       <h3>Fitur Dalam Pengembangan</h3>
       <p>
-        Mohon maaf, fitur {currentTab === 'tahsin' ? 'Penilaian Tahsin' : "Ujian Tasmi'"} sedang dalam
+        Mohon maaf, fitur {currentTab === 'tahsin' ? 'Ujian Tahsin' : "Ujian Tasmi'"} sedang dalam
         tahap pengembangan dan akan segera hadir.
       </p>
     </div>

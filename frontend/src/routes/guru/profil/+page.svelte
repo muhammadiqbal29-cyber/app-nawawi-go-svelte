@@ -44,7 +44,18 @@
 
   const fiturLabels = {
     presensi_mandiri: 'Presensi Mandiri',
+    paket_alquran: "Paket Al-Qur'an (Tahfiz, Tasmi, Tahsin, Kelulusan)",
     input_tahfiz: 'Input Nilai Tahfiz',
+    input_tahfiz_v2: 'Input Nilai Tahfiz V2',
+    input_tasmi: 'Input Nilai Tasmi',
+    input_tasmi_v2: 'Input Nilai Tasmi V2',
+    input_tahsin: 'Input Nilai Tahsin',
+    input_tahsin_v2: 'Input Nilai Tahsin V2',
+    input_diniyah: 'Input Nilai Diniyah',
+    rapor_keseharian: 'Rapor Keseharian',
+    konfigurasi_materi: 'Konfigurasi Materi',
+    log_aktivitas: 'Log Aktivitas Guru',
+    presensi_manager: 'Pengelola Absensi',
     cetak_rapor: 'Cetak Rapor'
   };
 

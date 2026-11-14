@@ -435,6 +435,7 @@ func GetKelasBySekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 	mapel := strings.TrimSpace(r.URL.Query().Get("mata_pelajaran"))
 	isTasmi := strings.Contains(strings.ToLower(mapel), "tasmi")
+	isTahsin := strings.Contains(strings.ToLower(mapel), "tahsin")
 
 	type DinilaiStat struct {
 		KelasID int    `gorm:"column:kelas_id"`
@@ -444,11 +445,36 @@ func GetKelasBySekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 	dinilaiMap := make(map[string]int)
 
-	if isTasmi {
+	if isTahsin {
 		var statsV2 []DinilaiStat
 		_ = database.DB.Table("riwayat_kelas AS rk").
 			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
-			Joins("JOIN nilai_tasmi_v2s AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Joins("JOIN nilai_tahsin_v2 AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Where("rk.tahun_ajaran_id = ?", taID).
+			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+			Scan(&statsV2).Error
+		for _, s := range statsV2 {
+			dinilaiMap[fmt.Sprintf("%d_%s", s.KelasID, s.Rombel)] = s.Count
+		}
+
+		var statsV1 []DinilaiStat
+		_ = database.DB.Table("riwayat_kelas AS rk").
+			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
+			Joins("JOIN nilai_tahsins AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Where("rk.tahun_ajaran_id = ?", taID).
+			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+			Scan(&statsV1).Error
+		for _, s := range statsV1 {
+			k := fmt.Sprintf("%d_%s", s.KelasID, s.Rombel)
+			if s.Count > dinilaiMap[k] {
+				dinilaiMap[k] = s.Count
+			}
+		}
+	} else if isTasmi {
+		var statsV2 []DinilaiStat
+		_ = database.DB.Table("riwayat_kelas AS rk").
+			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
+			Joins("JOIN nilai_tasmi_v2 AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
 			Where("rk.tahun_ajaran_id = ?", taID).
 			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
 			Scan(&statsV2).Error
@@ -474,7 +500,7 @@ func GetKelasBySekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 		var statsV2 []DinilaiStat
 		_ = database.DB.Table("riwayat_kelas AS rk").
 			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
-			Joins("JOIN nilai_tahfiz_v2s AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Joins("JOIN nilai_tahfiz_v2 AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
 			Where("rk.tahun_ajaran_id = ?", taID).
 			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
 			Scan(&statsV2).Error

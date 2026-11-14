@@ -63,6 +63,12 @@ func SetupTestDB() *gorm.DB {
 		&models.JenisIqob{},
 		&models.CatatanIqob{},
 		&models.CatatanRapor{},
+		&models.JilidTahsin{},
+		&models.IndikatorTahsin{},
+		&models.NilaiTahsin{},
+		&models.NilaiTahsinDetail{},
+		&models.NilaiTahsinV2{},
+		&models.NilaiTahsinDetailV2{},
 	)
 	if err != nil {
 		log.Fatalf("Gagal melakukan migrasi tabel test: %v", err)

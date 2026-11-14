@@ -290,6 +290,18 @@ export async function startPrecache() {
       });
     }
 
+    // 5. Tahsin Precaching
+    if (akses.includes('input_tahsin') || akses.includes('input_tahsin_v2') || akses.includes('paket_alquran')) {
+      tasks.push(async () => {
+        precacheState.label = 'Mengunduh Kelas Tahsin...';
+        const paramsKls = new URLSearchParams({ jenis_penilaian: 'semester', tahun_ajaran_id: taId, semester_id: semId, mata_pelajaran: 'Tahsin' });
+        const kelasList = await fetchWithRetry(`${apiUrl}/api/guru/sekolah/${sekolahId}/kelas?${paramsKls.toString()}`);
+        if (kelasList && Array.isArray(kelasList)) {
+          localStorage.setItem(`siakad_offline_kelas_${sekolahId}_${taId}_${semId}_tahsin`, JSON.stringify(kelasList));
+        }
+      });
+    }
+
     // Assign an arbitrary total based on tasks (much higher now because of student iteration)
     precacheState.total = tasks.length * 100;
     

@@ -24,6 +24,7 @@
   });
 
   // Dynamic Print Settings
+  let customKota = $state('Palangka Raya');
   let customTanggalRapor = $state(currentDate);
   let customKepalaAsrama = $state('AJI SYAFAAT');
   let customMusyrif = $state('');
@@ -346,6 +347,10 @@
       <h4 style="margin-top: 0;">Pengaturan Cetak (Tidak ikut terprint)</h4>
       <div class="settings-grid">
         <label>
+          Kota:
+          <input type="text" class="form-input" bind:value={customKota} />
+        </label>
+        <label>
           Tanggal Rapor:
           <input type="text" class="form-input" bind:value={customTanggalRapor} />
         </label>
@@ -563,7 +568,7 @@
         <!-- Signatures -->
         <div class="signature-section">
           <div class="sig-col">
-            <p class="sig-invisible">Palangka Raya, {customTanggalRapor}</p>
+            <p class="sig-invisible">{customKota}, {customTanggalRapor}</p>
             <p>&nbsp;</p>
             <p>Kepala Asrama</p>
             <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
@@ -574,7 +579,7 @@
             <p class="sig-name">{customKepalaAsrama || '_________________________'}</p>
           </div>
           <div class="sig-col">
-            <p>Palangka Raya, {customTanggalRapor}</p>
+            <p>{customKota}, {customTanggalRapor}</p>
             <p>{raporData.siswa?.jenis_kelamin === 'P' || raporData.siswa?.jenis_kelamin === 'Perempuan' ? 'Musyrifah Asrama' : 'Musyrif Asrama'}</p>
             <div class="sig-space" style="display: flex; justify-content: center; align-items: center;">
               {#if ttdMusyrif}

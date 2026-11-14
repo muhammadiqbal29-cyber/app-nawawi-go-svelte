@@ -149,7 +149,7 @@
     } catch {}
     sekolahForm = { ...s, fitur: parsedFitur };
     enablePaketAlquran = parsedFitur.includes('paket_alquran') || parsedFitur.includes('input_tahfiz') || parsedFitur.includes('input_tahfiz_v2');
-    versiPenilaian = (parsedFitur.includes('input_tahfiz_v2') || parsedFitur.includes('input_tasmi_v2')) ? 'v2' : 'v1';
+    versiPenilaian = (parsedFitur.includes('input_tahfiz_v2') || parsedFitur.includes('input_tasmi_v2') || parsedFitur.includes('input_tahsin_v2')) ? 'v2' : 'v1';
     showModalSekolahEdit = true;
   }
 
@@ -161,11 +161,12 @@
   async function handleSaveSekolah() {
     savingSekolah = true;
     try {
-      sekolahForm.fitur = sekolahForm.fitur.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi') && f !== 'paket_alquran');
+      sekolahForm.fitur = sekolahForm.fitur.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi') && !f.startsWith('input_tahsin') && f !== 'paket_alquran');
       if (enablePaketAlquran) {
         sekolahForm.fitur.push('paket_alquran');
         sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tahfiz_v2' : 'input_tahfiz');
         sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tasmi_v2' : 'input_tasmi');
+        sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tahsin_v2' : 'input_tahsin');
       }
       const payload = { ...sekolahForm, fitur: JSON.stringify(sekolahForm.fitur) };
       const res = await fetch(`${apiUrl}/api/sekolah`, {
@@ -192,11 +193,12 @@
   async function handleUpdateSekolah() {
     savingSekolah = true;
     try {
-      sekolahForm.fitur = sekolahForm.fitur.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi') && f !== 'paket_alquran');
+      sekolahForm.fitur = sekolahForm.fitur.filter(f => !f.startsWith('input_tahfiz') && !f.startsWith('input_tasmi') && !f.startsWith('input_tahsin') && f !== 'paket_alquran');
       if (enablePaketAlquran) {
         sekolahForm.fitur.push('paket_alquran');
         sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tahfiz_v2' : 'input_tahfiz');
         sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tasmi_v2' : 'input_tasmi');
+        sekolahForm.fitur.push(versiPenilaian === 'v2' ? 'input_tahsin_v2' : 'input_tahsin');
       }
       const payload = { ...sekolahForm, fitur: JSON.stringify(sekolahForm.fitur) };
       const res = await fetch(`${apiUrl}/api/sekolah/${sekolahForm.id}`, {

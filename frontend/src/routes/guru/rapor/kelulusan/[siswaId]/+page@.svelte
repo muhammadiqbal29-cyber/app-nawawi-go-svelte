@@ -17,7 +17,7 @@
   let nisn = $derived($page.url.searchParams.get('nisn') || '-');
   let kelas = $derived($page.url.searchParams.get('kelas') || '-');
   let selectedKelasId = $derived($page.url.searchParams.get('selectedKelasId') || '');
-  let customKota = $state('Jakarta');
+  let customKota = $state('Palangka Raya');
   let customTanggalCetak = $state(
     new Date().toLocaleDateString('id-ID', {
       day: 'numeric',

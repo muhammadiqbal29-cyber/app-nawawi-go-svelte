@@ -27,7 +27,7 @@
 
   // Dynamic Print Settings
   let customTanggalRapor = $state(currentDate);
-  let customKota = $state('Jakarta');
+  let customKota = $state('Palangka Raya');
   let customGuruPembimbing = $state('Ust. Muhammad Rasyid, S.Pd.I');
   let customOrangTua = $state('____________________');
   let customSubJudul = $state("Evaluasi Pembelajaran Juz 30 (Juz 'Amma)");

@@ -5,6 +5,7 @@
   import { guruState } from '$lib/guruState.svelte.js';
   import Icon from '$lib/components/ui/Icon.svelte';
   import '$lib/components/guru/AlquranMobileUI.css';
+  import TahsinTab from '$lib/components/guru/konfigurasi/TahsinTab.svelte';
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -26,6 +27,9 @@
   );
   let hasTahfiz = $derived(
     selectedFeatures.includes('input_tahfiz') || selectedFeatures.includes('input_tahfiz_v2')
+  );
+  let hasTahsin = $derived(
+    hasTahfiz || selectedFeatures.includes('input_tahsin') || selectedFeatures.includes('paket_alquran')
   );
   let hasDiniyah = $derived(selectedFeatures.includes('input_diniyah'));
   let hasKeseharian = $derived(selectedFeatures.includes('rapor_keseharian'));
@@ -1473,6 +1477,16 @@
           <span>Kelulusan Tahfiz</span>
         </button>
       {/if}
+      {#if hasTahsin}
+        <button
+          class="tab-link"
+          class:active={activeTab === 'tahsin'}
+          onclick={() => (activeTab = 'tahsin')}
+        >
+          <div class="icon-wrapper"><Icon name="bookmark" size={18} /></div>
+          <span>Indikator Tahsin</span>
+        </button>
+      {/if}
       {#if hasDiniyah}
         <button
           class="tab-link"
@@ -1493,7 +1507,7 @@
           <span>Keseharian</span>
         </button>
       {/if}
-      {#if hasTahfiz || hasDiniyah || hasKeseharian}
+      {#if hasTahfiz || hasTahsin || hasDiniyah || hasKeseharian}
         <button
           class="tab-link"
           class:active={activeTab === 'kop_logo'}
@@ -1511,7 +1525,7 @@
       </div>
     </div>
 
-    {#if !hasTahfiz && !hasDiniyah && !hasKeseharian}
+    {#if !hasTahfiz && !hasTahsin && !hasDiniyah && !hasKeseharian}
       <div class="empty-state">
         <Icon name="slash" size={48} />
         <h3>Tidak Ada Program Khusus</h3>
@@ -1968,6 +1982,8 @@
           </section>
         {/if}
         <!-- ======= END TAB TAHFIZ ======= -->
+      {:else if activeTab === 'tahsin' && hasTahsin}
+        <TahsinTab sekolahId={selectedSekolah.id} />
       {:else if activeTab === 'diniyah' && hasDiniyah}
         <!-- ======= TAB DINIYAH ======= -->
         <div
@@ -3150,6 +3166,21 @@
         {#if activeTab === 'tahfiz_m'}
         <div style="padding: 12px 14px; font-size: 13px; color: var(--muted); text-align: center; background: var(--bg);">
           Pengaturan Materi Tahfiz terlalu rumit untuk layar kecil. Silakan gunakan perangkat Desktop/Tablet PC.
+        </div>
+        {/if}
+      </div>
+      {/if}
+
+      {#if hasTahsin}
+      <div class="surah-card">
+        <div class="surah-top" style="border-bottom: 1px solid var(--border);" onclick={() => activeTab = activeTab === 'tahsin_m' ? '' : 'tahsin_m'}>
+          <div class="surah-no" style="background: #e6f7ec; color: #0b7c3d;"><Icon name="bookmark" size={14}/></div>
+          <div class="surah-name">Indikator Tahsin (Iqro)</div>
+          <Icon name={activeTab === 'tahsin_m' ? 'chevronUp' : 'chevronDown'} size={18} color="#94a3b8" />
+        </div>
+        {#if activeTab === 'tahsin_m'}
+        <div style="padding: 12px 14px; font-size: 13px; color: var(--muted); text-align: center; background: var(--bg);">
+          Pengaturan Indikator Tahsin lebih optimal diakses melalui layar Desktop/Tablet PC.
         </div>
         {/if}
       </div>

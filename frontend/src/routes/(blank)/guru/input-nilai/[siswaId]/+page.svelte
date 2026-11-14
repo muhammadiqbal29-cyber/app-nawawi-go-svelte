@@ -21,7 +21,7 @@
   let isKelulusan = $derived(jenisPenilaian === 'kelulusan');
   let tahunAjaranId = $derived($page.url.searchParams.get('tahun_ajaran_id'));
   let semesterId = $derived($page.url.searchParams.get('semester_id'));
-  let pageTitle = $derived(isKelulusan ? 'Ujian Kelulusan' : 'Ujian Tahfiz');
+  let pageTitle = $derived(isKelulusan ? 'Ujian Lulus Sekolah' : 'Ujian Tahfiz');
 
   let backUrl = $derived(
     kelasId

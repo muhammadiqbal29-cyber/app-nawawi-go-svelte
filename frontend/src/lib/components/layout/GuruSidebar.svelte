@@ -5,7 +5,15 @@
   let { isOpen = true, currentPath = '/guru', onLogout, fiturGuru = [], userRole = '', onClose = () => {} } = $props();
 
   // Fitur dari sekolah yang sedang aktif (fiturGuru di-passing dari layout)
-  let hasPaketAlquran = $derived(fiturGuru.includes('paket_alquran') || fiturGuru.includes('input_tahfiz') || fiturGuru.includes('input_tahfiz_v2'));
+  let hasPaketAlquran = $derived(
+    fiturGuru.includes('paket_alquran') ||
+      fiturGuru.includes('input_tahfiz') ||
+      fiturGuru.includes('input_tahfiz_v2') ||
+      fiturGuru.includes('input_tasmi') ||
+      fiturGuru.includes('input_tasmi_v2') ||
+      fiturGuru.includes('input_tahsin') ||
+      fiturGuru.includes('input_tahsin_v2')
+  );
   let hasRapor = $derived(fiturGuru.includes('cetak_rapor'));
   let hasDiniyah = $derived(fiturGuru.includes('input_diniyah'));
   let hasKonfigurasiMateri = $derived(fiturGuru.includes('konfigurasi_materi'));
