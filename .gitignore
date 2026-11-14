@@ -85,26 +85,42 @@ $RECYCLE.BIN/
 
 # Sensitive files & Tokens
 token.json
+**/token.json
 credentials.json
 client_secret.json
+oauth_credentials.json
 *.pem
 *.key
 *.crt
 *.p12
 
-# Database files
+# Database files & Backups
 *.sqlite
 *.sqlite3
 *.db
+*.sql
+!backend/dummy.sql
+*.sql.gz
+*.gz
+*.enc
+*.xlsx
+!frontend/static/Template_Import_Siswa.xlsx
 
 # Backups & Uploads
 uploads/
 backend/uploads/
-*.enc
 *.zip
 *.tar.gz
 
-# Untracked artifacts & temp files
+# Binaries & Temporary Files
+backend/backend_bin
+backend/server
+backend/tmp_app
+backend/coverage.html
+backend/check_nisn.py
+backend/check_backup.py
+backend/check_sekolah.go
+failure.md
 cookies.txt
 logging/
 patch.js

@@ -5,8 +5,8 @@ test.describe('Guru Diniyah - Flow Klaim Mapel dan Filter Milikku', () => {
     // 1. Login sebagai Guru
     // Menggunakan akun guru yang dibuat dari core-setup.spec.js atau auth manual
     await page.goto('/login');
-    await page.fill('input[type="email"]', 'iqbalmahad4039@gmail.com');
-    await page.fill('input[type="password"]', 'F@uzan12');
+    await page.fill('input[type="email"]', process.env.TEST_GURU_EMAIL || 'guru@siakad.com');
+    await page.fill('input[type="password"]', process.env.TEST_GURU_PASSWORD || 'password123');
     await page.click('button[type="submit"]');
 
     // Pastikan masuk ke dashboard (biasanya URL-nya /)
