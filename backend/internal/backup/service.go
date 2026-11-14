@@ -100,7 +100,7 @@ func fixDumpDatetime(filepath string) error {
 	scanner.Buffer(buf, maxCapacity)
 
 	writer := bufio.NewWriter(out)
-	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) [^}]+\}'`)
+	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:\.\d+)?[^}]*\}'`)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -165,6 +165,11 @@ func RestoreDatabase(encFile string) error {
 	}
 	/* #nosec G703 */
 	defer func() { _ = os.Remove(sqlFilename) }()
+
+	// 2.5 Bersihkan datetime format dan collation pada file SQL sebelum eksekusi
+	if err := fixDumpDatetime(sqlFilename); err != nil {
+		return fmt.Errorf("gagal membersihkan file SQL restore: %v", err)
+	}
 
 	// 3. EXECUTE SQL SECARA TERPOTONG (Chunked)
 	if err := executeSQLFile(database.DB, sqlFilename); err != nil {
@@ -254,7 +259,7 @@ func executeSQLFile(db *gorm.DB, filepath string) error {
 
 	var statementBuilder strings.Builder
 	// Regex untuk memperbaiki string format pointer struct time.Time yang corrupt dari backup sebelumnya
-	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) [^}]+\}'`)
+	reFixDate := regexp.MustCompile(`'&\{(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})(?:\.\d+)?[^}]*\}'`)
 	// Regex untuk menghapus CONSTRAINT xxx_chk_N CHECK(...) yang duplikat dari MySQL 8.0 dump.
 	// Menggunakan (?:[^()]*|\([^()]*\))* untuk menangani nested parens seperti CHECK(json_valid(`col`))
 	reRemoveDupCheck := regexp.MustCompile(`,?\s*CONSTRAINT\s+` + "`" + `\w+_chk_\d+` + "`" + `\s+CHECK\s*\((?:[^()]*|\([^()]*\))*\)`)

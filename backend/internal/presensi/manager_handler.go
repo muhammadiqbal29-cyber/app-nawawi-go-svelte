@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -67,15 +68,32 @@ func GetRiwayatPresensiManagerHandler(w http.ResponseWriter, r *http.Request) {
 	for _, g := range staff {
 		ids = append(ids, g.ID)
 	}
+	if len(ids) == 0 {
+		response.JSON(w, 200, []PresensiGuruWithNama{})
+		return
+	}
 	var rows []PresensiGuruWithNama
 	query := database.DB.WithContext(r.Context()).Table("presensi_gurus").Select("presensi_gurus.*, gurus.nama_lengkap").Joins("left join gurus on gurus.id = presensi_gurus.guru_id").Where("presensi_gurus.guru_id IN ?", ids)
+	if teacherID := r.URL.Query().Get("teacher_id"); teacherID != "" && teacherID != "0" && teacherID != "all" {
+		query = query.Where("presensi_gurus.guru_id = ?", teacherID)
+	}
+	if status := strings.TrimSpace(r.URL.Query().Get("status")); status != "" && status != "all" {
+		query = query.Where("presensi_gurus.status = ?", status)
+	}
+	if date := strings.TrimSpace(r.URL.Query().Get("date")); date != "" {
+		query = query.Where("presensi_gurus.tanggal = ? OR DATE(presensi_gurus.tanggal) = ?", date, date)
+	}
+	if q := strings.TrimSpace(r.URL.Query().Get("q")); q != "" {
+		likeQ := "%" + q + "%"
+		query = query.Where("gurus.nama_lengkap LIKE ? OR presensi_gurus.status LIKE ? OR presensi_gurus.tanggal LIKE ?", likeQ, likeQ, likeQ)
+	}
 	if month := r.URL.Query().Get("month"); month != "" {
 		query = query.Where("MONTH(presensi_gurus.tanggal) = ?", month)
 	}
 	if year := r.URL.Query().Get("year"); year != "" {
 		query = query.Where("YEAR(presensi_gurus.tanggal) = ?", year)
 	}
-	if err := query.Order("presensi_gurus.tanggal desc").Limit(500).Scan(&rows).Error; err != nil {
+	if err := query.Order("presensi_gurus.tanggal desc, gurus.nama_lengkap asc").Limit(1000).Scan(&rows).Error; err != nil {
 		response.Error(w, 500, "Gagal mengambil riwayat presensi", err)
 		return
 	}
@@ -185,80 +203,107 @@ func GenerateBulanPresensiManagerHandler(w http.ResponseWriter, r *http.Request)
 		response.Error(w, 500, "Gagal mengambil guru sekolah", err)
 		return
 	}
-	allowed := false
-	for _, g := range staff {
-		if g.ID == req.TeacherID {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
-		response.Error(w, 403, "Guru tidak terdaftar di sekolah yang dipilih", nil)
+	if len(staff) == 0 {
+		response.Error(w, 400, "Tidak ada guru terdaftar di sekolah yang dipilih", nil)
 		return
 	}
+
+	var targetGurus []models.Guru
+	if req.TeacherID == 0 {
+		// 0 means generate/overwrite for all teachers of this school
+		targetGurus = staff
+	} else {
+		for _, g := range staff {
+			if g.ID == req.TeacherID {
+				targetGurus = append(targetGurus, g)
+				break
+			}
+		}
+		if len(targetGurus) == 0 {
+			response.Error(w, 403, "Guru tidak terdaftar di sekolah yang dipilih", nil)
+			return
+		}
+	}
+
 	ciFrom, ciTo := parseTimeMinutes(req.CheckInFrom), parseTimeMinutes(req.CheckInTo)
 	coFrom, coTo := parseTimeMinutes(req.CheckOutFrom), parseTimeMinutes(req.CheckOutTo)
 	if ciFrom < 0 || ciTo < ciFrom || coFrom <= ciTo || coTo < coFrom {
 		response.Error(w, 400, "Rentang waktu tidak valid", nil)
 		return
 	}
-	var g models.Guru
-	if err := database.DB.First(&g, req.TeacherID).Error; err != nil {
-		response.Error(w, 404, "Guru tidak ditemukan", err)
-		return
-	}
+
 	tx := database.DB.WithContext(r.Context()).Begin()
 	created, updated, skipped := 0, 0, 0
 	loc := time.Now().Location()
 	first := time.Date(req.Tahun, time.Month(req.Bulan), 1, 0, 0, 0, 0, loc)
-	today := time.Now().In(loc)
-	for d := first; d.Month() == time.Month(req.Bulan); d = d.AddDate(0, 0, 1) {
-		if (req.SkipSundays && d.Weekday() == time.Sunday) || d.After(time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, loc)) {
-			continue
-		}
-		date := d.Format("2006-01-02")
-		var p models.PresensiGuru
-		err := tx.Where("guru_id = ? AND tanggal = ?", g.ID, date).First(&p).Error
-		if err == nil && !req.OverwriteExisting {
-			skipped++
-			continue
-		}
-		ci := ciFrom
-		if ciTo > ciFrom {
-			ci += rand.Intn(ciTo - ciFrom + 1)
-		}
-		co := coFrom
-		if coTo > coFrom {
-			co += rand.Intn(coTo - coFrom + 1)
-		}
-		wi := time.Date(2000, 1, 1, ci/60, ci%60, 0, 0, time.UTC).Format("15:04")
-		wo := time.Date(2000, 1, 1, co/60, co%60, 0, 0, time.UTC).Format("15:04")
-		if err == nil {
-			p.Tanggal = date
-			p.Status = "Hadir"
-			p.WaktuMasuk = &wi
-			p.WaktuPulang = &wo
-			p.LokasiMasuk = "Generator Bulan Acak"
-			p.LokasiPulang = "Generator Bulan Acak"
-			if err = tx.Save(&p).Error; err != nil {
-				tx.Rollback()
-				response.Error(w, 500, "Gagal menyimpan presensi", err)
-				return
+	lastDay := first.AddDate(0, 1, -1)
+
+	for _, g := range targetGurus {
+		for d := first; !d.After(lastDay); d = d.AddDate(0, 0, 1) {
+			if req.SkipSundays && d.Weekday() == time.Sunday {
+				continue
 			}
-			updated++
-		} else {
-			p = models.PresensiGuru{GuruID: g.ID, Tanggal: date, WaktuMasuk: &wi, WaktuPulang: &wo, Status: "Hadir", LokasiMasuk: "Generator Bulan Acak", LokasiPulang: "Generator Bulan Acak"}
-			if err = tx.Create(&p).Error; err != nil {
-				tx.Rollback()
-				response.Error(w, 500, "Gagal menyimpan presensi", err)
-				return
+			date := d.Format("2006-01-02")
+			var p models.PresensiGuru
+			err := tx.Where("guru_id = ? AND (tanggal = ? OR DATE(tanggal) = ?)", g.ID, date, date).First(&p).Error
+			if err == nil && !req.OverwriteExisting {
+				skipped++
+				continue
 			}
-			created++
+			ci := ciFrom
+			if ciTo > ciFrom {
+				ci += rand.Intn(ciTo - ciFrom + 1)
+			}
+			co := coFrom
+			if coTo > coFrom {
+				co += rand.Intn(coTo - coFrom + 1)
+			}
+			wi := time.Date(2000, 1, 1, ci/60, ci%60, 0, 0, time.UTC).Format("15:04")
+			wo := time.Date(2000, 1, 1, co/60, co%60, 0, 0, time.UTC).Format("15:04")
+			if err == nil {
+				p.Tanggal = date
+				p.Status = "Hadir"
+				p.WaktuMasuk = &wi
+				p.WaktuPulang = &wo
+				p.LokasiMasuk = "Generator Bulan Acak"
+				p.LokasiPulang = "Generator Bulan Acak"
+				if err = tx.Save(&p).Error; err != nil {
+					tx.Rollback()
+					response.Error(w, 500, "Gagal menyimpan presensi", err)
+					return
+				}
+				updated++
+			} else {
+				p = models.PresensiGuru{GuruID: g.ID, Tanggal: date, WaktuMasuk: &wi, WaktuPulang: &wo, Status: "Hadir", LokasiMasuk: "Generator Bulan Acak", LokasiPulang: "Generator Bulan Acak"}
+				if err = tx.Create(&p).Error; err != nil {
+					tx.Rollback()
+					response.Error(w, 500, "Gagal menyimpan presensi", err)
+					return
+				}
+				created++
+			}
 		}
 	}
 	if err := tx.Commit().Error; err != nil {
 		response.Error(w, 500, "Gagal menyimpan presensi", err)
 		return
 	}
-	response.JSON(w, 200, map[string]interface{}{"message": "Generate absensi bulanan berhasil diproses", "data": map[string]interface{}{"teacher_name": g.NamaLengkap, "created": created, "updated": updated, "skipped": skipped}})
+
+	var targetLabel string
+	if len(targetGurus) == 1 {
+		targetLabel = targetGurus[0].NamaLengkap
+	} else {
+		targetLabel = fmt.Sprintf("Semua Guru (%d staf)", len(targetGurus))
+	}
+
+	response.JSON(w, 200, map[string]interface{}{
+		"message": fmt.Sprintf("Generate absensi bulanan untuk %s berhasil diproses", targetLabel),
+		"data": map[string]interface{}{
+			"teacher_name":   targetLabel,
+			"teachers_count": len(targetGurus),
+			"created":        created,
+			"updated":        updated,
+			"skipped":        skipped,
+		},
+	})
 }

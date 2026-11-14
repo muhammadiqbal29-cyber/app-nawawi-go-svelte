@@ -81,6 +81,8 @@ func GetNilaiTahfizV2MasalHandler(w http.ResponseWriter, r *http.Request) {
 		var header models.NilaiTahfizV2
 		err := database.DB.Preload("Details", func(db *gorm.DB) *gorm.DB {
 			return db.Order("urutan ASC, id ASC")
+		}).Preload("SambungAyat", func(db *gorm.DB) *gorm.DB {
+			return db.Order("juz ASC, id ASC")
 		}).Where(
 			"siswa_id = ? AND sekolah_id = ? AND tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ? AND mata_pelajaran = ?",
 			siswa.ID, riwayat.SekolahID, taID, semID, jenisPenilaian, mapel,
@@ -102,6 +104,7 @@ func GetNilaiTahfizV2MasalHandler(w http.ResponseWriter, r *http.Request) {
 				results = append(results, map[string]interface{}{
 					"nilai":           nil,
 					"details":         []models.NilaiTahfizDetailV2{},
+					"sambung_ayat":    []models.NilaiTahfizSambungAyatV2{},
 					"siswa":           siswa,
 					"riwayat":         riwayat,
 					"sekolah":         sekolah,
@@ -121,12 +124,13 @@ func GetNilaiTahfizV2MasalHandler(w http.ResponseWriter, r *http.Request) {
 		results = append(results, map[string]interface{}{
 			"nilai":           header,
 			"details":         header.Details,
+			"sambung_ayat":    header.SambungAyat,
 			"siswa":           siswa,
 			"riwayat":         riwayat,
 			"sekolah":         sekolah,
 			"kelas":           kelas,
 			"semester":        semester,
-					"tahun_ajaran":    tahunAjaran,
+			"tahun_ajaran":    tahunAjaran,
 			"sekolah_id":      riwayat.SekolahID,
 			"tahun_ajaran_id": taID,
 			"semester_id":     semID,

@@ -151,7 +151,50 @@
       }
       const body = await res.json();
       nilaiHeader = body.nilai || null;
-      details = body.details || [];
+      const rawDetails = body.details || [];
+
+      if (nilaiHeader && nilaiHeader.juz_yang_diujikan) {
+        const selectedJuz = nilaiHeader.juz_yang_diujikan
+          .split(',')
+          .map((s) => parseInt(s.trim()))
+          .filter((n) => !isNaN(n));
+        if (selectedJuz.length > 0) {
+          if (selectedJuz.length === 1 && selectedJuz[0] === 30) {
+            customSubJudul = "Evaluasi Pembelajaran Juz 30 (Juz 'Amma)";
+          } else {
+            customSubJudul = `Evaluasi Pembelajaran Juz ${selectedJuz.join(', ')}`;
+          }
+          try {
+            const materiRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
+              credentials: 'include'
+            });
+            if (materiRes.ok) {
+              const materiData = await materiRes.json();
+              const filteredMateri = materiData.filter((m) => selectedJuz.includes(m.juz));
+              const detailMap = new Map(rawDetails.map((d) => [d.nama_materi, d]));
+              details = filteredMateri.map((m) => {
+                if (detailMap.has(m.nama_materi)) {
+                  return detailMap.get(m.nama_materi);
+                }
+                return {
+                  nama_materi: m.nama_materi,
+                  juz: m.juz,
+                  urutan: m.urutan,
+                  skor_hafalan: 0,
+                  skor_kelancaran: 0,
+                  skor_mad: 0,
+                  skor_tajwid: 0,
+                  skor_makharijul_huruf: 0,
+                  total_poin: 0
+                };
+              });
+              return;
+            }
+          } catch {}
+        }
+      }
+
+      details = rawDetails;
     } catch (err) {
       error = err.message || 'Gagal memuat data nilai tahfiz.';
     }

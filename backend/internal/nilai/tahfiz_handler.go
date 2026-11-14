@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -38,6 +39,116 @@ type tahfizDetailPayload struct {
 	SkorMad             *int    `json:"skor_mad" validate:"omitempty,gte=0,lte=100"`
 	SkorTajwid          *int    `json:"skor_tajwid" validate:"omitempty,gte=0,lte=100"`
 	SkorMakharijulHuruf *int    `json:"skor_makharijul_huruf" validate:"omitempty,gte=0,lte=100"`
+}
+
+type setJuzTahfizPayload struct {
+	TahunAjaranID   int    `json:"tahun_ajaran_id"`
+	SemesterID      int    `json:"semester_id"`
+	JenisPenilaian  string `json:"jenis_penilaian"`
+	MataPelajaran   string `json:"mata_pelajaran"`
+	JuzYangDiujikan string `json:"juz_yang_diujikan" validate:"required"`
+}
+
+func normalizeJuzSelectionList(raw string) ([]int, string, error) {
+	parts := strings.Split(raw, ",")
+	seen := make(map[int]bool)
+	var validInts []int
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		j, err := strconv.Atoi(p)
+		if err != nil || j < 1 || j > 30 {
+			return nil, "", errors.New("nomor juz harus berupa angka antara 1 sampai 30")
+		}
+		if !seen[j] {
+			seen[j] = true
+			validInts = append(validInts, j)
+		}
+	}
+	if len(validInts) == 0 {
+		return nil, "", errors.New("pilih minimal 1 juz yang diujikan")
+	}
+	sort.Ints(validInts)
+	strParts := make([]string, len(validInts))
+	for i, j := range validInts {
+		strParts[i] = strconv.Itoa(j)
+	}
+	return validInts, strings.Join(strParts, ","), nil
+}
+
+func parseSetJuzTahfizRequest(w http.ResponseWriter, r *http.Request) (tahfizScope, string, bool) {
+	siswaID, err := siswaIDFromRequest(r)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "ID Siswa tidak valid", err)
+		return tahfizScope{}, "", false
+	}
+
+	var payload setJuzTahfizPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		response.Error(w, http.StatusBadRequest, "Data tidak valid", err)
+		return tahfizScope{}, "", false
+	}
+
+	if err := utils.ValidateStruct(&payload); err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error(), nil)
+		return tahfizScope{}, "", false
+	}
+
+	_, normalizedJuz, err := normalizeJuzSelectionList(payload.JuzYangDiujikan)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error(), err)
+		return tahfizScope{}, "", false
+	}
+
+	scope, err := resolveTahfizScope(r, siswaID, tahfizDetailPayload{
+		TahunAjaranID:  payload.TahunAjaranID,
+		SemesterID:     payload.SemesterID,
+		JenisPenilaian: payload.JenisPenilaian,
+		MataPelajaran:  payload.MataPelajaran,
+	})
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error(), err)
+		return tahfizScope{}, "", false
+	}
+
+	if scope.JenisPenilaian == JenisPenilaianKelulusan {
+		response.Error(w, http.StatusBadRequest, "Target Juz ujian kelulusan mengikuti konfigurasi sekolah dan tidak dapat diubah per siswa", nil)
+		return tahfizScope{}, "", false
+	}
+
+	return scope, normalizedJuz, true
+}
+
+func SetJuzTahfizHandler(w http.ResponseWriter, r *http.Request) {
+	scope, normalizedJuz, ok := parseSetJuzTahfizRequest(w, r)
+	if !ok {
+		return
+	}
+
+	var header models.NilaiTahfiz
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		h, err := getOrCreateNilaiTahfizHeader(tx, scope, true)
+		if err != nil {
+			return err
+		}
+		h.JuzYangDiujikan = normalizedJuz
+		if err := recalculateAndSaveNilaiTahfizHeader(tx, &h); err != nil {
+			return err
+		}
+		header = h
+		return nil
+	})
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "Gagal menyimpan juz ujian tahfiz", err)
+		return
+	}
+
+	response.JSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Berhasil menyimpan juz yang diujikan",
+		"nilai":   header,
+	})
 }
 
 func GetNilaiTahfizBySiswaHandler(w http.ResponseWriter, r *http.Request) {
@@ -313,8 +424,11 @@ func getOrCreateNilaiTahfizHeader(tx *gorm.DB, scope tahfizScope, createIfMissin
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return header, err
 		}
-		if err == nil && konfig.Pembagi > 0 {
-			header.PembaginYangDigunakan = konfig.Pembagi
+		if err == nil {
+			header.JuzYangDiujikan = konfig.JuzKelulusan
+			if konfig.Pembagi > 0 {
+				header.PembaginYangDigunakan = konfig.Pembagi
+			}
 		}
 	}
 	if err := tx.Create(&header).Error; err != nil {
@@ -323,17 +437,57 @@ func getOrCreateNilaiTahfizHeader(tx *gorm.DB, scope tahfizScope, createIfMissin
 	return header, nil
 }
 
+func resolveTahfizJuzAndPembagi(tx *gorm.DB, sekolahID int, jenisPenilaian string, juzYangDiujikan *string, pembagi *int) map[int]bool {
+	if jenisPenilaian == JenisPenilaianKelulusan && *juzYangDiujikan == "" {
+		var konfig models.KonfigurasiNilaiTahfiz
+		if err := tx.Where("sekolah_id = ? AND jenis_penilaian = ? AND aktif = ?", sekolahID, JenisPenilaianKelulusan, true).First(&konfig).Error; err == nil {
+			*juzYangDiujikan = konfig.JuzKelulusan
+			if konfig.Pembagi > 0 {
+				*pembagi = konfig.Pembagi
+			}
+		}
+	}
+
+	if *juzYangDiujikan != "" {
+		validInts, normalizedStr, err := normalizeJuzSelectionList(*juzYangDiujikan)
+		if err == nil && len(validInts) > 0 {
+			*juzYangDiujikan = normalizedStr
+			validSet := make(map[int]bool, len(validInts))
+			for _, j := range validInts {
+				validSet[j] = true
+			}
+			var count int64
+			if err := tx.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND juz IN ? AND aktif = ?", sekolahID, validInts, true).Count(&count).Error; err == nil && count > 0 {
+				*pembagi = int(count)
+			}
+			return validSet
+		}
+	}
+
+	if jenisPenilaian == JenisPenilaianKelulusan && *pembagi <= 0 {
+		var count int64
+		if err := tx.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND aktif = ?", sekolahID, true).Count(&count).Error; err == nil && count > 0 {
+			*pembagi = int(count)
+		}
+	}
+	return nil
+}
+
 func recalculateAndSaveNilaiTahfizHeader(tx *gorm.DB, header *models.NilaiTahfiz) error {
 	var details []models.NilaiTahfizDetail
 	if err := tx.Where("nilai_tahfiz_id = ?", header.ID).Find(&details).Error; err != nil {
 		return err
 	}
 
-	if header.JenisPenilaian == JenisPenilaianKelulusan {
-		var count int64
-		if err := tx.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND aktif = ?", header.SekolahID, true).Count(&count).Error; err == nil {
-			header.PembaginYangDigunakan = int(count)
+	validSet := resolveTahfizJuzAndPembagi(tx, header.SekolahID, header.JenisPenilaian, &header.JuzYangDiujikan, &header.PembaginYangDigunakan)
+	if len(validSet) > 0 {
+		filtered := make([]models.NilaiTahfizDetail, 0, len(details))
+		for _, d := range details {
+			if d.Juz == 0 || validSet[d.Juz] {
+				filtered = append(filtered, d)
+			}
 		}
+		details = filtered
 	}
 
 	kriteria := GetKriteriaPenilaian(header.SekolahID, header.JenisPenilaian)
@@ -346,5 +500,6 @@ func recalculateAndSaveNilaiTahfizHeader(tx *gorm.DB, header *models.NilaiTahfiz
 			"nilai_akhir":             header.NilaiAkhir,
 			"predikat":                header.Predikat,
 			"pembagin_yang_digunakan": header.PembaginYangDigunakan,
+			"juz_yang_diujikan":       header.JuzYangDiujikan,
 		}).Error
 }

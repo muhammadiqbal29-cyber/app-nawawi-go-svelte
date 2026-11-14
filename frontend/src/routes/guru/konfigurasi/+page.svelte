@@ -57,6 +57,17 @@
   // --- State: Hapus ---
   let deletingId = $state(null);
 
+  // --- State: Filter/Cari Surah ---
+  let surahSearch = $state('');
+  let surahJuzFilter = $state(0);
+  let filteredMateriList = $derived(
+    materiList.filter((m) => {
+      const matchSearch = !surahSearch || m.nama_materi.toLowerCase().includes(surahSearch.toLowerCase());
+      const matchJuz = !surahJuzFilter || m.juz === Number(surahJuzFilter);
+      return matchSearch && matchJuz;
+    })
+  );
+
   // --- State: Konfigurasi nilai kelulusan ---
   let loadingKonfigurasi = $state(false);
   let konfigurasiPembagi = $state('1');
@@ -66,11 +77,43 @@
   let kelasKelulusanOptions = $state([]);
   let selectedTingkatKelulusan = $state([]);
   let kriteriaPenilaian = $state([]);
+  let selectedJuzKelulusan = $state([26, 27, 28, 29, 30]);
+  let originalJuzKelulusan = $state('');
+  let totalSiswaKelulusan = $state(0);
+  let showConfirmChangeModal = $state(false);
+
+  let computedPembagi = $derived(
+    materiList.filter(m => selectedJuzKelulusan.includes(m.juz) && m.aktif).length || (selectedJuzKelulusan.length > 0 ? selectedJuzKelulusan.length : 1)
+  );
+
+  function toggleJuzKelulusan(juzNum) {
+    if (selectedJuzKelulusan.includes(juzNum)) {
+      selectedJuzKelulusan = selectedJuzKelulusan.filter(j => j !== juzNum);
+    } else {
+      selectedJuzKelulusan = [...selectedJuzKelulusan, juzNum].sort((a, b) => a - b);
+    }
+  }
+
+  function applyPresetJuz(preset) {
+    if (preset === 'smp') {
+      selectedJuzKelulusan = [26, 27, 28, 29, 30];
+    } else if (preset === 'sma') {
+      selectedJuzKelulusan = [28, 29, 30];
+    } else if (preset === 'sd') {
+      selectedJuzKelulusan = [29, 30];
+    } else if (preset === '10juz') {
+      selectedJuzKelulusan = [21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
+    } else if (preset === 'all') {
+      selectedJuzKelulusan = Array.from({ length: 30 }, (_, i) => i + 1);
+    } else if (preset === 'reset') {
+      selectedJuzKelulusan = [];
+    }
+  }
 
   // --- State: Tab ---
   let activeTab = $state('tahfiz');
   let activeSubTab = $state('keseharian');
-  let tahfizActiveTab = $state('materi'); // 'materi', 'kelulusan', 'kriteria'
+  let tahfizActiveTab = $state('kelulusan'); // 'kelulusan', 'kriteria'
 
   // --- State: Mapel Diniyah ---
   let diniyahList = $state([]);
@@ -319,6 +362,17 @@
       konfigurasiPembagi = String(payload.pembagi || 1);
       selectedTingkatKelulusan = payload.tingkat_level_kelulusan || [];
       kriteriaPenilaian = payload.kriteria_penilaian || [];
+      
+      if (payload.juz_kelulusan) {
+        selectedJuzKelulusan = payload.juz_kelulusan
+          .split(',')
+          .map(s => parseInt(s.trim()))
+          .filter(n => !isNaN(n));
+      } else {
+        selectedJuzKelulusan = [26, 27, 28, 29, 30];
+      }
+      originalJuzKelulusan = selectedJuzKelulusan.slice().sort((a, b) => a - b).join(',');
+      totalSiswaKelulusan = payload.total_siswa_kelulusan || 0;
     } catch (err) {
       konfigurasiError = err.message;
     } finally {
@@ -349,10 +403,9 @@
     }
   }
 
-  async function simpanKonfigurasiNilaiTahfiz() {
-    const pembagi = Number(konfigurasiPembagi);
-    if (!Number.isInteger(pembagi) || pembagi < 1) {
-      konfigurasiError = 'Pembagi harus berupa angka positif minimal 1.';
+  async function simpanKonfigurasiNilaiTahfiz(force = false) {
+    if (selectedJuzKelulusan.length === 0) {
+      konfigurasiError = 'Wajib memilih minimal 1 Juz untuk standar ujian kelulusan.';
       konfigurasiSuccess = '';
       return;
     }
@@ -361,6 +414,15 @@
       konfigurasiSuccess = '';
       return;
     }
+
+    const currentJuzStr = selectedJuzKelulusan.slice().sort((a, b) => a - b).join(',');
+    
+    // Anti-Human-Error: Peringatan jika mengubah target saat santri sudah dinilai
+    if (!force && totalSiswaKelulusan > 0 && originalJuzKelulusan && currentJuzStr !== originalJuzKelulusan) {
+      showConfirmChangeModal = true;
+      return;
+    }
+    showConfirmChangeModal = false;
 
     konfigurasiSaving = true;
     konfigurasiError = '';
@@ -374,7 +436,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             jenis_penilaian: 'kelulusan',
-            pembagi,
+            pembagi: computedPembagi,
+            juz_kelulusan: currentJuzStr,
             tingkat_level_kelulusan: selectedTingkatKelulusan,
             kriteria_penilaian: kriteriaPenilaian
           })
@@ -385,7 +448,8 @@
         throw new Error(body.message || 'Gagal menyimpan pengaturan nilai kelulusan');
       }
       const payload = await res.json();
-      konfigurasiPembagi = String(payload.pembagi || pembagi);
+      originalJuzKelulusan = currentJuzStr;
+      konfigurasiPembagi = String(payload.pembagi || computedPembagi);
       selectedTingkatKelulusan = payload.tingkat_level_kelulusan || selectedTingkatKelulusan;
       kriteriaPenilaian = payload.kriteria_penilaian || kriteriaPenilaian;
       konfigurasiSuccess = 'Pengaturan nilai ujian kelulusan berhasil disimpan.';
@@ -1406,7 +1470,7 @@
           onclick={() => (activeTab = 'tahfiz')}
         >
           <div class="icon-wrapper"><Icon name="bookOpen" size={18} /></div>
-          <span>Materi Tahfiz</span>
+          <span>Kelulusan Tahfiz</span>
         </button>
       {/if}
       {#if hasDiniyah}
@@ -1464,236 +1528,45 @@
         <div class="card-tabs">
           <button
             class="card-tab-btn"
-            class:active={tahfizActiveTab === 'materi'}
-            onclick={() => (tahfizActiveTab = 'materi')}
-          >
-            Daftar Materi Hafalan
-          </button>
-          <button
-            class="card-tab-btn"
             class:active={tahfizActiveTab === 'kelulusan'}
             onclick={() => (tahfizActiveTab = 'kelulusan')}
           >
-            Konfigurasi Nilai Kelulusan
+            Target Juz Kelulusan
           </button>
           <button
             class="card-tab-btn"
             class:active={tahfizActiveTab === 'kriteria'}
             onclick={() => (tahfizActiveTab = 'kriteria')}
           >
-            Kriteria Penilaian
+            Kriteria Penilaian Rapor
+          </button>
+          <button
+            class="card-tab-btn"
+            class:active={tahfizActiveTab === 'materi'}
+            onclick={() => (tahfizActiveTab = 'materi')}
+          >
+            Daftar Surah (30 Juz)
           </button>
         </div>
 
-        {#if tahfizActiveTab === 'materi'}
-          <!-- Toolbar -->
-          <div class="toolbar">
-            <span class="materi-count">
-              {materiList.length} materi terdaftar ({materiList.filter((m) => m.aktif).length} aktif)
-            </span>
-            <div class="toolbar-actions" style="display: flex; gap: 8px;">
-              <button class="btn-secondary" onclick={handleDownloadTemplateTahfiz}>
-                <Icon name="download" size={16} />
-                Template
-              </button>
-              <button
-                class="btn-secondary"
-                onclick={() => fileInputTahfiz.click()}
-                disabled={loadingImportTahfiz}
-              >
-                <Icon name="import" size={16} />
-                {loadingImportTahfiz ? 'Mengimport...' : 'Import'}
-              </button>
-              <input
-                type="file"
-                accept=".xlsx"
-                bind:this={fileInputTahfiz}
-                onchange={handleImportTahfiz}
-                style="display: none;"
-              />
-              <button class="btn-primary" onclick={() => (showForm = !showForm)}>
-                <Icon name="plus" size={16} />
-                Tambah Materi
-              </button>
-            </div>
-          </div>
-
-          <!-- Form tambah -->
-          {#if showForm}
-            <div class="form-card">
-              <h3 class="form-title">Tambah Materi Baru</h3>
-              {#if formError}
-                <div class="alert-error">{formError}</div>
-              {/if}
-              <div class="form-row">
-                <div class="form-group form-group-wide">
-                  <label for="form-nama">Nama Materi <span class="required">*</span></label>
-                  <input
-                    id="form-nama"
-                    type="text"
-                    placeholder="contoh: An-Naba, Halaman 201-205"
-                    bind:value={formNama}
-                    class="input"
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="form-juz">Juz</label>
-                  <input
-                    id="form-juz"
-                    type="number"
-                    min="0"
-                    max="30"
-                    placeholder="0"
-                    bind:value={formJuz}
-                    class="input"
-                  />
-                </div>
-                <div class="form-group">
-                  <label for="form-urutan">Urutan</label>
-                  <input
-                    id="form-urutan"
-                    type="number"
-                    min="1"
-                    placeholder="Otomatis"
-                    bind:value={formUrutan}
-                    class="input"
-                  />
-                </div>
-              </div>
-              <div class="form-actions">
-                <button class="btn-secondary" onclick={batalForm} disabled={formLoading}
-                  >Batal</button
-                >
-                <button class="btn-primary" onclick={tambahMateri} disabled={formLoading}>
-                  {formLoading ? 'Menyimpan...' : 'Simpan Materi'}
-                </button>
-              </div>
-            </div>
-          {/if}
-
-          {#if errorMateri}
-            <div class="alert-error">{errorMateri}</div>
-          {/if}
-
-          <!-- Tabel materi -->
-          {#if loadingMateri}
-            <div class="card-loading">Memuat daftar materi...</div>
-          {:else if materiList.length === 0}
-            <div class="empty-state">
-              <Icon name="list" size={48} />
-              <h3>Belum ada materi</h3>
-              <p>Tambahkan materi tahfiz agar guru dapat mulai menginput nilai.</p>
-              <button class="btn-primary" onclick={() => (showForm = true)}>
-                <Icon name="plus" size={16} /> Tambah Materi Pertama
-              </button>
-            </div>
-          {:else}
-            <div class="table-wrapper">
-              <table class="materi-table">
-                <thead>
-                  <tr>
-                    <th class="col-urutan">Urutan</th>
-                    <th class="col-nama">Nama Materi</th>
-                    <th class="col-juz">Juz</th>
-                    <th class="col-status">Status</th>
-                    <th class="col-aksi">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each materiList as materi (materi.id)}
-                    <tr class:row-nonaktif={!materi.aktif}>
-                      {#if editingId === materi.id}
-                        <!-- Edit mode -->
-                        <td>
-                          <input
-                            type="number"
-                            min="1"
-                            bind:value={editUrutan}
-                            class="input-inline"
-                            placeholder="—"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            bind:value={editNama}
-                            class="input-inline input-wide"
-                            placeholder="Nama materi"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            min="0"
-                            max="30"
-                            bind:value={editJuz}
-                            class="input-inline"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td>—</td>
-                        <td class="aksi-cell">
-                          <button
-                            class="btn-save"
-                            onclick={() => simpanEdit(materi)}
-                            disabled={editLoading}
-                          >
-                            {editLoading ? '...' : 'Simpan'}
-                          </button>
-                          <button class="btn-cancel" onclick={cancelEdit}>Batal</button>
-                        </td>
-                      {:else}
-                        <!-- Tampil normal -->
-                        <td class="text-center text-muted">{materi.urutan || '—'}</td>
-                        <td class="nama-cell">
-                          <span class:text-muted={!materi.aktif}>{materi.nama_materi}</span>
-                        </td>
-                        <td class="text-center">
-                          {materi.juz > 0 ? `Juz ${materi.juz}` : '—'}
-                        </td>
-                        <td class="text-center">
-                          <button
-                            class="toggle-btn"
-                            class:aktif={materi.aktif}
-                            class:nonaktif={!materi.aktif}
-                            onclick={() => toggleAktif(materi)}
-                            title={materi.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
-                          >
-                            {materi.aktif ? 'Aktif' : 'Nonaktif'}
-                          </button>
-                        </td>
-                        <td class="aksi-cell">
-                          <button class="btn-icon" title="Edit" onclick={() => startEdit(materi)}>
-                            <Icon name="edit2" size={15} />
-                          </button>
-                          <button
-                            class="btn-icon btn-icon-danger"
-                            title="Hapus"
-                            onclick={() => hapusMateri(materi.id)}
-                            disabled={deletingId === materi.id}
-                          >
-                            <Icon name="trash" size={15} />
-                          </button>
-                        </td>
-                      {/if}
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          {/if}
-        {/if}
-
         {#if tahfizActiveTab === 'kelulusan'}
           <section class="kelulusan-settings">
+            <!-- Header -->
             <div class="settings-header">
               <div>
-                <h2 class="settings-title">Pengaturan Ujian Kelulusan</h2>
+                <h2 class="settings-title">Target Juz Ujian Kelulusan</h2>
                 <p class="settings-subtitle">
-                  Nilai akhir otomatis dihitung dari rata-rata seluruh materi yang dikonfigurasi
-                  pada sistem.
+                  Tentukan Juz Al-Qur'an yang wajib diujikan saat kelulusan santri jenjang {selectedSekolah?.nama || ''}. Sistem otomatis menghitung total surah aktif dan pembagi nilai akhir kelulusan.
                 </p>
               </div>
+              <button
+                class="btn-primary"
+                onclick={() => simpanKonfigurasiNilaiTahfiz()}
+                disabled={loadingKonfigurasi || konfigurasiSaving}
+              >
+                <Icon name="save" size={16} />
+                <span>{konfigurasiSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
+              </button>
             </div>
 
             {#if konfigurasiError}
@@ -1703,16 +1576,143 @@
               <div class="alert-success">{konfigurasiSuccess}</div>
             {/if}
 
+            <!-- Summary KPI Card -->
+            <div class="target-summary-card">
+              <div class="summary-item">
+                <span class="summary-label">Jenjang Sekolah</span>
+                <span class="summary-value summary-bold">{selectedSekolah?.nama || '—'}</span>
+              </div>
+              <div class="summary-divider"></div>
+              <div class="summary-item">
+                <span class="summary-label">Juz Terpilih</span>
+                <span class="summary-value text-primary">
+                  {selectedJuzKelulusan.length} Juz
+                  <span class="summary-subtext">
+                    ({selectedJuzKelulusan.length > 0 ? selectedJuzKelulusan.join(', ') : 'Belum dipilih'})
+                  </span>
+                </span>
+              </div>
+              <div class="summary-divider"></div>
+              <div class="summary-item">
+                <span class="summary-label">Total Surah Diujikan</span>
+                <span class="summary-value text-success">{computedPembagi} Surah</span>
+              </div>
+              <div class="summary-divider"></div>
+              <div class="summary-item">
+                <span class="summary-label">Pembagi Nilai Akhir</span>
+                <span class="summary-value summary-bold">{computedPembagi}</span>
+              </div>
+              <div class="summary-divider"></div>
+              <div class="summary-item">
+                <span class="summary-label">Data Nilai Santri</span>
+                {#if totalSiswaKelulusan > 0}
+                  <span class="status-badge badge-warning" title="Sudah ada data nilai ujian kelulusan santri">
+                    <Icon name="alertTriangle" size={13} />
+                    {totalSiswaKelulusan} Santri Terdata
+                  </span>
+                {:else}
+                  <span class="status-badge badge-neutral">Belum ada nilai</span>
+                {/if}
+              </div>
+            </div>
+
+            <!-- Quick Preset Buttons -->
+            <div class="preset-section">
+              <span class="preset-title">Pilihan Cepat Standar Sekolah:</span>
+              <div class="preset-buttons">
+                <button
+                  type="button"
+                  class="preset-btn"
+                  class:preset-active={selectedJuzKelulusan.join(',') === '26,27,28,29,30'}
+                  onclick={() => applyPresetJuz('smp')}
+                >
+                  SMP (Juz 26–30: 69 Surah)
+                </button>
+                <button
+                  type="button"
+                  class="preset-btn"
+                  class:preset-active={selectedJuzKelulusan.join(',') === '28,29,30'}
+                  onclick={() => applyPresetJuz('sma')}
+                >
+                  SMA (Juz 28–30)
+                </button>
+                <button
+                  type="button"
+                  class="preset-btn"
+                  class:preset-active={selectedJuzKelulusan.join(',') === '29,30'}
+                  onclick={() => applyPresetJuz('sd')}
+                >
+                  SD (Juz 29–30)
+                </button>
+                <button
+                  type="button"
+                  class="preset-btn"
+                  class:preset-active={selectedJuzKelulusan.join(',') === '21,22,23,24,25,26,27,28,29,30'}
+                  onclick={() => applyPresetJuz('10juz')}
+                >
+                  10 Juz Akhir (21–30)
+                </button>
+                <button
+                  type="button"
+                  class="preset-btn"
+                  class:preset-active={selectedJuzKelulusan.length === 30}
+                  onclick={() => applyPresetJuz('all')}
+                >
+                  Pilih Semua (30 Juz)
+                </button>
+                <button
+                  type="button"
+                  class="preset-btn preset-btn-reset"
+                  onclick={() => applyPresetJuz('reset')}
+                >
+                  Kosongkan
+                </button>
+              </div>
+            </div>
+
+            <!-- 30 Juz Grid -->
+            <div class="juz-selector-block">
+              <div class="juz-selector-header">
+                <div>
+                  <h3 class="juz-selector-title">Pilih Juz Ujian Kelulusan (Juz 1 s.d 30)</h3>
+                  <p class="juz-selector-subtitle">Klik kotak Juz untuk memilih atau membatalkan pilihan</p>
+                </div>
+                <div class="juz-selector-count">
+                  Terpilih: <strong>{selectedJuzKelulusan.length} / 30 Juz</strong>
+                </div>
+              </div>
+
+              <div class="juz-grid">
+                {#each Array.from({ length: 30 }, (_, i) => i + 1) as juzNum}
+                  {@const isSelected = selectedJuzKelulusan.includes(juzNum)}
+                  {@const surahCount = materiList.filter(m => m.juz === juzNum && m.aktif).length}
+                  <button
+                    type="button"
+                    class="juz-card"
+                    class:juz-card-selected={isSelected}
+                    onclick={() => toggleJuzKelulusan(juzNum)}
+                    aria-pressed={isSelected}
+                  >
+                    <div class="juz-card-top">
+                      <span class="juz-num">Juz {juzNum}</span>
+                      <div class="juz-check" class:juz-check-active={isSelected}>
+                        {#if isSelected}
+                          <Icon name="check" size={13} />
+                        {/if}
+                      </div>
+                    </div>
+                    <div class="juz-card-surah">
+                      {surahCount > 0 ? `${surahCount} Surah` : '0 Surah'}
+                    </div>
+                  </button>
+                {/each}
+              </div>
+            </div>
+
+            <!-- Tingkat Kelas Kelulusan -->
             <div class="settings-class-block">
               <div class="settings-class-header">
                 <div class="settings-class-label">Tingkat kelas yang mengikuti ujian kelulusan</div>
-                <button
-                  class="btn-primary"
-                  onclick={simpanKonfigurasiNilaiTahfiz}
-                  disabled={loadingKonfigurasi || konfigurasiSaving}
-                >
-                  {konfigurasiSaving ? 'Menyimpan...' : 'Simpan'}
-                </button>
               </div>
               {#if kelasKelulusanOptions.length === 0}
                 <div class="settings-note">
@@ -1735,11 +1735,138 @@
               {/if}
             </div>
 
-            <p class="settings-note">
-              Hanya berlaku untuk nilai yang belum tersimpan. Nilai yang sudah ada tidak akan
-              berubah.
-            </p>
+            <div class="settings-save-footer">
+              <p class="settings-note">
+                Perubahan target kelulusan mengunci standar ujian bagi seluruh guru penguji.
+              </p>
+              <button
+                class="btn-primary"
+                onclick={() => simpanKonfigurasiNilaiTahfiz()}
+                disabled={loadingKonfigurasi || konfigurasiSaving}
+              >
+                <Icon name="save" size={16} />
+                <span>{konfigurasiSaving ? 'Menyimpan...' : 'Simpan Konfigurasi'}</span>
+              </button>
+            </div>
           </section>
+        {/if}
+
+        {#if tahfizActiveTab === 'materi'}
+          <!-- Toolbar -->
+          <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; gap: 8px; flex: 1; min-width: 280px; align-items: center;">
+              <input
+                type="text"
+                placeholder="Cari nama surah..."
+                bind:value={surahSearch}
+                class="input"
+                style="max-width: 250px;"
+              />
+              <select bind:value={surahJuzFilter} class="input" style="max-width: 160px;">
+                <option value={0}>Semua Juz (1-30)</option>
+                {#each Array.from({ length: 30 }, (_, i) => i + 1) as j}
+                  <option value={j}>Juz {j}</option>
+                {/each}
+              </select>
+            </div>
+            <span class="materi-count">
+              {filteredMateriList.length} surah ditampilkan ({materiList.length} total, {materiList.filter((m) => m.aktif).length} aktif)
+            </span>
+          </div>
+
+          <!-- Tabel materi -->
+          {#if loadingMateri}
+            <div class="card-loading">Memuat daftar surah...</div>
+          {:else if filteredMateriList.length === 0}
+            <div class="empty-state">
+              <Icon name="list" size={48} />
+              <h3>Tidak ada surah ditemukan</h3>
+              <p>Coba ubah kata kunci pencarian atau filter juz.</p>
+            </div>
+          {:else}
+            <div class="table-wrapper">
+              <table class="materi-table">
+                <thead>
+                  <tr>
+                    <th class="col-urutan">Urutan</th>
+                    <th class="col-nama">Nama Surah</th>
+                    <th class="col-juz">Juz</th>
+                    <th class="col-status">Status Target</th>
+                    <th class="col-status">Status Aktif</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each filteredMateriList as materi (materi.id)}
+                    {@const isTargetKelulusan = selectedJuzKelulusan.includes(materi.juz)}
+                    <tr class:row-nonaktif={!materi.aktif}>
+                      <td class="text-center text-muted">{materi.urutan || '—'}</td>
+                      <td class="nama-cell">
+                        <span class:text-muted={!materi.aktif} class="font-medium">{materi.nama_materi}</span>
+                      </td>
+                      <td class="text-center">
+                        <span class="badge-juz">{materi.juz > 0 ? `Juz ${materi.juz}` : '—'}</span>
+                      </td>
+                      <td class="text-center">
+                        {#if isTargetKelulusan}
+                          <span class="status-badge badge-success">Target Kelulusan</span>
+                        {:else}
+                          <span class="status-badge badge-neutral">Bukan Target</span>
+                        {/if}
+                      </td>
+                      <td class="text-center">
+                        <button
+                          class="toggle-btn"
+                          class:aktif={materi.aktif}
+                          class:nonaktif={!materi.aktif}
+                          onclick={() => toggleAktif(materi)}
+                          title={materi.aktif ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'}
+                        >
+                          {materi.aktif ? 'Aktif' : 'Nonaktif'}
+                        </button>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        {/if}
+
+        {#if showConfirmChangeModal}
+          <div class="modal-backdrop"></div>
+          <div class="modal">
+            <div class="modal-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #f59e0b;"><Icon name="alertTriangle" size={20} /></span>
+                <h3>Peringatan Perubahan Target</h3>
+              </div>
+              <button class="btn-close" onclick={() => (showConfirmChangeModal = false)}>×</button>
+            </div>
+            <div class="modal-body">
+              <p style="margin: 0 0 10px; font-size: 0.95rem; color: #1e293b;">
+                Terdapat <strong>{totalSiswaKelulusan} santri</strong> yang sudah memiliki data nilai ujian kelulusan dengan konfigurasi sebelumnya (<strong>Juz {originalJuzKelulusan}</strong>).
+              </p>
+              <p style="margin: 0 0 10px; font-size: 0.9rem; color: #475569;">
+                Anda akan mengubah target kelulusan menjadi: <strong>Juz {selectedJuzKelulusan.join(', ')}</strong> (Total <strong>{computedPembagi} surah</strong>).
+              </p>
+              <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 10px; color: #b45309; font-size: 0.85rem; line-height: 1.4;">
+                ⚠️ Mengubah konfigurasi ini akan mengubah pembagi rata-rata nilai santri tersebut saat rapor digenerate.
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" onclick={() => (showConfirmChangeModal = false)}>
+                Batal
+              </button>
+              <button
+                class="btn-primary"
+                style="background: #e11d48; border-color: #e11d48;"
+                onclick={() => simpanKonfigurasiNilaiTahfiz(true)}
+                disabled={konfigurasiSaving}
+              >
+                {konfigurasiSaving ? 'Menyimpan...' : 'Tetap Simpan Perubahan'}
+              </button>
+            </div>
+          </div>
         {/if}
 
         {#if tahfizActiveTab === 'kriteria'}
@@ -3559,6 +3686,253 @@
     width: 15px;
     height: 15px;
     accent-color: #22c55e;
+  }
+
+  /* Target Summary Card */
+  .target-summary-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.2rem;
+    background: linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%);
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 1.1rem 1.4rem;
+    margin-bottom: 1.25rem;
+  }
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .summary-divider {
+    width: 1px;
+    height: 38px;
+    background: #cbd5e1;
+  }
+  .summary-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+  }
+  .summary-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
+  .summary-subtext {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #64748b;
+  }
+  .summary-bold {
+    font-weight: 800;
+  }
+  .text-primary {
+    color: #16a34a !important;
+  }
+  .text-success {
+    color: #059669 !important;
+  }
+
+  /* Preset Section */
+  .preset-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .preset-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #475569;
+  }
+  .preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .preset-btn {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .preset-btn:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+  }
+  .preset-btn.preset-active {
+    background: #16a34a;
+    border-color: #15803d;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);
+  }
+  .preset-btn-reset {
+    color: #dc2626;
+    background: #fff;
+    border-color: #fca5a5;
+  }
+  .preset-btn-reset:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+  }
+
+  /* 30 Juz Grid */
+  .juz-selector-block {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .juz-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .juz-selector-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+  }
+  .juz-selector-subtitle {
+    margin: 0.2rem 0 0;
+    font-size: 0.82rem;
+    color: #64748b;
+  }
+  .juz-selector-count {
+    font-size: 0.86rem;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.3rem 0.65rem;
+    border-radius: 6px;
+  }
+  .juz-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 0.6rem;
+  }
+  .juz-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0.65rem 0.75rem;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+  }
+  .juz-card:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+  }
+  .juz-card.juz-card-selected {
+    background: #ecfdf5;
+    border-color: #10b981;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.15);
+  }
+  .juz-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.35rem;
+  }
+  .juz-num {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .juz-card-selected .juz-num {
+    color: #065f46;
+  }
+  .juz-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: transparent;
+  }
+  .juz-check.juz-check-active {
+    background: #10b981;
+    border-color: #10b981;
+    color: #fff;
+  }
+  .juz-card-surah {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #64748b;
+  }
+  .juz-card-selected .juz-card-surah {
+    color: #047857;
+    font-weight: 600;
+  }
+
+  /* Status Badges */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .badge-warning {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+  .badge-success {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+  }
+  .badge-neutral {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+  }
+  .badge-juz {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    color: #334155;
+  }
+  .settings-save-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.25rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
   }
 
   /* Buttons */

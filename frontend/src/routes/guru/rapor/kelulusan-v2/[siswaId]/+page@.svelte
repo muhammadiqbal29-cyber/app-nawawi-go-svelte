@@ -163,7 +163,7 @@
 
   async function loadMateriTahfiz() {
     try {
-      const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
+      const res = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz?jenis_penilaian=kelulusan`, {
         credentials: 'include'
       });
       if (res.ok) {

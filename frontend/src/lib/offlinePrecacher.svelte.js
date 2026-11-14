@@ -155,12 +155,12 @@ export async function startPrecache() {
               }
 
               for (const s of siswaList) {
-                const pDetail = new URLSearchParams({ mata_pelajaran: 'Ujian Tahfiz', jenis_penilaian: 'semester', tahun_ajaran_id: taId, semester_id: semId });
+                const pDetail = new URLSearchParams({ mata_pelajaran: 'Tahfiz', jenis_penilaian: 'semester', tahun_ajaran_id: taId, semester_id: semId });
                 if (!isV2) {
                   const v1Res = await fetchWithRetry(`${apiUrl}/api/guru/siswa/${s.id}/nilai-tahfiz?${pDetail.toString()}`);
                   if (v1Res) {
                     const detailMap = new Map((v1Res.details || []).map(d => [d.nama_materi, d]));
-                    const rows = materiData.map(m => {
+                    const allRows = materiData.map(m => {
                       const d = detailMap.get(m.nama_materi);
                       return {
                         namaMateri: m.nama_materi, juz: m.juz||0, urutan: m.urutan,
@@ -168,20 +168,32 @@ export async function startPrecache() {
                         mad: d ? d.skor_mad : '', tajwid: d ? d.skor_tajwid : '', makharijulHuruf: d ? d.skor_makharijul_huruf : '', saveStatus: ''
                       };
                     });
-                    localStorage.setItem(`siakad_offline_nilai_tahfiz_v1_rows_${s.id}_semester`, JSON.stringify({ rows, lastSavedSummary: v1Res.nilai || null }));
+                    const selectedJuz = v1Res.nilai?.juz_yang_diujikan
+                      ? v1Res.nilai.juz_yang_diujikan.split(',').map(x => parseInt(x.trim())).filter(n => !isNaN(n))
+                      : [];
+                    const rows = selectedJuz.length > 0 ? allRows.filter(r => selectedJuz.includes(r.juz)) : [];
+                    localStorage.setItem(`siakad_offline_nilai_tahfiz_v1_rows_${s.id}_semester`, JSON.stringify({
+                      allRows, rows, selectedJuz, lastSavedSummary: v1Res.nilai || null, showJuzSelection: selectedJuz.length === 0
+                    }));
                   }
                 } else {
                   const v2Res = await fetchWithRetry(`${apiUrl}/api/guru/siswa/${s.id}/nilai-tahfiz-v2?${pDetail.toString()}`);
                   if (v2Res) {
                     const detailMap = new Map((v2Res.details || []).map(d => [d.nama_materi, d]));
-                    const rows = materiData.map(m => {
+                    const allRows = materiData.map(m => {
                       const d = detailMap.get(m.nama_materi);
                       return {
                         namaMateri: m.nama_materi, juz: m.juz||0, urutan: m.urutan,
                         kelancaran: d ? d.skor_kelancaran : '', tajwid: d ? d.skor_tajwid : '', makharijulHuruf: d ? d.skor_makharijul_huruf : '', saveStatus: ''
                       };
                     });
-                    localStorage.setItem(`siakad_offline_tahfiz_v2_detail_${s.id}_semester`, JSON.stringify({ rows, lastSavedSummary: v2Res.nilai || null }));
+                    const selectedJuz = v2Res.nilai?.juz_yang_diujikan
+                      ? v2Res.nilai.juz_yang_diujikan.split(',').map(x => parseInt(x.trim())).filter(n => !isNaN(n))
+                      : [];
+                    const rows = selectedJuz.length > 0 ? allRows.filter(r => selectedJuz.includes(r.juz)) : [];
+                    localStorage.setItem(`siakad_offline_tahfiz_v2_detail_${s.id}_semester`, JSON.stringify({
+                      allRows, rows, selectedJuz, lastSavedSummary: v2Res.nilai || null, showJuzSelection: selectedJuz.length === 0
+                    }));
                   }
                 }
                 precacheState.progress += 1;

@@ -135,7 +135,44 @@
     );
     if (!res.ok) throw new Error('Gagal memuat rapor tahfiz masal.');
     const data = await res.json();
-    raporList = data || [];
+    let list = data || [];
+
+    if (list.some((r) => r.nilai?.juz_yang_diujikan)) {
+      try {
+        const mRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
+          credentials: 'include'
+        });
+        if (mRes.ok) {
+          const materiData = (await mRes.json()) || [];
+          list = list.map((r) => {
+            if (!r.nilai?.juz_yang_diujikan) return r;
+            const selectedJuz = r.nilai.juz_yang_diujikan
+              .split(',')
+              .map((s) => parseInt(s.trim()))
+              .filter((n) => !isNaN(n));
+            if (selectedJuz.length === 0) return r;
+            const filteredMateri = materiData.filter((m) => selectedJuz.includes(m.juz));
+            const detailMap = new Map((r.details || []).map((d) => [d.nama_materi, d]));
+            r.details = filteredMateri.map((m) =>
+              detailMap.get(m.nama_materi) || {
+                nama_materi: m.nama_materi,
+                juz: m.juz,
+                urutan: m.urutan,
+                skor_hafalan: 0,
+                skor_kelancaran: 0,
+                skor_mad: 0,
+                skor_tajwid: 0,
+                skor_makharijul_huruf: 0,
+                total_poin: 0
+              }
+            );
+            return r;
+          });
+        }
+      } catch {}
+    }
+
+    raporList = list;
 
     // Set default print settings based on first data if available
     customTanggalRapor = formatTanggal();
@@ -399,7 +436,14 @@
             ></div>
             <div class="report-title">
               <h2>RAPOR HAFALAN AL-QUR'AN</h2>
-              <h3>{customSubJudul}</h3>
+              <h3>
+                {raporData.nilai?.juz_yang_diujikan &&
+                customSubJudul === "Evaluasi Pembelajaran Juz 30 (Juz 'Amma)"
+                  ? raporData.nilai.juz_yang_diujikan === '30'
+                    ? customSubJudul
+                    : `Evaluasi Pembelajaran Juz ${raporData.nilai.juz_yang_diujikan.split(',').join(', ')}`
+                  : customSubJudul}
+              </h3>
             </div>
           </div>
 

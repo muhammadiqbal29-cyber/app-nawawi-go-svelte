@@ -57,6 +57,7 @@
       const params = new URLSearchParams({ jenis_penilaian: jenisPenilaian });
       if (taId) params.append('tahun_ajaran_id', taId);
       if (semId) params.append('semester_id', semId);
+      params.append('mata_pelajaran', currentTab === 'tasmi' ? 'Ujian Tasmi' : 'Tahfiz');
       const res = await fetch(
         `${apiUrl}/api/guru/sekolah/${sekolahId}/kelas?${params.toString()}`,
         {
@@ -125,6 +126,13 @@
 
   function selectedJenisPenilaian() {
     return currentTab === 'kelulusan' ? 'kelulusan' : 'semester';
+  }
+
+  function getProgress(kelas) {
+    const total = Number(kelas.jumlah_siswa || 0);
+    const dinilai = Number(kelas.jumlah_dinilai || 0);
+    const percent = total > 0 ? Math.min(100, Math.round((dinilai / total) * 100)) : 0;
+    return { total, dinilai, percent };
   }
 
   function kelasLabel(kelas) {
@@ -223,14 +231,39 @@
       {:else if kelasList.length > 0}
         <div class="kelas-grid" aria-label="Daftar kelas">
           {#each kelasList as kelas (kelas.id + kelas.rombel)}
+            {@const prog = getProgress(kelas)}
             <a href={cardHref(kelas)} class="kelas-card">
               <div class="kelas-icon tingkat-{kelas.tingkat}">
                 {kelas.tingkat || 'X'}
               </div>
               <div class="kelas-card-text">
-                <span class="kelas-name">{kelasLabel(kelas)}</span>
-                <span class="kelas-rombel">{rombelLabel(kelas.rombel)}</span>
-                <span class="kelas-count">{jumlahSiswaLabel(kelas.jumlah_siswa)}</span>
+                <div class="kelas-title-row">
+                  <span class="kelas-name">{kelasLabel(kelas)}</span>
+                  <span class="kelas-rombel">{rombelLabel(kelas.rombel)}</span>
+                </div>
+                
+                <!-- BAR PROGRESS KHUSUS TAHFIZ (DAN KELULUSAN) -->
+                {#if currentTab === 'tahfiz' || currentTab === 'kelulusan'}
+                  <div class="kelas-progress-box">
+                    <div class="progress-bar-track">
+                      <div
+                        class="progress-bar-fill"
+                        class:fill-done={prog.percent === 100}
+                        style="width: {prog.percent}%"
+                      ></div>
+                    </div>
+                    <div class="progress-info-row">
+                      <span class="progress-ratio">
+                        <strong>{prog.dinilai}</strong>/{prog.total} siswa dinilai
+                      </span>
+                      <span class="progress-percent-badge" class:badge-done={prog.percent === 100}>
+                        {prog.percent}%
+                      </span>
+                    </div>
+                  </div>
+                {:else}
+                  <span class="kelas-count">{jumlahSiswaLabel(kelas.jumlah_siswa)}</span>
+                {/if}
               </div>
               <Icon name="chevronRight" size={18} class="kelas-arrow" />
             </a>
@@ -419,6 +452,14 @@
     gap: 0.25rem;
   }
 
+  .kelas-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
   .kelas-name {
     color: #1e293b;
     font-size: 0.92rem;
@@ -436,6 +477,61 @@
     color: #0369a1;
     font-size: 0.9rem;
     font-weight: 700;
+  }
+
+  /* BAR PROGRESS KELAS */
+  .kelas-progress-box {
+    margin-top: 0.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .progress-bar-track {
+    width: 100%;
+    height: 7px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+    border-radius: 9999px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .progress-bar-fill.fill-done {
+    background: #10b981;
+  }
+
+  .progress-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+
+  .progress-ratio strong {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .progress-percent-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    color: #475569;
+    letter-spacing: 0.01em;
+  }
+
+  .progress-percent-badge.badge-done {
+    background: #dcfce7;
+    color: #15803d;
   }
 
   .kelas-card :global(.kelas-arrow) {

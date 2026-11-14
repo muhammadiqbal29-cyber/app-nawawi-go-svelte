@@ -2,8 +2,10 @@ package nilai
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"siakad-nawawi-be/internal/database"
@@ -82,6 +84,19 @@ func GetNilaiByKelasHandler(w http.ResponseWriter, r *http.Request) {
 			for _, n := range tahfizList {
 				key := strconv.Itoa(n.SiswaID) + "_" + n.MataPelajaran
 				nilaiMap[key] = n
+			}
+		}
+
+		var tahfizV2List []models.NilaiTahfizV2
+		tahfizV2Query := database.DB.Where("tahun_ajaran_id = ? AND semester_id = ? AND jenis_penilaian = ?", taID, semID, jenisPenilaian)
+		if len(siswaIDs) > 0 {
+			tahfizV2Query = tahfizV2Query.Where("siswa_id IN ?", siswaIDs)
+		}
+		if err := tahfizV2Query.Find(&tahfizV2List).Error; err == nil {
+			for _, n := range tahfizV2List {
+				key := strconv.Itoa(n.SiswaID) + "_" + n.MataPelajaran
+				nilaiMap[key] = n
+				nilaiMap[strconv.Itoa(n.SiswaID)+"_TahfizV2"] = n
 			}
 		}
 	} else if mapel == "Ujian Tasmi" || mapel == "Tasmi" {
@@ -353,14 +368,25 @@ func GetKelasBySekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 
 	type KelasGuruInfo struct {
 		models.Kelas
-		Rombel      string `json:"rombel"`
-		JumlahSiswa int    `json:"jumlah_siswa"`
+		Rombel        string `json:"rombel"`
+		JumlahSiswa   int    `json:"jumlah_siswa"`
+		JumlahDinilai int    `json:"jumlah_dinilai"`
 	}
 
-	taID, _, err := tahunajaran.ResolveActivePeriod(r)
+	taID, semID, err := tahunajaran.ResolveActivePeriod(r)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error(), err)
 		return
+	}
+	if qTa := r.URL.Query().Get("tahun_ajaran_id"); qTa != "" {
+		if val, err := strconv.Atoi(qTa); err == nil && val > 0 {
+			taID = val
+		}
+	}
+	if qSem := r.URL.Query().Get("semester_id"); qSem != "" {
+		if val, err := strconv.Atoi(qSem); err == nil && val > 0 {
+			semID = val
+		}
 	}
 
 	var kelasList []KelasGuruInfo
@@ -405,6 +431,75 @@ func GetKelasBySekolahForGuruHandler(w http.ResponseWriter, r *http.Request) {
 	if err := query.Find(&kelasList).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil data kelas", err)
 		return
+	}
+
+	mapel := strings.TrimSpace(r.URL.Query().Get("mata_pelajaran"))
+	isTasmi := strings.Contains(strings.ToLower(mapel), "tasmi")
+
+	type DinilaiStat struct {
+		KelasID int    `gorm:"column:kelas_id"`
+		Rombel  string `gorm:"column:rombel"`
+		Count   int    `gorm:"column:total_dinilai"`
+	}
+
+	dinilaiMap := make(map[string]int)
+
+	if isTasmi {
+		var statsV2 []DinilaiStat
+		_ = database.DB.Table("riwayat_kelas AS rk").
+			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
+			Joins("JOIN nilai_tasmi_v2s AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Where("rk.tahun_ajaran_id = ?", taID).
+			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+			Scan(&statsV2).Error
+		for _, s := range statsV2 {
+			dinilaiMap[fmt.Sprintf("%d_%s", s.KelasID, s.Rombel)] = s.Count
+		}
+
+		var statsV1 []DinilaiStat
+		_ = database.DB.Table("riwayat_kelas AS rk").
+			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
+			Joins("JOIN nilai_tasmis AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Where("rk.tahun_ajaran_id = ?", taID).
+			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+			Scan(&statsV1).Error
+		for _, s := range statsV1 {
+			k := fmt.Sprintf("%d_%s", s.KelasID, s.Rombel)
+			if s.Count > dinilaiMap[k] {
+				dinilaiMap[k] = s.Count
+			}
+		}
+	} else {
+		// Hitung dari Tahfiz V2 dan V1
+		var statsV2 []DinilaiStat
+		_ = database.DB.Table("riwayat_kelas AS rk").
+			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
+			Joins("JOIN nilai_tahfiz_v2s AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Where("rk.tahun_ajaran_id = ?", taID).
+			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+			Scan(&statsV2).Error
+		for _, s := range statsV2 {
+			dinilaiMap[fmt.Sprintf("%d_%s", s.KelasID, s.Rombel)] = s.Count
+		}
+
+		var statsV1 []DinilaiStat
+		_ = database.DB.Table("riwayat_kelas AS rk").
+			Select("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__') AS rombel, COUNT(DISTINCT n.siswa_id) AS total_dinilai").
+			Joins("JOIN nilai_tahfizs AS n ON n.siswa_id = rk.siswa_id AND n.sekolah_id = ? AND n.tahun_ajaran_id = ? AND n.semester_id = ? AND n.jenis_penilaian = ?", sekolahID, taID, semID, jenisPenilaian).
+			Where("rk.tahun_ajaran_id = ?", taID).
+			Group("rk.kelas_id, COALESCE(NULLIF(rk.rombel, ''), '__kosong__')").
+			Scan(&statsV1).Error
+		for _, s := range statsV1 {
+			k := fmt.Sprintf("%d_%s", s.KelasID, s.Rombel)
+			if s.Count > dinilaiMap[k] {
+				dinilaiMap[k] = s.Count
+			}
+		}
+	}
+
+	for i := range kelasList {
+		key := fmt.Sprintf("%d_%s", kelasList[i].ID, kelasList[i].Rombel)
+		kelasList[i].JumlahDinilai = dinilaiMap[key]
 	}
 
 	response.JSON(w, http.StatusOK, kelasList)

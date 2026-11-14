@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/logger"
@@ -35,7 +36,7 @@ func GetMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 	var materi []models.MateriTahfiz
 	if err := database.DB.
 		Where("sekolah_id = ?", sekolahID).
-		Order("urutan ASC, id ASC").
+		Order("juz ASC, urutan ASC, id ASC").
 		Find(&materi).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil daftar materi", err)
 		return
@@ -44,7 +45,7 @@ func GetMateriTahfizHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, materi)
 }
 
-// GetMateriTahfizAktifHandler — guru: ambil materi aktif saja per sekolah
+// GetMateriTahfizAktifHandler — guru: ambil materi aktif saja per sekolah (mendukung filter ?juz=26,27 atau ?jenis_penilaian=kelulusan)
 func GetMateriTahfizAktifHandler(w http.ResponseWriter, r *http.Request) {
 	sekolahID, err := sekolahIDFromRequest(r)
 	if err != nil {
@@ -52,11 +53,42 @@ func GetMateriTahfizAktifHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := database.DB.Where("sekolah_id = ? AND aktif = ?", sekolahID, true)
+
+	juzParam := strings.TrimSpace(r.URL.Query().Get("juz"))
+	jenisPenilaian := strings.TrimSpace(r.URL.Query().Get("jenis_penilaian"))
+
+	if juzParam != "" {
+		parts := strings.Split(juzParam, ",")
+		var validJuz []string
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				validJuz = append(validJuz, p)
+			}
+		}
+		if len(validJuz) > 0 {
+			query = query.Where("juz IN ?", validJuz)
+		}
+	} else if jenisPenilaian == "kelulusan" {
+		var konfig models.KonfigurasiNilaiTahfiz
+		if err := database.DB.Where("sekolah_id = ? AND jenis_penilaian = ? AND aktif = ?", sekolahID, "kelulusan", true).First(&konfig).Error; err == nil && konfig.JuzKelulusan != "" {
+			parts := strings.Split(konfig.JuzKelulusan, ",")
+			var validJuz []string
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					validJuz = append(validJuz, p)
+				}
+			}
+			if len(validJuz) > 0 {
+				query = query.Where("juz IN ?", validJuz)
+			}
+		}
+	}
+
 	var materi []models.MateriTahfiz
-	if err := database.DB.
-		Where("sekolah_id = ? AND aktif = ?", sekolahID, true).
-		Order("urutan ASC, id ASC").
-		Find(&materi).Error; err != nil {
+	if err := query.Order("juz ASC, urutan ASC, id ASC").Find(&materi).Error; err != nil {
 		response.Error(w, http.StatusInternalServerError, "Gagal mengambil daftar materi", err)
 		return
 	}

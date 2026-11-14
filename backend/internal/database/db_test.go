@@ -75,3 +75,50 @@ func TestMigrateAndSeed(t *testing.T) {
 	}
 }
 
+func TestSeedMasterMateriTahfiz30JuzComplete(t *testing.T) {
+	SetupTestDB()
+
+	sekolah := models.Sekolah{NamaSekolah: "SMP Test 30 Juz", Jenjang: "SMP"}
+	DB.Create(&sekolah)
+
+	// Simulate pre-existing Juz 26 row with legacy urutan = 1
+	DB.Create(&models.MateriTahfiz{
+		SekolahID:  sekolah.ID,
+		NamaMateri: "Al-Ahqaf",
+		Juz:        26,
+		Urutan:     1,
+		Aktif:      true,
+	})
+
+	SeedMasterMateriTahfiz30Juz()
+	// Run a second time to verify idempotency
+	SeedMasterMateriTahfiz30Juz()
+
+	var totalCount int64
+	DB.Model(&models.MateriTahfiz{}).Where("sekolah_id = ?", sekolah.ID).Count(&totalCount)
+	if int(totalCount) != len(masterQuran114) {
+		t.Fatalf("expected %d rows, got %d", len(masterQuran114), totalCount)
+	}
+
+	// Verify all 30 Juz (1..30) have at least 1 entry
+	var distinctJuz []int
+	DB.Model(&models.MateriTahfiz{}).Where("sekolah_id = ?", sekolah.ID).Distinct("juz").Pluck("juz", &distinctJuz)
+	if len(distinctJuz) != 30 {
+		t.Fatalf("expected all 30 juz to exist, got %d (%v)", len(distinctJuz), distinctJuz)
+	}
+
+	// Verify Juz 26-30 keeps exact 69 surahs for SMP
+	var juz26to30Count int64
+	DB.Model(&models.MateriTahfiz{}).Where("sekolah_id = ? AND juz IN ?", sekolah.ID, []int{26, 27, 28, 29, 30}).Count(&juz26to30Count)
+	if juz26to30Count != 69 {
+		t.Fatalf("expected 69 surahs in Juz 26-30, got %d", juz26to30Count)
+	}
+
+	// Verify Al-Ahqaf urutan normalized to 48
+	var ahqaf models.MateriTahfiz
+	DB.Where("sekolah_id = ? AND nama_materi = ?", sekolah.ID, "Al-Ahqaf").First(&ahqaf)
+	if ahqaf.Urutan != 48 {
+		t.Fatalf("expected Al-Ahqaf urutan = 48, got %d", ahqaf.Urutan)
+	}
+}
+

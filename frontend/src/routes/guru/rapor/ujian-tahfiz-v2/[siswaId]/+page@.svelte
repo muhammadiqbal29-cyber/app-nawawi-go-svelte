@@ -29,6 +29,7 @@
   let sekolah = $state(null);
   let nilaiHeader = $state(null);
   let details = $state([]);
+  let sambungAyat = $state([]);
   let kriteriaPenilaian = $state([]);
   let loading = $state(true);
   let error = $state('');
@@ -150,7 +151,49 @@
       }
       const body = await res.json();
       nilaiHeader = body.nilai || null;
-      details = body.details || [];
+      sambungAyat = body.sambung_ayat || body.nilai?.sambung_ayat || [];
+      const rawDetails = body.details || [];
+
+      if (nilaiHeader && nilaiHeader.juz_yang_diujikan) {
+        const selectedJuz = nilaiHeader.juz_yang_diujikan
+          .split(',')
+          .map((s) => parseInt(s.trim()))
+          .filter((n) => !isNaN(n));
+        if (selectedJuz.length > 0) {
+          if (selectedJuz.length === 1 && selectedJuz[0] === 30) {
+            customSubJudul = "Evaluasi Pembelajaran Juz 30 (Juz 'Amma)";
+          } else {
+            customSubJudul = `Evaluasi Pembelajaran Juz ${selectedJuz.join(', ')}`;
+          }
+          try {
+            const materiRes = await fetch(`${apiUrl}/api/guru/sekolah/${sekolahId}/materi-tahfiz`, {
+              credentials: 'include'
+            });
+            if (materiRes.ok) {
+              const materiData = await materiRes.json();
+              const filteredMateri = materiData.filter((m) => selectedJuz.includes(m.juz));
+              const detailMap = new Map(rawDetails.map((d) => [d.nama_materi, d]));
+              details = filteredMateri.map((m) => {
+                if (detailMap.has(m.nama_materi)) {
+                  return detailMap.get(m.nama_materi);
+                }
+                return {
+                  nama_materi: m.nama_materi,
+                  juz: m.juz,
+                  urutan: m.urutan,
+                  skor_kelancaran: 0,
+                  skor_tajwid: 0,
+                  skor_makharijul_huruf: 0,
+                  total_poin: 0
+                };
+              });
+              return;
+            }
+          } catch {}
+        }
+      }
+
+      details = rawDetails;
     } catch (err) {
       error = err.message || 'Gagal memuat data nilai tahfiz v2.';
     }
@@ -183,6 +226,14 @@
         return k.arab;
       }
     }
+    return '';
+  }
+
+  function getPredikatSambungAyatLabel(pred) {
+    if (pred === 'A') return 'Mumtaz';
+    if (pred === 'B') return 'Jayyid Jiddan';
+    if (pred === 'C') return 'Jayyid';
+    if (pred === 'D') return 'Maqbul';
     return '';
   }
 
@@ -357,6 +408,37 @@
 
       <!-- Wrapper Footer Rapor supaya tidak terpotong -->
       <div style="page-break-inside: avoid; break-inside: avoid;">
+        {#if sambungAyat && sambungAyat.length > 0}
+          <div class="sambung-ayat-report-section">
+            <table class="sambung-ayat-table">
+              <thead>
+                <tr>
+                  <th colspan="3" class="table-section-title">EVALUASI SAMBUNG AYAT (HAFALAN JUZ SEBELUMNYA)</th>
+                </tr>
+                <tr>
+                  <th style="width: 45px; text-align: center;">No</th>
+                  <th style="text-align: left;">Juz yang Diuji</th>
+                  <th style="width: 200px; text-align: center;">Predikat</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each sambungAyat as sa, sIndex (sIndex)}
+                  <tr>
+                    <td style="text-align: center;">{sIndex + 1}</td>
+                    <td style="text-align: left; font-weight: 600;">Juz {sa.juz}</td>
+                    <td style="text-align: center;">
+                      <strong>{sa.predikat}</strong>
+                      {#if getPredikatSambungAyatLabel(sa.predikat)}
+                        <span style="font-size: 11px; color: #475569; margin-left: 4px;">({getPredikatSambungAyatLabel(sa.predikat)})</span>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+
         <!-- Catatan -->
         <div class="catatan-box">
           <p style="font-weight: 700; margin-bottom: 4px;">CATATAN:</p>
@@ -673,6 +755,32 @@
 
   .text-left {
     text-align: left !important;
+  }
+
+  .sambung-ayat-report-section {
+    margin-top: 14px;
+    margin-bottom: 12px;
+  }
+  .sambung-ayat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+  .sambung-ayat-table th, .sambung-ayat-table td {
+    border: 1px solid #000;
+    padding: 4px 8px;
+  }
+  .sambung-ayat-table th {
+    background-color: #f1f5f9;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .table-section-title {
+    background-color: #e2e8f0 !important;
+    text-align: left;
+    padding: 5px 8px !important;
+    font-size: 8pt;
+    letter-spacing: 0.5px;
   }
 
   .report-footer {

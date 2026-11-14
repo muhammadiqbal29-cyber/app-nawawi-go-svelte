@@ -47,6 +47,7 @@ func TestUpsertKonfigurasiNilaiTahfizHandler(t *testing.T) {
 
 	payload := map[string]interface{}{
 		"pembagi":                 4,
+		"juz_kelulusan":           "30",
 		"tingkat_level_kelulusan": []int{1, 2, 3},
 		"kriteria_penilaian": []map[string]interface{}{
 			{"min": 0, "max": 60, "arab": "ضعيف", "indo": "Kurang"},
@@ -146,6 +147,7 @@ func TestUpsertKonfigurasiNilaiTahfizHandler_Update(t *testing.T) {
 
 	payload := map[string]interface{}{
 		"pembagi":         2,
+		"juz_kelulusan":   "30",
 		"jenis_penilaian": "kelulusan",
 	}
 	body, _ := json.Marshal(payload)
@@ -158,6 +160,26 @@ func TestUpsertKonfigurasiNilaiTahfizHandler_Update(t *testing.T) {
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("status code: mendapat %d, diharapkan %d", rr.Code, http.StatusOK)
+	}
+}
+
+func TestUpsertKonfigurasiNilaiTahfizHandler_EmptyJuz(t *testing.T) {
+	setupTestDB()
+	payload := map[string]interface{}{
+		"pembagi":         2,
+		"juz_kelulusan":   "",
+		"jenis_penilaian": "kelulusan",
+	}
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "/api/konfigurasi-tahfiz/1", bytes.NewBuffer(body))
+	req = mux.SetURLVars(req, map[string]string{"sekolah_id": "1"})
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(UpsertKonfigurasiNilaiTahfizHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status code: mendapat %d, diharapkan %d (wajib gagal jika juz kosong)", rr.Code, http.StatusBadRequest)
 	}
 }
 

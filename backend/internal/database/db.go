@@ -107,6 +107,7 @@ func migrateAndSeed() {
 		&models.NilaiTahfizDetail{},
 		&models.NilaiTahfizV2{},
 		&models.NilaiTahfizDetailV2{},
+		&models.NilaiTahfizSambungAyatV2{},
 		&models.NilaiTasmi{},
 		&models.NilaiTasmiDetail{},
 		&models.NilaiTasmiV2{},
@@ -176,6 +177,10 @@ func migrateAndSeed() {
 	seedBankCatatanTahfizV2()
 	seedBankCatatanDiniyah()
 	seedBankCatatanKeseharian()
+
+	// Seed master 30 juz Al-Qur'an & default target kelulusan
+	SeedMasterMateriTahfiz30Juz()
+	SeedDefaultKonfigurasiTahfizKelulusan()
 }
 
 func seedUser(email, password, role string) {

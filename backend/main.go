@@ -322,10 +322,13 @@ func main() {
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai", nilai.GetNilaiBySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz", nilai.GetNilaiTahfizBySiswaHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tahfiz-masal", nilai.GetNilaiTahfizMasalHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz/juz", nilai.SetJuzTahfizHandler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz/detail", nilai.AutosaveNilaiTahfizDetailHandler).Methods("POST")
 
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2", nilai.GetNilaiTahfizV2BySiswaHandler).Methods("GET")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2/juz", nilai.SetJuzTahfizV2Handler).Methods("POST")
 	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2/detail", nilai.AutosaveNilaiTahfizDetailV2Handler).Methods("POST")
+	guruRouter.HandleFunc("/siswa/{siswa_id}/nilai-tahfiz-v2/sambung-ayat", nilai.SaveSambungAyatTahfizV2Handler).Methods("POST")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tahfiz-v2-masal", nilai.GetNilaiTahfizV2MasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tasmi-masal", nilai.GetNilaiTasmiMasalHandler).Methods("GET")
 	guruRouter.HandleFunc("/kelas/{kelas_id}/tasmi-v2-masal", nilai.GetNilaiTasmiV2MasalHandler).Methods("GET")

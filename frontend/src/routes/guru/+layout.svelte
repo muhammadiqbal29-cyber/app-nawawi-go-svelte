@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import { page, updated } from '$app/stores';
   import { goto, onNavigate } from '$app/navigation';
   import { auth } from '$lib/auth.svelte.js';
@@ -16,10 +17,23 @@
   let isClient = $state(false);
   let { children } = $props();
 
-  let sidebarOpen = $state(false);
+  let sidebarOpen = $state(true);
   let showHelpModal = $state(false);
   let isNavigating = $state(false);
   let currentPath = $derived($page.url.pathname);
+
+  onMount(() => {
+    isClient = true;
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('guru_sidebar_open');
+      if (saved !== null) {
+        sidebarOpen = saved === 'true';
+      } else {
+        // Buka sidebar secara default jika diakses dari PC / layar besar
+        sidebarOpen = window.innerWidth > 768;
+      }
+    }
+  });
   // fiturGuru sekarang di-derive dari aksesMap sekolah yang sedang aktif
   let fiturGuru = $derived(
     guruState.activeSekolahId ? guruState.aksesMap[guruState.activeSekolahId] || [] : []
@@ -266,6 +280,9 @@
 
   function toggleSidebar() {
     sidebarOpen = !sidebarOpen;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('guru_sidebar_open', String(sidebarOpen));
+    }
   }
 
   function onLogout() {

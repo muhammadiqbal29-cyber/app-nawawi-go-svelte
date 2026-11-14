@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"siakad-nawawi-be/internal/database"
 	"siakad-nawawi-be/internal/models"
@@ -55,6 +56,7 @@ func TestGenerateBulan_OverwriteExisting(t *testing.T) {
 	// Seed Guru
 	guru := models.Guru{
 		ID:           1,
+		UserID:       101,
 		NamaLengkap:  "Ustadz Abdullah",
 		StatusAktif:  true,
 		AksesSekolah: `{"1":["admin","manager"]}`,
@@ -153,5 +155,72 @@ func TestGenerateBulan_OverwriteExisting(t *testing.T) {
 	db.Where("guru_id = ? AND tanggal = ?", 1, "2026-01-05").First(&checkOverwritten)
 	if checkOverwritten.Status != "Hadir" {
 		t.Errorf("Admin overwrite: Expected status 'Hadir', got '%s'", checkOverwritten.Status)
+	}
+
+	// 4. Test Generating Full Current Month (verify no truncation of full month days)
+	now := time.Now()
+	reqBodyCurrentMonth := GenerateAcakBulanRequest{
+		TeacherID:         1,
+		Bulan:             int(now.Month()),
+		Tahun:             now.Year(),
+		CheckInFrom:       "06:30",
+		CheckInTo:         "07:00",
+		CheckOutFrom:      "15:00",
+		CheckOutTo:        "16:00",
+		OverwriteExisting: true,
+		SkipSundays:       true,
+	}
+	bodyBytesCurr, _ := json.Marshal(reqBodyCurrentMonth)
+	req4 := httptest.NewRequest("POST", "/api/presensi/generate-acak-bulan", bytes.NewReader(bodyBytesCurr))
+	rr4 := httptest.NewRecorder()
+	GenerateAcakBulanHandler(rr4, req4)
+	if rr4.Code != http.StatusOK {
+		t.Fatalf("Generate current month expected 200, got %d. Body: %s", rr4.Code, rr4.Body.String())
+	}
+
+	// Check that days toward the end of the month are generated (e.g. day 25)
+	day25Str := time.Date(now.Year(), now.Month(), 25, 0, 0, 0, 0, now.Location()).Format("2006-01-02")
+	var checkDay25 models.PresensiGuru
+	err := db.Where("guru_id = ? AND tanggal = ?", 1, day25Str).First(&checkDay25).Error
+	if err != nil && time.Date(now.Year(), now.Month(), 25, 0, 0, 0, 0, now.Location()).Weekday() != time.Sunday {
+		t.Errorf("Expected day 25 to be generated, got error: %v", err)
+	}
+
+	// 5. Test GenerateBulanPresensiManagerHandler with TeacherID: 0 (All Teachers)
+	guru2 := models.Guru{
+		ID:           2,
+		UserID:       102,
+		NamaLengkap:  "Ustadzah Maryam",
+		StatusAktif:  true,
+		AksesSekolah: `{"1":["guru"]}`,
+	}
+	if err := db.Create(&guru2).Error; err != nil {
+		t.Fatalf("Create guru2 error: %v", err)
+	}
+
+	reqBodyAll := GenerateAcakBulanRequest{
+		TeacherID:         0,
+		Bulan:             2,
+		Tahun:             2026,
+		CheckInFrom:       "07:00",
+		CheckInTo:         "07:30",
+		CheckOutFrom:      "15:00",
+		CheckOutTo:        "16:00",
+		OverwriteExisting: true,
+		SkipSundays:       true,
+	}
+	bodyAllBytes, _ := json.Marshal(reqBodyAll)
+	reqAll := httptest.NewRequest("POST", "/api/guru/presensi/kelola/generate-bulan?sekolah_id=1", bytes.NewReader(bodyAllBytes))
+	rrAll := httptest.NewRecorder()
+	GenerateBulanPresensiManagerHandler(rrAll, reqAll)
+	if rrAll.Code != http.StatusOK {
+		t.Fatalf("Expected 200 for all teachers, got %d. Body: %s", rrAll.Code, rrAll.Body.String())
+	}
+
+	var countGuru1, countGuru2 int64
+	db.Model(&models.PresensiGuru{}).Where("guru_id = ? AND tanggal LIKE ?", 1, "2026-02-%").Count(&countGuru1)
+	db.Model(&models.PresensiGuru{}).Where("guru_id = ? AND tanggal LIKE ?", 2, "2026-02-%").Count(&countGuru2)
+	if countGuru1 == 0 || countGuru2 == 0 {
+		t.Errorf("Expected presensi generated for both teachers, got guru1=%d, guru2=%d", countGuru1, countGuru2)
 	}
 }

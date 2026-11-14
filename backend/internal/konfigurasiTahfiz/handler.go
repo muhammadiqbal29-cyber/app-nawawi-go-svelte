@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
@@ -17,7 +18,8 @@ import (
 const jenisPenilaianKelulusan = "kelulusan"
 
 type konfigurasiNilaiTahfizPayload struct {
-	Pembagi               int                            `json:"pembagi" validate:"required,gte=1"`
+	Pembagi               int                            `json:"pembagi"`
+	JuzKelulusan          string                         `json:"juz_kelulusan"`
 	JenisPenilaian        string                         `json:"jenis_penilaian"`
 	TingkatLevelKelulusan []int                          `json:"tingkat_level_kelulusan"`
 	KriteriaPenilaian     []models.KriteriaPenilaianItem `json:"kriteria_penilaian"`
@@ -29,9 +31,11 @@ type konfigurasiNilaiTahfizResponse struct {
 	SekolahID             int                            `json:"sekolah_id"`
 	JenisPenilaian        string                         `json:"jenis_penilaian"`
 	Pembagi               int                            `json:"pembagi"`
+	JuzKelulusan          string                         `json:"juz_kelulusan"`
 	TingkatLevelKelulusan []int                          `json:"tingkat_level_kelulusan"`
 	KriteriaPenilaian     []models.KriteriaPenilaianItem `json:"kriteria_penilaian"`
 	Aktif                 bool                           `json:"aktif"`
+	TotalSiswaKelulusan   int64                          `json:"total_siswa_kelulusan"`
 }
 
 func GetKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +50,11 @@ func GetKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		jenisPenilaian = jenisPenilaianKelulusan
 	}
 
+	var totalSiswaKelulusan int64
+	database.DB.Model(&models.NilaiTahfizV2{}).
+		Where("sekolah_id = ? AND jenis_penilaian = ?", sekolahID, jenisPenilaianKelulusan).
+		Count(&totalSiswaKelulusan)
+
 	var konfig models.KonfigurasiNilaiTahfiz
 	err = database.DB.Where(
 		"sekolah_id = ? AND jenis_penilaian = ?",
@@ -57,9 +66,11 @@ func GetKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
 				SekolahID:             sekolahID,
 				JenisPenilaian:        jenisPenilaian,
 				Pembagi:               1,
+				JuzKelulusan:          "26,27,28,29,30",
 				TingkatLevelKelulusan: []int{},
 				KriteriaPenilaian:     models.GetDefaultKriteria(),
 				Aktif:                 true,
+				TotalSiswaKelulusan:   totalSiswaKelulusan,
 			})
 			return
 		}
@@ -67,7 +78,7 @@ func GetKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(w, http.StatusOK, toKonfigurasiNilaiTahfizResponse(konfig))
+	response.JSON(w, http.StatusOK, toKonfigurasiNilaiTahfizResponse(konfig, totalSiswaKelulusan))
 }
 
 func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request) {
@@ -93,10 +104,52 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 		jenisPenilaian = jenisPenilaianKelulusan
 	}
 
+	if jenisPenilaian == jenisPenilaianKelulusan {
+		// Validasi Anti-Human-Error: Wajib memilih minimal 1 Juz
+		juzStr := strings.TrimSpace(payload.JuzKelulusan)
+		if juzStr == "" {
+			response.Error(w, http.StatusBadRequest, "Wajib memilih minimal 1 Juz untuk standar ujian kelulusan", nil)
+			return
+		}
+
+		juzList := strings.Split(juzStr, ",")
+		var validJuz []string
+		for _, j := range juzList {
+			j = strings.TrimSpace(j)
+			if j != "" {
+				validJuz = append(validJuz, j)
+			}
+		}
+
+		if len(validJuz) == 0 {
+			response.Error(w, http.StatusBadRequest, "Wajib memilih minimal 1 Juz untuk standar ujian kelulusan", nil)
+			return
+		}
+
+		// Hitung otomatis pembagi dari jumlah surah aktif pada juz-juz tersebut
+		var surahCount int64
+		database.DB.Model(&models.MateriTahfiz{}).
+			Where("sekolah_id = ? AND juz IN ? AND aktif = ?", sekolahID, validJuz, true).
+			Count(&surahCount)
+
+		if surahCount > 0 {
+			payload.Pembagi = int(surahCount)
+		} else if payload.Pembagi <= 0 {
+			payload.Pembagi = 1
+		}
+	} else if payload.Pembagi < 1 {
+		payload.Pembagi = 1
+	}
+
 	aktif := true
 	if payload.Aktif != nil {
 		aktif = *payload.Aktif
 	}
+
+	var totalSiswaKelulusan int64
+	database.DB.Model(&models.NilaiTahfizV2{}).
+		Where("sekolah_id = ? AND jenis_penilaian = ?", sekolahID, jenisPenilaianKelulusan).
+		Count(&totalSiswaKelulusan)
 
 	var konfig models.KonfigurasiNilaiTahfiz
 	err = database.DB.Where(
@@ -112,6 +165,7 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 			SekolahID:             sekolahID,
 			JenisPenilaian:        jenisPenilaian,
 			Pembagi:               payload.Pembagi,
+			JuzKelulusan:          payload.JuzKelulusan,
 			TingkatLevelKelulusan: encodeTingkatLevels(payload.TingkatLevelKelulusan),
 			KriteriaPenilaian:     models.EncodeKriteria(payload.KriteriaPenilaian),
 			Aktif:                 aktif,
@@ -120,11 +174,12 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 			response.Error(w, http.StatusInternalServerError, "Gagal menyimpan konfigurasi nilai tahfiz", err)
 			return
 		}
-		response.JSON(w, http.StatusCreated, toKonfigurasiNilaiTahfizResponse(konfig))
+		response.JSON(w, http.StatusCreated, toKonfigurasiNilaiTahfizResponse(konfig, totalSiswaKelulusan))
 		return
 	}
 
 	konfig.Pembagi = payload.Pembagi
+	konfig.JuzKelulusan = payload.JuzKelulusan
 	konfig.TingkatLevelKelulusan = encodeTingkatLevels(payload.TingkatLevelKelulusan)
 	konfig.KriteriaPenilaian = models.EncodeKriteria(payload.KriteriaPenilaian)
 	konfig.Aktif = aktif
@@ -133,7 +188,7 @@ func UpsertKonfigurasiNilaiTahfizHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	response.JSON(w, http.StatusOK, toKonfigurasiNilaiTahfizResponse(konfig))
+	response.JSON(w, http.StatusOK, toKonfigurasiNilaiTahfizResponse(konfig, totalSiswaKelulusan))
 }
 
 func sekolahIDFromRequest(r *http.Request) (int, error) {
@@ -141,15 +196,17 @@ func sekolahIDFromRequest(r *http.Request) (int, error) {
 	return strconv.Atoi(vars["sekolah_id"])
 }
 
-func toKonfigurasiNilaiTahfizResponse(konfig models.KonfigurasiNilaiTahfiz) konfigurasiNilaiTahfizResponse {
+func toKonfigurasiNilaiTahfizResponse(konfig models.KonfigurasiNilaiTahfiz, totalSiswa int64) konfigurasiNilaiTahfizResponse {
 	return konfigurasiNilaiTahfizResponse{
 		ID:                    konfig.ID,
 		SekolahID:             konfig.SekolahID,
 		JenisPenilaian:        konfig.JenisPenilaian,
 		Pembagi:               konfig.Pembagi,
+		JuzKelulusan:          konfig.JuzKelulusan,
 		TingkatLevelKelulusan: decodeTingkatLevels(konfig.TingkatLevelKelulusan),
 		KriteriaPenilaian:     models.DecodeKriteria(konfig.KriteriaPenilaian),
 		Aktif:                 konfig.Aktif,
+		TotalSiswaKelulusan:   totalSiswa,
 	}
 }
 

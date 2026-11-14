@@ -161,7 +161,7 @@ func GenerateAcakHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Cari record existing
 		var existing models.PresensiGuru
-		err := tx.Where("guru_id = ? AND tanggal = ?", guru.ID, payload.Tanggal).First(&existing).Error
+		err := tx.Where("guru_id = ? AND (tanggal = ? OR DATE(tanggal) = ?)", guru.ID, payload.Tanggal, payload.Tanggal).First(&existing).Error
 		
 		if err == nil {
 			// Update
@@ -277,20 +277,15 @@ func GenerateAcakBulanHandler(w http.ResponseWriter, r *http.Request) {
 	summaryUpdated := 0
 	summarySkipped := 0
 
-	for d := firstDay; d.Month() == time.Month(payload.Bulan) && !d.After(lastDay); d = d.AddDate(0, 0, 1) {
+	for d := firstDay; !d.After(lastDay); d = d.AddDate(0, 0, 1) {
 		if payload.SkipSundays && d.Weekday() == time.Sunday {
-			continue
-		}
-		
-		today := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, loc)
-		if d.After(today) {
 			continue
 		}
 
 		tanggalStr := d.Format("2006-01-02")
 
 		var existing models.PresensiGuru
-		err := tx.Where("guru_id = ? AND tanggal = ?", guru.ID, tanggalStr).First(&existing).Error
+		err := tx.Where("guru_id = ? AND (tanggal = ? OR DATE(tanggal) = ?)", guru.ID, tanggalStr, tanggalStr).First(&existing).Error
 		
 		if err == nil && !payload.OverwriteExisting {
 			summarySkipped++
